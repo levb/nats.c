@@ -33,7 +33,7 @@ jobs:
         }
         Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PROTOBUF_HOME"
         Write-Output "Contents of the unzipped directory:"
-        Get-ChildItem -Path $PROTOBUF_HOME" -Recurse | ForEach-Object {
+        Get-ChildItem -Path "$PROTOBUF_HOME" -Recurse | ForEach-Object {
           Write-Output $_.FullName
         }
         # Set-Location -Path "$PWD\build-cmake"
