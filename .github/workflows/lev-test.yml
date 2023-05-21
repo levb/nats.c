@@ -27,7 +27,8 @@ jobs:
         $url = "https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/$releaseName"
         Invoke-WebRequest -Uri $url -OutFile "$PWD\$releaseName"
         $env:PROTOBUF_HOME = "$PWD\protobuf"
-        Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$env:PROTOBUF_HOME"        
+        Expand-Archive -Path "$PWD\$releaseName" 
+        #-DestinationPath "$env:PROTOBUF_HOME"        
         Set-Location -Path "$PWD\protobuf"
         # Print the contents of the unzipped directory
         Write-Output "Contents of the unzipped directory:"
