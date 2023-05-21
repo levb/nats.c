@@ -29,7 +29,7 @@ jobs:
         $env:PROTOBUF_HOME = "$PWD\protobuf"
         Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$env:PROTOBUF_HOME"
         
-        Set-Location -Path "$PWD\protobuf\cmake-build"
+        Set-Location -Path "$PWD\protobuf\build-cmake"
         cmake -G "NMake Makefiles"
         nmake
                 
