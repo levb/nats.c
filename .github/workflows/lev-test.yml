@@ -33,7 +33,7 @@ jobs:
           Write-Output $_.FullName
         }
         Set-Location -Path "$PROTOBUF_HOME\protobuf-c-1.4.1\build-cmake"
-        cmake -G "NMake Makefiles" -S ..
+        cmake -G "NMake Makefiles" -B .
         nmake install
         $env:NATS_PROTOBUF_DIR = "$PROTOBUF_HOME"
         Write-Output "==================== -$env:PROTOBUF_HOME- $PROTOBUF_HOME"
