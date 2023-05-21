@@ -28,7 +28,7 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile "$PWD\$releaseName"
         Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PWD\protobuf"
         $env:PROTOBUF_HOME = "$PWD\protobuf"
-        Write-Output "==================== $PROTOBUF_HOME $(PROTOBUF_HOME)"
+        Write-Output "==================== $PROTOBUF_HOME"
    
       
       
