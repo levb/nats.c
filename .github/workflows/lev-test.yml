@@ -26,12 +26,16 @@ jobs:
         $releaseName = "protoc-3.17.3-win32.zip" 
         $url = "https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/$releaseName"
         Invoke-WebRequest -Uri $url -OutFile "$PWD\$releaseName"
-        Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PWD\protobuf"
-        Write-Output "Contents of the unzipped directory:"
-        Get-ChildItem -Path "$PWD\protobuf" -Recurse | ForEach-Object {
-          Write-Output $_.FullName
-        }
         $env:PROTOBUF_HOME = "$PWD\protobuf"
+        Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$env:PROTOBUF_HOME"
+        
+        # Change into the protobuf directory
+        Set-Location -Path "$env:PROTOBUF_HOME"\cmake-build
+
+        # Configure and build protobuf using cmake
+        cmake -G "NMake Makefiles"
+        nmake
+                
         $env:NATS_PROTOBUF_DIR = "$PWD\protobuf"
         Write-Output "==================== $env:PROTOBUF_HOME"
    
