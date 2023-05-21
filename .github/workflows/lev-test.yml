@@ -22,7 +22,7 @@ jobs:
       # Download and extract the protobuf binaries
       # See
       # run: wget https://github.com/protocolbuffers/protobuf/releases/download/latest/protoc-23.1-win32.zip
-      run: (new-object System.Net.WebClient).DownloadFile('https://github.com/protocolbuffers/protobuf/releases/download/v23.1/protoc-23.1-win32.zip')
+      run: (new-object System.Net.WebClient).DownloadFile('https://github.com/protocolbuffers/protobuf/releases/download/v23.1/protoc-23.1-win32.zip', 'protoc-23.1-win32.zip')
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
