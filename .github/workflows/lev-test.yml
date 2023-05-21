@@ -26,16 +26,16 @@ jobs:
         $releaseName = "v1.4.1.zip" 
         $url = "https://github.com/protobuf-c/protobuf-c/archive/refs/tags/v1.4.1.zip"
         Invoke-WebRequest -Uri $url -OutFile $PWD\$releaseName
-        Expand-Archive -Path "$PWD\$releaseName"
-        $PROTOBUF_HOME = "$PWD\protobuf-c-1.4.1"
+        $PROTOBUF_HOME = "$PWD\protobuf-c"
+        Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PROTOBUF_HOME"
         Write-Output "Contents of the unzipped directory:"
         Get-ChildItem -Path "$PROTOBUF_HOME" -Recurse | ForEach-Object {
           Write-Output $_.FullName
         }
-        # Set-Location -Path "$PROTOBUF_HOME\build-cmake"
-        # cmake -G "NMake Makefiles"
-        # nmake                
-        # $env:NATS_PROTOBUF_DIR = "$PROTOBUF_HOME"
+        Set-Location -Path "$PROTOBUF_HOME\protobuf-c-1.4.1\build-cmake"
+        cmake -G "NMake Makefiles"
+        nmake install
+        $env:NATS_PROTOBUF_DIR = "$PROTOBUF_HOME"
         Write-Output "==================== -$env:PROTOBUF_HOME- $PROTOBUF_HOME"
    
     - name: Configure CMake
