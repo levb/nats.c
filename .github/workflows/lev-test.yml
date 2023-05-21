@@ -34,10 +34,10 @@ jobs:
         Get-ChildItem -Path "$PWD\protobuf" -Recurse | ForEach-Object {
           Write-Output $_.FullName
         }
-        Set-Location -Path "$PWD\build-cmake"
-        cmake -G "NMake Makefiles"
-        nmake                
-        $env:NATS_PROTOBUF_DIR = "$PWD\protobuf"
+        # Set-Location -Path "$PWD\build-cmake"
+        # cmake -G "NMake Makefiles"
+        # nmake                
+        # $env:NATS_PROTOBUF_DIR = "$PWD\protobuf"
         Write-Output "==================== $env:PROTOBUF_HOME"
    
     - name: Configure CMake
