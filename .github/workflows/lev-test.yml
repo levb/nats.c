@@ -16,7 +16,7 @@ jobs:
     runs-on: windows-2019
 
     steps:
-    # - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
     - name: Download protobuf
       # Download and extract the protobuf binaries
@@ -28,15 +28,9 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile "$PWD\$releaseName"
         Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PWD\protobuf"
         $env:PROTOBUF_HOME = "$PWD\protobuf"
-        Write-Output "==================== $PROTOBUF_HOME"
+        $env:NATS_PROTOBUF_DIR = "$PWD\protobuf"
+        Write-Output "==================== $env:PROTOBUF_HOME"
    
-      
-      
-      # run: |
-      #   (new-object System.Net.WebClient).DownloadFile('https://github.com/protocolbuffers/protobuf/releases/download/v23.1/protoc-23.1-win32.zip', 'protoc-23.1-win32.zip')
-      #   Get-Location
-      #   dir
-
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
