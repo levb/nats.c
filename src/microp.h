@@ -31,10 +31,6 @@
 
 #define MICRO_DEFAULT_ENDPOINT_NAME "default"
 
-// 4 verbs: INFO, STATS, PING, SCHEMA;
-// 3 subjects for each verb.
-#define MICRO_MONITORING_SUBS_CAP (4 * 3)
-
 struct micro_error_s
 {
     bool is_internal;
@@ -112,13 +108,6 @@ struct micro_service_s
 
     struct micro_endpoint_s *first_ep;
     int num_eps;
-
-    natsConnectionHandler prev_on_connection_closed;
-    void *prev_on_connection_closed_closure;
-    natsConnectionHandler prev_on_connection_disconnected;
-    void *prev_on_connection_disconnected_closure;
-    natsErrHandler prev_on_error;
-    void *prev_on_error_closure;
 
     int64_t started; // UTC time expressed as number of nanoseconds since epoch.
     bool is_running;
