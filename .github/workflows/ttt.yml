@@ -6,8 +6,10 @@ jobs:
   build:
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
+
     strategy:
       fail-fast: false
+
       matrix:
         config:
         - {
@@ -21,3 +23,12 @@ jobs:
             os: windows-latest,
             build_type: "Release", cc: "gcc", cxx: "g++"
           }
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: cmake -B ${{github.workspace}}/lev -S ${{github.workspace}}/lev
+
