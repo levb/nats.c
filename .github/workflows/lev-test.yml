@@ -23,7 +23,7 @@ jobs:
         $releaseName = "v1.4.1.zip" 
         $url = "https://github.com/protobuf-c/protobuf-c/archive/refs/tags/v1.4.1.zip"
         Invoke-WebRequest -Uri $url -OutFile $PWD\$releaseName
-        # $PROTOBUF_HOME = "$PWD\protobuf-c"
+        $PROTOBUF_HOME = "$PWD\protobuf-c"
         Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PROTOBUF_HOME"
 
     - name: Installl protobuf
