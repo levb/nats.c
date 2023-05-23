@@ -21,7 +21,6 @@ jobs:
     - name: Download protobuf
       # Download and extract the protobuf binaries
       # See
-      # run: wget https://github.com/protocolbuffers/protobuf/releases/download/latest/protoc-23.1-win32.zip
       run: |
         $releaseName = "v1.4.1.zip" 
         $url = "https://github.com/protobuf-c/protobuf-c/archive/refs/tags/v1.4.1.zip"
@@ -29,10 +28,8 @@ jobs:
         $PROTOBUF_HOME = "$PWD\protobuf-c"
         Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PROTOBUF_HOME"
         Write-Output "Contents of the unzipped directory:"
-        Get-ChildItem -Path "$PROTOBUF_HOME" -Recurse | ForEach-Object {
-          Write-Output $_.FullName
-        }
         Set-Location -Path "$PROTOBUF_HOME\protobuf-c-1.4.1\build-cmake"
+        $env:Path = "C:\msys64\mingw32\bin;$env:Path"
         cmake -G "NMake Makefiles" -B .
         nmake install
         $env:NATS_PROTOBUF_DIR = "$PROTOBUF_HOME"
