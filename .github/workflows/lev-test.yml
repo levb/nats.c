@@ -23,15 +23,18 @@ jobs:
         $releaseName = "v1.4.1.zip" 
         $url = "https://github.com/protobuf-c/protobuf-c/archive/refs/tags/v1.4.1.zip"
         Invoke-WebRequest -Uri $url -OutFile $PWD\$releaseName
-        $PROTOBUF_HOME = "$PWD\protobuf-c"
+        # $PROTOBUF_HOME = "$PWD\protobuf-c"
         Expand-Archive -Path "$PWD\$releaseName" -DestinationPath "$PROTOBUF_HOME"
-        Write-Output "Contents of the unzipped directory:"
-        Set-Location -Path "$PROTOBUF_HOME\protobuf-c-1.4.1\build-cmake"
-        $env:Path = "C:\msys64\mingw32\bin;$env:Path"
-        cmake -G "NMake Makefiles" -B . -S ..
+
+    - name: Installl protobuf
+      shell: cmd
+      run: |
+        mkdir build
+        copy build-cmake\CMakeLists.txt .
+        cd build        
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        cmake -G "NMake Makefiles" ..
         nmake install
-        $env:NATS_PROTOBUF_DIR = "$PROTOBUF_HOME"
-        Write-Output "==================== -$env:PROTOBUF_HOME- $PROTOBUF_HOME"
    
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
