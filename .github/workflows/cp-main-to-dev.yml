@@ -1,11 +1,11 @@
-name: main to dev cherry-picker
+name: test1 to test2 cherry-picker
 
 on:
   pull_request:
     types:
       - closed
     branches:
-      - main
+      - test1
 
 permissions:
   contents: write # so it can comment
@@ -18,5 +18,5 @@ jobs:
     if: github.event.pull_request.merged == true
     steps:
       - uses: actions/checkout@v3
-      - name: Backport to dev
+      - name: Backport to test2
         uses: korthout/backport-action@v1.3.1
