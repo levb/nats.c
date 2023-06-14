@@ -1,0 +1,22 @@
+name: main to dev cherry-picker
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: write # so it can comment
+  pull-requests: write # so it can create pull requests
+
+jobs:
+  backport-dev:
+    name: Backport merged pull requests to selected branches
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - uses: actions/checkout@v3
+      - name: Backport to dev
+        uses: korthout/backport-action@v1.3.1
