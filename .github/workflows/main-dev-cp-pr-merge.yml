@@ -1,10 +1,10 @@
 name: main to test2 cherry-picker COMMENT
 
 on:
-  issue_comment:
-    types: [created]
-    # branches:
-    #   - test1
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 permissions:
   contents: write # so it can comment
@@ -14,8 +14,11 @@ jobs:
   cherry-pick:
     name: Cherry-pick COMMENT
     runs-on: ubuntu-latest
-    # if: github.event.pull_request.merged == true && startsWith(github.event.comment.body, '/cherry-pick')
+    if: |
+      github.event.pull_request.merged == true 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: run hack cherry-pick
         run: | 
           pwd

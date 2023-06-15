@@ -1,0 +1,27 @@
+name: main to test2 cherry-picker COMMENT
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write # so it can comment
+  pull-requests: write # so it can create pull requests
+
+jobs:
+  cherry-pick:
+    name: Cherry-pick COMMENT
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.merged == true && 
+      github.event.pull_request.target_branch == 'main' &&
+      startsWith(github.event.comment.body, '/cherry-pick')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: run hack cherry-pick
+        run: | 
+          pwd
+          export
+          echo "./.github/hack/cherry-pick.sh test2 github.event.pull_request.id ${GITHUB_REF}""
+          ./.github/hack/cherry-pick.sh test2 github.event.pull_request.id ${GITHUB_REF}
