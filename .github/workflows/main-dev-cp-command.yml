@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
       # github.event.issue.pull_request && 
     if: |
-      github.event.issue.pull_request.merged_at != "" && 
+      github.event.issue.pull_request.merged_at && 
       startsWith(github.event.comment.body, '/cherry-pick')
     steps:
       - name: Checkout
