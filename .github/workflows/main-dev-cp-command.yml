@@ -23,7 +23,7 @@ jobs:
           pwd
           # export
           echo "github.event.comment.body: ${{github.event.comment.body}}"
-          echo "github.base_ref: ${{github.base_ref}}"
+          echo "github.issue: ${{github.issue}}"
           echo "github.base_ref_name: ${{github.base_ref_name}}"
           echo "github.head_ref: ${{github.head_ref}}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
