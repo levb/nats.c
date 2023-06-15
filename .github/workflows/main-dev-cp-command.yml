@@ -12,9 +12,9 @@ jobs:
   cherry-pick:
     name: Cherry-pick COMMENT
     runs-on: ubuntu-latest
-    if: |
       # github.event.issue.pull_request && 
       # github.event.issue.pull_request.merged && 
+    if: |
       startsWith(github.event.comment.body, '/cherry-pick')
     steps:
       - name: Checkout
