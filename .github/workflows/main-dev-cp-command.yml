@@ -12,16 +12,20 @@ jobs:
   cherry-pick:
     name: Cherry-pick COMMENT
     runs-on: ubuntu-latest
-    if: |
-      github.event.pull_request.merged == true && 
-      github.base_ref == 'main' &&
-      startsWith(github.event.comment.body, '/cherry-pick')
+    # if: |
+      # github.event.pull_request.merged == true && 
+      # github.base_ref == 'main' &&
+      # startsWith(github.event.comment.body, '/cherry-pick')
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: run hack cherry-pick
         run: | 
+          set -x
           pwd
           export
+          echo "github.event.comment.body: '${github.event.comment.body}'"
+          echo "github.base_ref: '${github.base_ref}'"
+          echo "GITHUB_REF: '${GITHUB_REF}'"
           echo "./.github/hack/cherry-pick.sh test2 github.event.pull_request.id ${GITHUB_REF}""
           ./.github/hack/cherry-pick.sh test2 github.event.pull_request.id ${GITHUB_REF}
