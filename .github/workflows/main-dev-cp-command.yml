@@ -37,4 +37,4 @@ jobs:
           # echo "==> github.event.issue.pull_request: ${{github.event.issue.pull_request}}"
           # echo "==> github.event.issue.pull_request.merged: ${{github.event.issue.pull_request.merged_at}}"
           git remote -v
-          ./.github/hack/cherry-pick.sh test2 ${{github.event.issue.number}} ${{github.sha}}
+          UPSTREAM_REMOTE=origin ./.github/hack/cherry-pick.sh test2 ${{github.event.issue.number}} ${{github.sha}}
