@@ -23,9 +23,9 @@ jobs:
         run: | 
           set -x
           pwd
-          export
+          # export
           echo "github.event.comment.body: '${github.event.comment.body}'"
           echo "github.base_ref: '${github.base_ref}'"
-          echo "GITHUB_REF: '${GITHUB_REF}'"
+          echo "GITHUB_SHA: '${GITHUB_SHA}'"
           echo "./.github/hack/cherry-pick.sh test2 github.event.pull_request.id ${GITHUB_REF}""
-          ./.github/hack/cherry-pick.sh test2 github.event.pull_request.id ${GITHUB_REF}
+          # ./.github/hack/cherry-pick.sh test2 github.event.pull_request.id ${GITHUB_SHA}
