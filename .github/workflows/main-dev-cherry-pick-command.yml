@@ -3,8 +3,8 @@ name: test1 to test2 cherry-picker
 on:
   issue_comment:
     types: [created]
-    branches:
-      - test1
+    # branches:
+    #   - test1
 
 permissions:
   contents: write # so it can comment
@@ -14,7 +14,7 @@ jobs:
   cherry-pick:
     name: Cherry-pick
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true && startsWith(github.event.comment.body, '/cherry-pick')
+    # if: github.event.pull_request.merged == true && startsWith(github.event.comment.body, '/cherry-pick')
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -22,4 +22,4 @@ jobs:
         run: |
           pwd
           echo "<>/<> !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-          ./.github/hack/cherry-pick.sh testing123
+          # ./.github/hack/cherry-pick.sh testing123
