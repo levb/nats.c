@@ -1,0 +1,22 @@
+name: Cherry-pick merged PRs from main to test2 
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write # so it can comment
+  pull-requests: write # so it can create pull requests
+
+jobs:
+  cherry-pick:
+    name: Cherry-pick merged PRs from main to test2 
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && startsWith(github.event.comment.body, '/cherry-pick')
+    steps:
+      - name: run hack cherry-pick
+        run: | 
+          pwd
+          export
+          ./.github/hack/cherry-pick.sh testing123
