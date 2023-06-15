@@ -19,6 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: run hack cherry-pick
-        run: pwd
-          # echo "<>/<> !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-          # ./.github/hack/cherry-pick.sh testing123
+        run: | 
+          pwd
+          export
+          ./.github/hack/cherry-pick.sh testing123
