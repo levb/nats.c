@@ -1,9 +1,9 @@
-name: test1 to test2 cherry-picker (PR merged)
+name: Cherry-pick merged PRs from main to test2 
 
 on:
   pull_request:
     types: [closed]
-    branches: [test1]
+    branches: [main]
 
 permissions:
   contents: write # so it can comment
@@ -11,12 +11,10 @@ permissions:
 
 jobs:
   cherry-pick:
-    name: Cherry-pick PR closed
+    name: Cherry-pick merged PRs from main to test2 
     runs-on: ubuntu-latest
-    # if: github.event.pull_request.merged == true && startsWith(github.event.comment.body, '/cherry-pick')
+    if: github.event.pull_request.merged == true && startsWith(github.event.comment.body, '/cherry-pick')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
       - name: run hack cherry-pick
         run: | 
           pwd
