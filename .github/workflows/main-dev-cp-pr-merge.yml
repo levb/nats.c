@@ -1,26 +1,24 @@
-name: main to test2 cherry-picker COMMENT
-
+name: Backport
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
-
-permissions:
-  contents: write # so it can comment
-  pull-requests: write # so it can create pull requests
+  pull_request_target:
+    types:
+      - closed
+      - labeled
 
 jobs:
-  cherry-pick:
-    name: Cherry-pick COMMENT
+  backport:
+    name: Backport
     runs-on: ubuntu-latest
-    if: |
-      github.event.pull_request.merged == true 
+    if: >
+      github.event.pull_request.merged
+      && (
+        github.event.action == 'closed'
+        || (
+          github.event.action == 'labeled'
+          && contains(github.event.label.name, 'backport')
+        )
+      )
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: run hack cherry-pick
-        run: | 
-          pwd
-          export
-          ./.github/hack/cherry-pick.sh testing123
+      - uses: tibdex/backport@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
