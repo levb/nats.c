@@ -5,6 +5,11 @@ on:
       - closed
       - labeled
 
+permissions:
+  contents: write # so it can comment
+  pull-requests: write # so it can create pull requests
+
+
 jobs:
   backport:
     name: Backport
@@ -15,10 +20,10 @@ jobs:
         github.event.action == 'closed'
         || (
           github.event.action == 'labeled'
-          && contains(github.event.label.name, 'backport')
+          && startsWith(github.event.label.name, 'backport ')
         )
       )
     steps:
-      - uses: tibdex/backport@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: test
+        run:
+          export
