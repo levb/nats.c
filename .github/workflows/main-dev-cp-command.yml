@@ -18,7 +18,7 @@ jobs:
       startsWith(github.event.comment.body, '/cherry-pick')
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_USER: nats-io
+      GITHUB_USER: levb
       UPSTREAM_REMOTE: origin
     steps:
       - name: Checkout
