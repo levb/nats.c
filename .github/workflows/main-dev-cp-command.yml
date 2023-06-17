@@ -10,12 +10,16 @@ permissions:
 
 jobs:
   cherry-pick:
-    name: Cherry-pick COMMENT
+    name: Cherry-pick `main` to `dev`
     runs-on: ubuntu-latest
     if: |
       github.event.issue.pull_request && 
       github.event.issue.pull_request.merged_at && 
       startsWith(github.event.comment.body, '/cherry-pick')
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USER: nats-io
+      UPSTREAM_REMOTE: origin
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -36,5 +40,5 @@ jobs:
           # echo "GITHUB_SHA: ${GITHUB_SHA}"
           # echo "==> github.event.issue.pull_request: ${{github.event.issue.pull_request}}"
           # echo "==> github.event.issue.pull_request.merged: ${{github.event.issue.pull_request.merged_at}}"
-          git remote -v
-          UPSTREAM_REMOTE=origin ./.github/hack/cherry-pick.sh test2 ${{github.event.issue.number}} ${{github.sha}}
+          # git remote -v
+          ./.github/hack/cherry-pick.sh test2 ${{github.event.issue.number}} ${{github.sha}}
