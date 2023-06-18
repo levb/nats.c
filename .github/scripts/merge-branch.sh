@@ -3,13 +3,15 @@
 set -o errexit
 set -o nounset
 set -o pipefail
+set +x
 
-declare -r FROM_BRANCH="main"
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
 declare -r MERGE_COMMIT_SHA="$3"
 
 GITHUB_ORG="${GITHUB_ORG:-levb}"
+FROM_BRANCH="${FROM_BRANCH:-main}"
+
 git config user.name "${GITHUB_ACTOR}"
 git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
