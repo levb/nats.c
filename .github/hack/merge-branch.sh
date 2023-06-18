@@ -33,12 +33,12 @@ set -x
 
 GITHUB_ORG="${GITHUB_ORG:-nats-io}"
 
-pwd # <>/<>
-export
-
-echo '<>/<>--------------------'
-cat ${GITHUB_EVENT_PATH}
-echo '<>/<>--------------------'
+# <>/<>
+# pwd 
+# export
+# echo '<>/<>--------------------'
+# cat ${GITHUB_EVENT_PATH}
+# echo '<>/<>--------------------'
 
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
