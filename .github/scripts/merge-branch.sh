@@ -3,7 +3,6 @@
 set -o errexit
 set -o nounset
 set -o pipefail
-set -x
 
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
