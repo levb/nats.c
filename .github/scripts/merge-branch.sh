@@ -3,13 +3,12 @@
 set -o errexit
 set -o nounset
 set -o pipefail
+set -x
 
-declare -r FROM_BRANCH={$FROM_BRANCH:-main}
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
 declare -r MERGE_COMMIT_SHA="$3"
 
-GITHUB_ORG="${GITHUB_ORG:-levb}"
 git config user.name "${GITHUB_ACTOR}"
 git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
@@ -26,7 +25,6 @@ set -o errexit
 if [[ -z $(git status --porcelain) ]]; then
   echo "+++ Merged cleanly, push to GitHub."
   git push origin "${BRANCH}"
-
   gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} was clean :tada:. Please check the build status."
   exit 0
 fi
@@ -36,10 +34,11 @@ git merge --abort
 git checkout "${NEW_BRANCH}"
 git push origin "${NEW_BRANCH}"
 
-gh pr create \
+fix_pr_url=$(gh pr create \
   --title "Failed automated merge of #${PR_NUMBER}." \
   --body "Failed automated merge to ${BRANCH} triggered by #${PR_NUMBER}. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)" \
-  --head "${GITHUB_ORG}:${NEW_BRANCH}" \
-  --base "${GITHUB_ORG}:${BRANCH}" \
+  --head "${NEW_BRANCH}" \
+  --base "${BRANCH}")
+fix_pr_number=$(basename "${fix_pr_url}")
 
-gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} was clean :tada:. Please check the build status."
+gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} failed. Fix PR ${fix_pr_url} filed."
