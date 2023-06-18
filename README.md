@@ -1,6 +1,6 @@
-<>/<> remove me AA
+<>/<> remove me BB
 
-<>/<> added AA
+<>/<> added BB
 
 # NATS & NATS Streaming - C Client
 A C client for the [NATS messaging system](https://nats.io).
