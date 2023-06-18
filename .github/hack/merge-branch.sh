@@ -74,7 +74,7 @@ prtext="$(mktemp -t prtext.XXXX)"
 cat >"${prtext}" <<EOF
 Failed merge: #${PR_NUMBER}
 
-Automated merge to `${BRANCH}` triggered by #${PR_NUMBER} failed. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)
+Automated merge to ${BRANCH} triggered by #${PR_NUMBER} failed. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)
 
 EOF
 
