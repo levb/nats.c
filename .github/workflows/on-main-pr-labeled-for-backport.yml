@@ -1,0 +1,23 @@
+name: main PR labeled for backport to dev
+on:
+  pull_request_target:
+    types:
+      - labeled
+    branches:
+      - main
+
+permissions:
+  contents: write # so it can comment
+  pull-requests: write # so it can create pull requests
+
+jobs:
+  backport:
+    if: >
+      github.event.pull_request.merged 
+      && github.event.action == 'labeled' 
+      && github.event.label.name =='backport-to-dev'
+    uses: ./.github/workflows/do-merge-main.yml
+    with:
+      branch: test2
+      pr_number: ${{github.event.pull_request.number}}
+      commit_sha: ${{github.event.pull_request.merge_commit_sha}}
