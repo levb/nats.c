@@ -62,9 +62,10 @@ if [[ -z $(git status --porcelain) ]]; then
   exit 0
 fi
 
+echo "+++ Merge failed, create a PR"
 git merge --abort
 git checkout "${NEW_BRANCH}"
-echo "+++ Merge failed, create a PR"
+git push origin "${NEW_BRANCH}"
 
 # This looks like an unnecessary use of a tmpfile, but it avoids
 # https://github.com/github/hub/issues/976 Otherwise stdin is stolen
@@ -79,5 +80,3 @@ Automated merge to ${BRANCH} triggered by #${PR_NUMBER} failed. Please resolve t
 EOF
 
 hub pull-request -F "${prtext}" -h "${GITHUB_ORG}:${NEW_BRANCH}" -b "${GITHUB_ORG}:${BRANCH}"
-
-exit 0
