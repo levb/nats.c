@@ -3,7 +3,6 @@
 set -o errexit
 set -o nounset
 set -o pipefail
-set -x
 
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
@@ -25,7 +24,7 @@ set -o errexit
 if [[ -z $(git status --porcelain) ]]; then
   echo "+++ Merged cleanly, push to GitHub."
   git push origin "${BRANCH}"
-  gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} was clean :tada:. Please check the build status."
+  gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} was **clean** :tada:. Please check the build status."
   exit 0
 fi
 
@@ -39,6 +38,5 @@ fix_pr_url=$(gh pr create \
   --body "Failed automated merge to ${BRANCH} triggered by #${PR_NUMBER}. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)" \
   --head "${NEW_BRANCH}" \
   --base "${BRANCH}")
-fix_pr_number=$(basename "${fix_pr_url}")
 
-gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} failed. Fix PR ${fix_pr_url} filed."
+gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} **failed** :x:. Fix PR ${fix_pr_url} filed."
