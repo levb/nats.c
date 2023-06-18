@@ -46,14 +46,16 @@ declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
 declare -r COMMIT_SHA="$3"
 
-NEW_BRANCH="failed-automerge-to-${BRANCH}-pr${PR_NUMBER}-$(date +%s)"
+NEW_BRANCH="automerge-to-${BRANCH}-pr${PR_NUMBER}-$(date +%s)"
 declare -r NEW_BRANCH
 echo "+++ Create local branch ${NEW_BRANCH} for PR #${PR_NUMBER} at ${COMMIT_SHA}"
 git checkout -b "${NEW_BRANCH}" "${COMMIT_SHA}"
 
 echo "+++ Try merging ${COMMIT_SHA} onto ${BRANCH}"
 git checkout "${BRANCH}"
+set +o errexit
 git merge --no-ff "${NEW_BRANCH}"
+set -o errexit
 if [[ -z $(git status --porcelain) ]]; then
   echo "+++ Merged cleanly, push to GitHub."
   git push origin "${BRANCH}"
