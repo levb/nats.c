@@ -31,7 +31,7 @@ set -o nounset
 set -o pipefail
 set -x
 
-GITHUB_ORG="${GITHUB_ORG:-nats-io}"
+GITHUB_ORG="${GITHUB_ORG:-levb}"
 git config user.name "${GITHUB_ACTOR}"
 git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
@@ -77,5 +77,7 @@ Failed merge: #${PR_NUMBER}
 Automated merge to ${BRANCH} triggered by #${PR_NUMBER} failed. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)
 
 EOF
+
+hub pull-request -F "${prtext}" -h "${GITHUB_ORG}:${NEWBRANCH}" -b "${GITHUB_ORG}:${BRANCH}"
 
 exit 0
