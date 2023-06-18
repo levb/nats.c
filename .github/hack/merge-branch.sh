@@ -32,10 +32,12 @@ set -o pipefail
 set -x
 
 GITHUB_ORG="${GITHUB_ORG:-nats-io}"
+git config user.name "${GITHUB_ACTOR}"
+git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
 # <>/<>
 # pwd 
-# export
+export
 # echo '<>/<>--------------------'
 # cat ${GITHUB_EVENT_PATH}
 # echo '<>/<>--------------------'
@@ -44,16 +46,10 @@ declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
 declare -r COMMIT_SHA="$3"
 
-git fetch origin
-
 NEW_BRANCH="failed-automerge-to-${BRANCH}-pr${PR_NUMBER}-$(date +%s)"
 declare -r NEW_BRANCH
 echo "+++ Create local branch ${NEW_BRANCH} for PR #${PR_NUMBER} at ${COMMIT_SHA}"
-# git log | grep 'f37bc4b'
-git log --max-count=50
-git checkout "${COMMIT_SHA}"
-git checkout -b "${NEW_BRANCH}"
-# git checkout -b "${NEW_BRANCH}" "${COMMIT_SHA}"
+git checkout -b "${NEW_BRANCH}" "${COMMIT_SHA}"
 
 echo "+++ Try merging ${COMMIT_SHA} onto ${BRANCH}"
 git checkout "${BRANCH}"
