@@ -1,6 +1,6 @@
-<>/<> remove me DD
+<>/<> remove me EE
 
-<>/<> added DD
+<>/<> added EE
 
 # NATS & NATS Streaming - C Client
 A C client for the [NATS messaging system](https://nats.io).
