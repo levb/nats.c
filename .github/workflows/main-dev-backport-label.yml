@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Merge `main` to `dev`
         run: | 
           ./.github/hack/merge-branch.sh test2 ${{github.event.pull_request.number}} ${{github.event.pull_request.merge_commit_sha}}
