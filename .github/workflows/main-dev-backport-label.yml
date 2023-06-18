@@ -14,6 +14,8 @@ jobs:
   backport:
     name: Backport on label
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
       github.event.pull_request.merged 
       && github.event.action == 'labeled' 
