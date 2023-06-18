@@ -49,7 +49,10 @@ git fetch origin
 NEW_BRANCH="failed-automerge-to-${BRANCH}-pr${PR_NUMBER}-$(date +%s)"
 declare -r NEW_BRANCH
 echo "+++ Create local branch ${NEW_BRANCH} for PR #${PR_NUMBER} at ${COMMIT_SHA}"
-git checkout -b "${NEW_BRANCH}" "${COMMIT_SHA}"
+git checkout main
+git checkout "${COMMIT_SHA}"
+git checkout -b "${NEW_BRANCH}"
+# git checkout -b "${NEW_BRANCH}" "${COMMIT_SHA}"
 
 echo "+++ Try merging ${COMMIT_SHA} onto ${BRANCH}"
 git checkout "${BRANCH}"
