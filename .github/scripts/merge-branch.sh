@@ -4,7 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-declare -r FROM_BRANCH={$FROM_BRANCH:-main}
+declare -r FROM_BRANCH="main"
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
 declare -r MERGE_COMMIT_SHA="$3"
@@ -40,6 +40,6 @@ gh pr create \
   --title "Failed automated merge of #${PR_NUMBER}." \
   --body "Failed automated merge to ${BRANCH} triggered by #${PR_NUMBER}. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)" \
   --head "${GITHUB_ORG}:${NEW_BRANCH}" \
-  --base "${GITHUB_ORG}:${BRANCH}" \
+  --base "${GITHUB_ORG}:${BRANCH}"
 
 gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} was clean :tada:. Please check the build status."
