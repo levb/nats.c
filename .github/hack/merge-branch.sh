@@ -37,6 +37,8 @@ pwd # <>/<>
 export
 
 echo '<>/<>--------------------'
+cat ${GITHUB_EVENT_PATH}
+echo '<>/<>--------------------'
 
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
