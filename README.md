@@ -1,6 +1,6 @@
-<>/<> remove me GG
+<>/<> remove me HH
 
-<>/<> added GG
+<>/<> added HH
 
 # NATS & NATS Streaming - C Client
 A C client for the [NATS messaging system](https://nats.io).
