@@ -4,6 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+declare -r FROM_BRANCH={$FROM_BRANCH:-main}
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
 declare -r MERGE_COMMIT_SHA="$3"
@@ -25,24 +26,20 @@ set -o errexit
 if [[ -z $(git status --porcelain) ]]; then
   echo "+++ Merged cleanly, push to GitHub."
   git push origin "${BRANCH}"
+
+  gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} was clean :tada:. Please check the build status."
   exit 0
 fi
 
-echo "+++ Merge failed, create a PR"
+echo "+++ Merge failed, create a PR to resolve."
 git merge --abort
 git checkout "${NEW_BRANCH}"
 git push origin "${NEW_BRANCH}"
 
-# This looks like an unnecessary use of a tmpfile, but it avoids
-# https://github.com/github/hub/issues/976 Otherwise stdin is stolen
-# when we shove the heredoc at hub directly, tickling the ioctl
-# crash.
-prtext="$(mktemp -t prtext.XXXX)" 
-cat >"${prtext}" <<EOF
-Failed to merge #${PR_NUMBER} to ${BRANCH}
+gh pr create \
+  --title "Failed automated merge of #${PR_NUMBER}." \
+  --body "Failed automated merge to ${BRANCH} triggered by #${PR_NUMBER}. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)" \
+  --head "${GITHUB_ORG}:${NEW_BRANCH}" \
+  --base "${GITHUB_ORG}:${BRANCH}" \
 
-Automated merge to ${BRANCH} triggered by #${PR_NUMBER} failed. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)
-
-EOF
-
-hub pull-request -F "${prtext}" -h "${GITHUB_ORG}:${NEW_BRANCH}" -b "${GITHUB_ORG}:${BRANCH}"
+gh pr comment "${PR_NUMBER}" --body "Automated merge to ${BRANCH} was clean :tada:. Please check the build status."
