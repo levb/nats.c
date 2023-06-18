@@ -78,6 +78,6 @@ Automated merge to ${BRANCH} triggered by #${PR_NUMBER} failed. Please resolve t
 
 EOF
 
-hub pull-request -F "${prtext}" -h "${GITHUB_ORG}:${NEWBRANCH}" -b "${GITHUB_ORG}:${BRANCH}"
+hub pull-request -F "${prtext}" -h "${GITHUB_ORG}:${NEW_BRANCH}" -b "${GITHUB_ORG}:${BRANCH}"
 
 exit 0
