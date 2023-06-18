@@ -53,7 +53,7 @@ git checkout -b "${NEW_BRANCH}" "${COMMIT_SHA}"
 
 echo "+++ Try merging ${COMMIT_SHA} onto ${BRANCH}"
 git checkout "${BRANCH}"
-git merge --no-ff "${NEWBRANCH}"
+git merge --no-ff "${NEW_BRANCH}"
 if [[ -z $(git status --porcelain) ]]; then
   echo "+++ Merged cleanly, push to GitHub."
   git push origin "${BRANCH}"
@@ -61,7 +61,7 @@ if [[ -z $(git status --porcelain) ]]; then
 fi
 
 git merge --abort
-git checkout "${NEWBRANCH}"
+git checkout "${NEW_BRANCH}"
 echo "+++ Merge failed, create a PR"
 
 # This looks like an unnecessary use of a tmpfile, but it avoids
@@ -72,7 +72,7 @@ prtext="$(mktemp -t prtext.XXXX)"
 cat >"${prtext}" <<EOF
 Failed merge: #${PR_NUMBER}
 
-Automated merge to `${BRANCH}` triggered by #${PULL} failed. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)
+Automated merge to `${BRANCH}` triggered by #${PR_NUMBER} failed. Please resolve the conflicts and push manually, see [C Release Instructions](https://github.com/nats-io/nats-internal/blob/master/release-instructions/C.md)
 
 EOF
 
