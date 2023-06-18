@@ -34,9 +34,9 @@ set -x
 GITHUB_ORG="${GITHUB_ORG:-nats-io}"
 
 pwd # <>/<>
-# REPO_ROOT="$(git rev-parse --show-toplevel)"
-# declare -r REPO_ROOT
-# cd "${REPO_ROOT}"
+export
+
+echo '<>/<>--------------------'
 
 declare -r BRANCH="$1"
 declare -r PR_NUMBER="$2"
