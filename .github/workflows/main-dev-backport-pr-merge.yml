@@ -17,10 +17,12 @@ jobs:
     if: >
       github.event.pull_request.merged
       && github.event.action == 'closed'
-      && contains(github.event.issue.labels, 'backport-to-dev')
+      # && contains(github.event.issue.labels, 'backport-to-dev')
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Merge `main` to `dev`
+        with:
+          fetch-depth: 0
+      - name: Merge
         run: | 
-          ./.github/hack/merge-branch.sh test2 ${{github.event.issue.number}} ${{github.sha}}
+          ./.github/hack/merge-branch.sh test2 ${{github.event.pull_request.number}} ${{github.event.pull_request.merge_commit_sha}}
