@@ -58,6 +58,12 @@ jobs:
       - name: Checkout nats.c
         uses: actions/checkout@v3
 
+      - name: "Checkout dependencies (nats.c.deps)"
+        uses: actions/checkout@v3
+        with:
+          repository: nats-io/nats.c.deps
+          path: build/deps
+
       # configure the unique build artifact name
       - id: configure-artifact
         name: Configure unique build artifact name
@@ -89,6 +95,7 @@ jobs:
           fi
           flags="$flags -DNATS_BUILD_STREAMING=${{ inputs.streaming }}"
           flags="$flags -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}"
+          flags="$flags -DNATS_PROTOBUF_DIR=$(pwd)/build/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$(pwd)/build/deps/sodium
           echo "flags=$flags" >> $GITHUB_OUTPUT
 
       - id: nats-vars
@@ -165,12 +172,6 @@ jobs:
           path: build.tar.gz
 
       # testing
-
-      - name: "Checkout test dependencies (nats.c.deps)"
-        uses: actions/checkout@v3
-        with:
-          repository: nats-io/nats.c.deps
-          path: build/deps
 
       - name: "Download nats-server version ${{ inputs.server_version }}"
         if: inputs.quick_test != 'ON' && !inputs.server_version
