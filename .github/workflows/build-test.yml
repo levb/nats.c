@@ -62,7 +62,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: nats-io/nats.c.deps
-          path: build/deps
+          path: deps
 
       # configure the unique build artifact name
       - id: configure-artifact
@@ -95,7 +95,7 @@ jobs:
           fi
           flags="$flags -DNATS_BUILD_STREAMING=${{ inputs.streaming }}"
           flags="$flags -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}"
-          flags="$flags -DNATS_PROTOBUF_DIR=$(pwd)/build/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$(pwd)/build/deps/sodium"
+          flags="$flags -DNATS_PROTOBUF_DIR=$HOME/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$HOME/deps/sodium"
           echo "flags=$flags" >> $GITHUB_OUTPUT
 
       - id: nats-vars
@@ -162,7 +162,7 @@ jobs:
       - name: Archive build artifact
         if: steps.download-prior-build.outcome != 'success'
         run: |
-          tar -czvf build.tar.gz build
+          tar -czf build.tar.gz build
 
       - name: Upload build artifact
         if: steps.download-prior-build.outcome != 'success'
@@ -185,10 +185,10 @@ jobs:
           wget https://github.com/nats-io/nats-server/releases/download/${rel}/nats-server-${rel}-linux-amd64.tar.gz
           if [[ $? == 0 ]]; then
             tar -xzf nats-server-${rel}-linux-amd64.tar.gz
-            cp nats-server-${rel}-linux-amd64/nats-server ../deps/nats-server
+            cp nats-server-${rel}-linux-amd64/nats-server $HOME/deps/nats-server
           else
             curl -sf 'https://binaries.nats.dev/nats-io/nats-server/v2?os=linux&arch=amd64&version=${{ inputs.server_version }}'' | PREFIX=. sh
-            mv ./nats-server ./deps/nats-server
+            mv ./nats-server $HOME/deps/nats-server
           fi
 
       - name: "Install coverage"
@@ -199,7 +199,7 @@ jobs:
       - name: "Test"
         working-directory: ./build
         run: |
-          export PATH=$(pwd)/deps/nats-server:$(pwd)/deps/nats-streaming-server:$PATH
+          export PATH=$HOME/deps/nats-server:$HOME/deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           if [[ "${{ inputs.quick_test }}" == "ON" ]]; then
             ctest --timeout 60 --output-on-failure -I 1,1

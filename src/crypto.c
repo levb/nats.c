@@ -16,6 +16,7 @@
 #ifdef NATS_USE_LIBSODIUM
 #include <sodium.h>
 
+#error SODIUM!
 natsStatus
 natsCrypto_Init(void)
 {
