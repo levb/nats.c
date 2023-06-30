@@ -95,7 +95,7 @@ jobs:
           fi
           flags="$flags -DNATS_BUILD_STREAMING=${{ inputs.streaming }}"
           flags="$flags -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}"
-          flags="$flags -DNATS_PROTOBUF_DIR=$(pwd)/build/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$(pwd)/build/deps/sodium
+          flags="$flags -DNATS_PROTOBUF_DIR=$(pwd)/build/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$(pwd)/build/deps/sodium"
           echo "flags=$flags" >> $GITHUB_OUTPUT
 
       - id: nats-vars
