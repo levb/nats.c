@@ -1,0 +1,11 @@
+on:
+  pull_request_target:
+    types:
+      - synchronize
+
+jobs:
+  build-release:
+    name: "Build release mode on ubuntu"
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'build-release')
+    uses: ./.github/workflows/build-all-release.yml
