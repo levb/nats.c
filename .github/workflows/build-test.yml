@@ -191,11 +191,6 @@ jobs:
             mv ./nats-server ../deps/nats-server
           fi
 
-      - name: "Install coverage"
-        if: inputs.quick_test != 'ON' && inputs.coverage
-        run: |
-          pip install --user cpp-coveralls
-
       - name: "Test"
         working-directory: ./build
         run: |
@@ -210,3 +205,10 @@ jobs:
               exit 1
             fi
           fi
+
+      - name: "Install and run coverage"
+        if: inputs.quick_test != 'ON' && inputs.coverage
+        run: |
+          pip install --user cpp-coveralls
+          coveralls --gcov-options '\-lp' -r . -i "src/" -e "src/win/" -e "src/unix/" -e "src/stan/protocol.pb-c.c" -E ".*\.h$"
+
