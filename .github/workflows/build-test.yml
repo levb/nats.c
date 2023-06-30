@@ -201,7 +201,7 @@ jobs:
           export PATH=$(pwd)/deps/nats-server:$(pwd)/deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           if [[ "${{ inputs.quick_test }}" == "ON" ]]; then
-            ctest --timeout 60 --output-on-failure -I1,1
+            ctest --timeout 60 --output-on-failure -I 1,1
           else
             ctest --timeout 60 --output-on-failure 2>&1 | tee /tmp/out.txt
             if [[ $(grep -q 'WARNING: ThreadSanitizer: ' /tmp/out.txt; echo $?) == 0 ]]; then

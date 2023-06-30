@@ -5,7 +5,6 @@ jobs:
     uses: ./.github/workflows/build-all-debug.yml
 
   build-release:
-    name: "Build release mode on ubuntu"
     if: |
       github.ref == 'refs/heads/test-gh-actions' || 
       github.ref == 'refs/heads/main' || 
