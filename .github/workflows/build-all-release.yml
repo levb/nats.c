@@ -9,7 +9,6 @@ defaults:
 
 jobs:
   default:
-    name: "Default (latest): ubuntu-${{ matrix.ubuntu_version }} ${{ matrix.compiler }}"
     strategy:
       fail-fast: false
       matrix:
@@ -19,9 +18,9 @@ jobs:
     with:
       ubuntu_version: ${{ matrix.ubuntu_version }}
       compiler: ${{ matrix.compiler }}
+      name: "Default (latest): ubuntu-${{ matrix.ubuntu_version }} ${{ matrix.compiler }}"
 
   more-server-versionss:
-    name: "With NATS ${{ matrix.server_version }}: ubuntu-latest gcc "
     needs: default
     strategy:
       fail-fast: false
@@ -30,9 +29,9 @@ jobs:
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: ${{ matrix.server_version }}
+      name: "With NATS ${{ matrix.server_version }}: ubuntu-latest gcc "
 
   TLS-OFF:
-    name: "TLS OFF: ubuntu-latest ${{ matrix.compiler }}"
     strategy:
       fail-fast: false
       matrix:
@@ -40,9 +39,9 @@ jobs:
     uses: ./.github/workflows/build-test.yml
     with:
       tls: OFF
+      name: "TLS OFF: ubuntu-latest ${{ matrix.compiler }}"
 
   older-cc:
-    name: "Quick check: ubuntu-20.04 (${{ matrix.compiler }})"
     strategy:
       fail-fast: false
       matrix:
@@ -52,9 +51,10 @@ jobs:
       ubuntu_version: 20.04
       compiler: ${{ matrix.compiler }}
       quick_test: ON
+      name: "Quick check: ubuntu-20.04 (${{ matrix.compiler }})"
 
   no-streaming:
-    name: "Streaming OFF: ubuntu-latest gcc"
     uses: ./.github/workflows/build-test.yml
     with:
       streaming: OFF
+      name: "Streaming OFF: ubuntu-latest gcc"
