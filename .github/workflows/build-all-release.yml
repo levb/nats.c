@@ -5,7 +5,7 @@ on:
 
 defaults:
   run:
-    shell: bash --noprofile --norc -x -eo pipefail {0}    
+    shell: bash --noprofile --norc -x -eo pipefail {0}
 
 jobs:
   default:
@@ -15,14 +15,10 @@ jobs:
       matrix:
         compiler: [gcc, clang]
         ubuntu_version: [latest, 20.04]
-    runs-on: ubuntu-${{ matrix.ubuntu_version }}
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          ubuntu_version: ${{ matrix.ubuntu_version }}
-          compiler: ${{ matrix.compiler }}
+    uses: ./.github/workflows/build-test.yml
+    with:
+      ubuntu_version: ${{ matrix.ubuntu_version }}
+      compiler: ${{ matrix.compiler }}
 
   more-server-versionss:
     name: "With NATS ${{ matrix.server_version }}: ubuntu-latest gcc "
@@ -31,13 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         server_version: [main, dev, v2.9.11]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          server_version: ${{ matrix.server_version }}
+    uses: ./.github/workflows/build-test.yml
+    with:
+      server_version: ${{ matrix.server_version }}
 
   TLS-OFF:
     name: "TLS OFF: ubuntu-latest ${{ matrix.compiler }}"
@@ -45,13 +37,9 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          tls: OFF
+    uses: ./.github/workflows/build-test.yml
+    with:
+      tls: OFF
 
   older-cc:
     name: "Quick check: ubuntu-20.04 (${{ matrix.compiler }})"
@@ -59,22 +47,14 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc-7, gcc-8, clang-8]
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          ubuntu_version: 20.04
-          compiler: ${{ matrix.compiler }}
-          quick_test: ON
+    uses: ./.github/workflows/build-test.yml
+    with:
+      ubuntu_version: 20.04
+      compiler: ${{ matrix.compiler }}
+      quick_test: ON
 
   no-streaming:
     name: "Streaming OFF: ubuntu-latest gcc"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          streaming: OFF
+    uses: ./.github/workflows/build-test.yml
+    with:
+      streaming: OFF

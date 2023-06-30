@@ -10,21 +10,16 @@ defaults:
 jobs:
   debug-coverage:
     name: "Debug coverage: ${{ matrix.compiler }}"
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         compiler: [gcc, clang]
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          compiler: ${{ matrix.compiler }}
-          type: Debug
-          coverage: true
+    uses: ./.github/workflows/build-test.yml
+    with:
+      compiler: ${{ matrix.compiler }}
+      type: Debug
+      coverage: true
   
   sanitize-address:
-    runs-on: ubuntu-latest
     name: "Sanitize address: ${{ (matrix.lib_msg_delivery == 'ON' && matrix.lib_write_deadline == 'OFF' && 'msg-delivery') || (matrix.lib_msg_delivery == 'OFF' && matrix.lib_write_deadline == 'ON' && 'write-deadline') || 'default' }}"
     strategy:
       matrix:
@@ -33,21 +28,14 @@ jobs:
         exclude:
           - lib_msg_delivery: ON
             lib_write_deadline: ON
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          sanitize: address
-          lib_msg_delivery: ${{ matrix.lib_msg_delivery }}
-          lib_write_deadline: ${{ matrix.lib_write_deadline }}
+    uses: ./.github/workflows/build-test.yml
+    with:
+      sanitize: address
+      lib_msg_delivery: ${{ matrix.lib_msg_delivery }}
+      lib_write_deadline: ${{ matrix.lib_write_deadline }}
 
   sanitize-thread:
     name: "Sanitize thread: default"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout nats.c
-        uses: actions/checkout@v3
-      - uses: ./.github/actions/build-test-ubuntu
-        with:
-          sanitize: thread
+    uses: ./.github/workflows/build-test.yml
+    with:
+        sanitize: thread
