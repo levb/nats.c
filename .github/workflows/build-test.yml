@@ -95,7 +95,7 @@ jobs:
           fi
           flags="$flags -DNATS_BUILD_STREAMING=${{ inputs.streaming }}"
           flags="$flags -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}"
-          flags="$flags -DNATS_PROTOBUF_DIR=$HOME/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$HOME/deps/sodium"
+          flags="$flags -DNATS_PROTOBUF_DIR=$(pwd)/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$(pwd)/deps/sodium"
           echo "flags=$flags" >> $GITHUB_OUTPUT
 
       - id: nats-vars
@@ -185,10 +185,10 @@ jobs:
           wget https://github.com/nats-io/nats-server/releases/download/${rel}/nats-server-${rel}-linux-amd64.tar.gz
           if [[ $? == 0 ]]; then
             tar -xzf nats-server-${rel}-linux-amd64.tar.gz
-            cp nats-server-${rel}-linux-amd64/nats-server $HOME/deps/nats-server
+            cp nats-server-${rel}-linux-amd64/nats-server ../deps/nats-server
           else
             curl -sf 'https://binaries.nats.dev/nats-io/nats-server/v2?os=linux&arch=amd64&version=${{ inputs.server_version }}'' | PREFIX=. sh
-            mv ./nats-server $HOME/deps/nats-server
+            mv ./nats-server ../deps/nats-server
           fi
 
       - name: "Install coverage"
@@ -199,7 +199,7 @@ jobs:
       - name: "Test"
         working-directory: ./build
         run: |
-          export PATH=$HOME/deps/nats-server:$HOME/deps/nats-streaming-server:$PATH
+          export PATH=../deps/nats-server:../deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           if [[ "${{ inputs.quick_test }}" == "ON" ]]; then
             ctest --timeout 60 --output-on-failure -I 1,1
