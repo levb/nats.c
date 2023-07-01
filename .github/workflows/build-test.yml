@@ -100,7 +100,7 @@ jobs:
             -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
             -DNATS_PROTOBUF_DIR=$HOME/deps/pbuf
             -DNATS_BUILD_USE_SODIUM=ON
-            -DNATS_SODIUM_DIR=$HOME/deps/sodium"
+            -DNATS_SODIUM_DIR=$HOME/deps/sodium
         run: |
           if [[ -n "${{ inputs.sanitize }}" ]]; then
             flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS=-fsanitize=${{ inputs.sanitize }}"
