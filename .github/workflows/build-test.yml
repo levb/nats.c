@@ -122,6 +122,7 @@ jobs:
           if [[ "${{ inputs.lib_write_deadline }}" == "ON" ]]; then
             echo "NATS_DEFAULT_LIB_WRITE_DEADLINE=2000" >> $GITHUB_ENV
           fi
+          echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
 
       # install build dependencies
       - name: Install ${{ inputs.compiler }} if needed
@@ -130,11 +131,10 @@ jobs:
           sudo apt-get -q update
           sudo apt-get -y install ${{ inputs.compiler }}
 
-      - name: Install libprotobuf-c and prepare to compile with ${{ inputs.compiler }}
-        run: |
-          # sudo apt-get -q update
-          # sudo apt-get -y install libprotobuf-c-dev
-          echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
+      # - name: Install libprotobuf-c
+      #   run: |
+      #     sudo apt-get -q update
+      #     sudo apt-get -y install libprotobuf-c-dev
 
       # if we have already built, unarchive and no need to configure/build with
       # cmake
