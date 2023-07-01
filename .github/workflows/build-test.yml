@@ -98,14 +98,14 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ inputs.type }}
             -DNATS_BUILD_STREAMING=${{ inputs.streaming }}
             -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
-            -DNATS_PROTOBUF_DIR=$HOME/work/deps/pbuf
+            -DNATS_PROTOBUF_DIR=${{ github.workspace}}/deps/pbuf
             -DNATS_BUILD_USE_SODIUM=ON
-            -DNATS_SODIUM_DIR=$HOME/work/deps/sodium
+            -DNATS_SODIUM_DIR=${{ github.workspace}}/deps/sodium
         run: |
-          echo '1 ======================================'
-          ls -lsa $HOME/work/deps
-          echo '2 ======================================'
-          ls -lsa $NATS_PROTOBUF_DIR
+          echo '1 ====================================== ${{ github.workspace}}'
+          ls -lsa ${{ github.workspace}}
+          echo '2 ====================================== ${{ github.workspace}}/deps'
+          ls -lsa ${{ github.workspace}}/deps
           if [[ -n "${{ inputs.sanitize }}" ]]; then
             flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS=-fsanitize=${{ inputs.sanitize }}"
           fi
