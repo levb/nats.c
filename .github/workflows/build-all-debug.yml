@@ -10,6 +10,7 @@ defaults:
 jobs:
   debug-coverage:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - compiler: gcc
