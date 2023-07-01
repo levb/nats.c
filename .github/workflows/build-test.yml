@@ -102,7 +102,10 @@ jobs:
             -DNATS_BUILD_USE_SODIUM=ON
             -DNATS_SODIUM_DIR=$HOME/work/deps/sodium
         run: |
-          export
+          echo '1 ======================================'
+          ls -lsa $HOME/work/deps
+          echo '2 ======================================'
+          ls -lsa $NATS_PROTOBUF_DIR
           if [[ -n "${{ inputs.sanitize }}" ]]; then
             flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS=-fsanitize=${{ inputs.sanitize }}"
           fi
