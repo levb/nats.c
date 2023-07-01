@@ -18,6 +18,6 @@ jobs:
       && contains(github.event.pull_request.labels.*.name, 'backport-to-dev')
     uses: ./.github/workflows/merge.yml
     with:
-      branch: test2
+      target_branch: test2
       pr_number: ${{github.event.pull_request.number}}
       commit_sha: ${{github.event.pull_request.merge_commit_sha}}

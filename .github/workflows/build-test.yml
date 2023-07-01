@@ -223,4 +223,3 @@ jobs:
         run: |
           pip install --user cpp-coveralls
           coveralls --gcov-options '\-lp' -r . -i "src/" -e "src/win/" -e "src/unix/" -e "src/stan/protocol.pb-c.c" -E ".*\.h$"
-

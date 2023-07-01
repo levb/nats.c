@@ -18,7 +18,7 @@ jobs:
     with:
       ubuntu_version: ${{ matrix.ubuntu_version }}
       compiler: ${{ matrix.compiler }}
-      name: "Default (latest): ubuntu-${{ matrix.ubuntu_version }} ${{ matrix.compiler }}"
+      name: "With NATS latest: ubuntu-${{ matrix.ubuntu_version }} ${{ matrix.compiler }}"
 
   more-server-versionss:
     needs: default
@@ -29,7 +29,7 @@ jobs:
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: ${{ matrix.server_version }}
-      name: "With NATS ${{ matrix.server_version }}: ubuntu-latest gcc "
+      name: "With NATS ${{ matrix.server_version }}: ubuntu-latest gcc"
 
   TLS-OFF:
     strategy:
