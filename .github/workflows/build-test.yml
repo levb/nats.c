@@ -67,13 +67,18 @@ jobs:
       # configure the unique build artifact name
       - id: configure-artifact
         name: Configure unique build artifact name
+        env:
+          unique: build-ubuntu-${{ inputs.ubuntu_version }}-${{ inputs.type }}-${{ inputs.compiler }}-${{ inputs.arch }}
         run: |
-          unique="-ubuntu-${{ inputs.ubuntu_version }}"
-          unique="${unique}-${{ inputs.type }}"
-          unique="${unique}-${{ inputs.compiler }}"
-          unique="${unique}-${{ inputs.arch }}"
-          unique="${unique}-tls${{ inputs.tls }}"
-          unique="${unique}-streaming${{ inputs.streaming }}"
+          if [[ "${{ inputs.tls }}" == "OFF" ]]; then
+            unique="${unique}-notls"
+          fi
+          if [[ "${{ inputs.streaming }}" == "OFF" ]]; then
+            unique="${unique}-nostreaming"
+          fi
+          if [[ "${{ inputs.coverage }}" == "ON" ]]; then
+            unique="${unique}-coverage"
+          fi
           if [[ -n "${{ inputs.sanitize }}" ]]; then
             unique="${unique}-${{ inputs.sanitize }}"
           fi
@@ -83,19 +88,26 @@ jobs:
           if [[ "${{ inputs.lib_write_deadline }}" == "ON" ]]; then
             unique="{$unique}-write-deadline"
           fi
-          echo "name=build${unique}.tar.gz" >> $GITHUB_OUTPUT
+          echo "name=${unique}" >> $GITHUB_OUTPUT
 
       # configure the cmake flags and NATS_... environment variables
       - id: cmake-flags
         name: Configure cmake flags
+        env:
+          flags: -DNATS_BUILD_ARCH=${{ inputs.arch }} \
+            -DCMAKE_BUILD_TYPE=${{ inputs.type }} \
+            -DNATS_BUILD_STREAMING=${{ inputs.streaming }} \
+            -DNATS_BUILD_WITH_TLS=${{ inputs.tls }} \
+            -DNATS_PROTOBUF_DIR=$(pwd)/deps/pbuf \
+            -DNATS_BUILD_USE_SODIUM=ON \
+            -DNATS_SODIUM_DIR=$(pwd)/deps/sodium" \
         run: |
-          flags="-DNATS_BUILD_ARCH=${{ inputs.arch }} -DCMAKE_BUILD_TYPE=${{ inputs.type }}"
           if [[ -n "${{ inputs.sanitize }}" ]]; then
             flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS=-fsanitize=${{ inputs.sanitize }}"
           fi
-          flags="$flags -DNATS_BUILD_STREAMING=${{ inputs.streaming }}"
-          flags="$flags -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}"
-          flags="$flags -DNATS_PROTOBUF_DIR=$(pwd)/deps/pbuf -DNATS_BUILD_USE_SODIUM=ON -DNATS_SODIUM_DIR=$(pwd)/deps/sodium"
+          if [[ "${{ inputs.coverage }}" == "ON" ]]; then
+            flags="$flags -DNATS_COVERAGE=ON"
+          fi
           echo "flags=$flags" >> $GITHUB_OUTPUT
 
       - id: nats-vars
@@ -207,7 +219,7 @@ jobs:
           fi
 
       - name: "Install and run coverage"
-        if: inputs.quick_test != 'ON' && inputs.coverage
+        if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
         run: |
           pip install --user cpp-coveralls
           coveralls --gcov-options '\-lp' -r . -i "src/" -e "src/win/" -e "src/unix/" -e "src/stan/protocol.pb-c.c" -E ".*\.h$"

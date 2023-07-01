@@ -16,7 +16,7 @@ jobs:
     with:
       compiler: ${{ matrix.compiler }}
       type: Debug
-      coverage: true
+      coverage: ON
       name: "Debug coverage: ${{ matrix.compiler }}"
   
   sanitize-address:
