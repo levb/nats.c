@@ -98,10 +98,11 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ inputs.type }}
             -DNATS_BUILD_STREAMING=${{ inputs.streaming }}
             -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
-            -DNATS_PROTOBUF_DIR=$HOME/deps/pbuf
+            -DNATS_PROTOBUF_DIR=$HOME/work/deps/pbuf
             -DNATS_BUILD_USE_SODIUM=ON
-            -DNATS_SODIUM_DIR=$HOME/deps/sodium
+            -DNATS_SODIUM_DIR=$HOME/work/deps/sodium
         run: |
+          export
           if [[ -n "${{ inputs.sanitize }}" ]]; then
             flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS=-fsanitize=${{ inputs.sanitize }}"
           fi
@@ -132,8 +133,8 @@ jobs:
 
       - name: Install libprotobuf-c and prepare to compile with ${{ inputs.compiler }}
         run: |
-          sudo apt-get -q update
-          sudo apt-get -y install libprotobuf-c-dev
+          # sudo apt-get -q update
+          # sudo apt-get -y install libprotobuf-c-dev
           echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
 
       # if we have already built, unarchive and no need to configure/build with
