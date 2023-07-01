@@ -12,12 +12,14 @@ jobs:
     strategy:
       matrix:
         compiler: [gcc, clang]
+        include:
+          - compiler: gcc
+            coverage: ON
     uses: ./.github/workflows/build-test.yml
     with:
       compiler: ${{ matrix.compiler }}
       type: Debug
-      coverage: ON
-      name: "Debug coverage: ${{ matrix.compiler }}"
+      name: "Debug: ${{ matrix.compiler }}, coverage ${{ matrix.coverage }}"
   
   sanitize-address:
     strategy:
