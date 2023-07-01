@@ -94,13 +94,13 @@ jobs:
       - id: cmake-flags
         name: Configure cmake flags
         env:
-          flags: -DNATS_BUILD_ARCH=${{ inputs.arch }} \
-            -DCMAKE_BUILD_TYPE=${{ inputs.type }} \
-            -DNATS_BUILD_STREAMING=${{ inputs.streaming }} \
-            -DNATS_BUILD_WITH_TLS=${{ inputs.tls }} \
-            -DNATS_PROTOBUF_DIR=$(pwd)/deps/pbuf \
-            -DNATS_BUILD_USE_SODIUM=ON \
-            -DNATS_SODIUM_DIR=$(pwd)/deps/sodium" \
+          flags: -DNATS_BUILD_ARCH=${{ inputs.arch }}
+            -DCMAKE_BUILD_TYPE=${{ inputs.type }}
+            -DNATS_BUILD_STREAMING=${{ inputs.streaming }}
+            -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
+            -DNATS_PROTOBUF_DIR=$(pwd)/deps/pbuf
+            -DNATS_BUILD_USE_SODIUM=ON
+            -DNATS_SODIUM_DIR=$(pwd)/deps/sodium"
         run: |
           if [[ -n "${{ inputs.sanitize }}" ]]; then
             flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS=-fsanitize=${{ inputs.sanitize }}"
