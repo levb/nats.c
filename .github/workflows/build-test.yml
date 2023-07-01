@@ -227,8 +227,8 @@ jobs:
           pip install --user cpp-coveralls
           coveralls --gcov-options '\-lp' -r . -i "src/" -e "src/win/" -e "src/unix/" -e "src/stan/protocol.pb-c.c" -E ".*\.h$"
 
-      # - name: Upload coverage
-      #   if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
-      #   uses: coverallsapp/github-action@v2
-      #   with:
-      #     github-token: ${{ github.token }}
+      - name: Upload coverage
+        if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ github.token }}
