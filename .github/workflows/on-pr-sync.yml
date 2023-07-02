@@ -1,4 +1,4 @@
-name: PR updated
+name: updated
 on:
   pull_request_target:
     types:

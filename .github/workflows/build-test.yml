@@ -46,6 +46,10 @@ on:
         description: "Ubuntu version to use, e.g. '20.04'"
         default: "latest"
 
+permissions:
+  contents: write # so it can comment
+  pull-requests: write # so it can create pull requests
+
 defaults:
   run:
     shell: bash --noprofile --norc -x -eo pipefail {0}
