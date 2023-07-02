@@ -1,5 +1,5 @@
+name: Pushed
 on: [push]
-name: on-push
 
 jobs:
   build-debug:

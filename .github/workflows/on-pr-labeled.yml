@@ -1,3 +1,4 @@
+name: PR labeled
 on:
   pull_request_target:
     types:
@@ -9,6 +10,7 @@ permissions:
 
 jobs:
   backport:
+    name: "Backport to `test2`"
     if: |
       github.event.label.name =='backport-to-dev' && 
       github.ref == 'refs/heads/main' &&
@@ -20,7 +22,7 @@ jobs:
       commit_sha: ${{github.event.pull_request.merge_commit_sha}}
 
   build-release:
-    name: "Build release mode on ubuntu"
+    name: "Build Release Ubuntu"
     if: |
       github.event.label.name =='build-release' &&
       (!github.event.pull_request.merged)
