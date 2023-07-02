@@ -20,7 +20,7 @@ jobs:
       compiler: ${{ matrix.compiler }}
       name: "With NATS latest: ubuntu-${{ matrix.ubuntu_version }} ${{ matrix.compiler }}"
 
-  more-server-versionss:
+  more-server-versions:
     needs: default
     strategy:
       fail-fast: false

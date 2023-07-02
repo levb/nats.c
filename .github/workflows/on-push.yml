@@ -1,3 +1,4 @@
+name: Pushed
 on: [push]
 
 jobs:

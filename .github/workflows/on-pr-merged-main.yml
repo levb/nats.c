@@ -1,4 +1,4 @@
-name: main PR merged
+name: PR merged to main
 on:
   pull_request_target:
     types:
