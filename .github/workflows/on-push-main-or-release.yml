@@ -1,0 +1,14 @@
+name: pushed main or release
+on:
+  push:
+    branches:
+      - test-gh-actions
+      - main
+      - release-**
+
+jobs:
+  build-release:
+    uses: ./.github/workflows/build-all-release.yml
+
+  build-debug:
+    uses: ./.github/workflows/build-all-debug.yml
