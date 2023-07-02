@@ -5,6 +5,9 @@ on:
       - synchronize
       - opened
 
+permissions:
+  contents: write # so it can comment
+
 jobs:
   build-debug:
     uses: ./.github/workflows/build-all-debug.yml
