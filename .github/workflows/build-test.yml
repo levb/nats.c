@@ -48,7 +48,6 @@ on:
 
 permissions:
   contents: write # so it can comment
-  pull-requests: write # so it can create pull requests
 
 defaults:
   run:
