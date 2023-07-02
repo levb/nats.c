@@ -843,7 +843,7 @@ static int NUM_THREADS = 1000;
 
 static void
 test_natsThread(void)
-{
+{ // <>/<>
     natsStatus          s  = NATS_OK;
     natsMutex           *m = NULL;
     natsThread          *t = NULL;
