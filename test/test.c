@@ -844,84 +844,84 @@ static int NUM_THREADS = 1000;
 static void
 test_natsThread(void)
 { // <>/<>
-    // natsStatus          s  = NATS_OK;
-    // natsMutex           *m = NULL;
-    // natsThread          *t = NULL;
-    // bool                current = false;
-    // struct threadArg    tArgs;
-    // natsThread          **threads = NULL;
-    // int                 i,j;
+    natsStatus          s  = NATS_OK;
+    natsMutex           *m = NULL;
+    natsThread          *t = NULL;
+    bool                current = false;
+    struct threadArg    tArgs;
+    natsThread          **threads = NULL;
+    int                 i,j;
 
-    // if (valgrind)
-    //     NUM_THREADS = 100;
+    if (valgrind)
+        NUM_THREADS = 100;
 
-    // test("Create threads array: ");
-    // threads = (natsThread**) calloc(NUM_THREADS, sizeof(natsThread*));
-    // if (threads == NULL)
-    //     s = NATS_NO_MEMORY;
-    // IFOK(s, natsMutex_Create(&m));
-    // testCond(s == NATS_OK);
+    test("Create threads array: ");
+    threads = (natsThread**) calloc(NUM_THREADS, sizeof(natsThread*));
+    if (threads == NULL)
+        s = NATS_NO_MEMORY;
+    IFOK(s, natsMutex_Create(&m));
+    testCond(s == NATS_OK);
 
-    // natsMutex_Lock(m);
+    natsMutex_Lock(m);
 
-    // tArgs.m         = m;
-    // tArgs.control   = 0;
-    // tArgs.current   = false;
+    tArgs.m         = m;
+    tArgs.control   = 0;
+    tArgs.current   = false;
 
-    // test("Create thread: ");
-    // s = natsThread_Create(&t, testThread, &tArgs);
-    // testCond(s == NATS_OK);
+    test("Create thread: ");
+    s = natsThread_Create(&t, testThread, &tArgs);
+    testCond(s == NATS_OK);
 
-    // tArgs.t = t;
+    tArgs.t = t;
 
-    // test("Check if thread current from other thread: ");
-    // current = natsThread_IsCurrent(t);
-    // testCond(!current);
+    test("Check if thread current from other thread: ");
+    current = natsThread_IsCurrent(t);
+    testCond(!current);
 
-    // natsMutex_Unlock(m);
+    natsMutex_Unlock(m);
 
-    // test("Joining thread: ")
-    // natsThread_Join(t);
-    // testCond(1);
+    test("Joining thread: ")
+    natsThread_Join(t);
+    testCond(1);
 
-    // natsMutex_Lock(m);
+    natsMutex_Lock(m);
 
-    // test("Control updated: ");
-    // testCond(tArgs.control == 1);
+    test("Control updated: ");
+    testCond(tArgs.control == 1);
 
-    // test("Check thread current works from current thread: ");
-    // testCond(tArgs.current);
+    test("Check thread current works from current thread: ");
+    testCond(tArgs.current);
 
-    // test("Destroy thread: ");
-    // natsThread_Destroy(t);
-    // testCond(1);
+    test("Destroy thread: ");
+    natsThread_Destroy(t);
+    testCond(1);
 
-    // tArgs.sum = 0;
+    tArgs.sum = 0;
 
-    // test("Creating multiple threads: ");
-    // for (i=0; (s == NATS_OK) && (i<NUM_THREADS); i++)
-    //     s = natsThread_Create(&(threads[i]), sumThread, &tArgs);
-    // testCond(s == NATS_OK);
+    test("Creating multiple threads: ");
+    for (i=0; (s == NATS_OK) && (i<NUM_THREADS); i++)
+        s = natsThread_Create(&(threads[i]), sumThread, &tArgs);
+    testCond(s == NATS_OK);
 
-    // if (s != NATS_OK)
-    //     i--;
+    if (s != NATS_OK)
+        i--;
 
-    // natsMutex_Unlock(m);
+    natsMutex_Unlock(m);
 
-    // test("Waiting all done: ");
-    // for (j=0; j<i; j++)
-    // {
-    //     natsThread_Join(threads[j]);
-    //     natsThread_Destroy(threads[j]);
-    // }
-    // testCond(s == NATS_OK);
+    test("Waiting all done: ");
+    for (j=0; j<i; j++)
+    {
+        natsThread_Join(threads[j]);
+        natsThread_Destroy(threads[j]);
+    }
+    testCond(s == NATS_OK);
 
-    // test("Checking sum: ");
-    // testCond((s == NATS_OK) && (tArgs.sum == NUM_THREADS));
+    test("Checking sum: ");
+    testCond((s == NATS_OK) && (tArgs.sum == NUM_THREADS));
 
-    // natsMutex_Destroy(m);
+    natsMutex_Destroy(m);
 
-    // free(threads);
+    free(threads);
 }
 
 static void
