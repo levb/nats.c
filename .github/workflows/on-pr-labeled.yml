@@ -22,7 +22,6 @@ jobs:
       commit_sha: ${{github.event.pull_request.merge_commit_sha}}
 
   build-release:
-    name: "Build Release Ubuntu"
     if: |
       github.event.label.name =='build-release' &&
       (!github.event.pull_request.merged)
