@@ -5,6 +5,9 @@ on:
       - synchronize
 
 jobs:
+  build-debug:
+    uses: ./.github/workflows/build-all-debug.yml
+
   build-release:
     if: |
       contains(github.event.pull_request.labels.*.name, 'build-release')
