@@ -245,6 +245,8 @@ jobs:
         id: lcov
         if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
         run: |
+          sudo apt-get -q update
+          sudo apt-get -y install lcov
           lcov --capture --directory . --output-file coverage.info 
             --include 'src/*' 
             --exclude 'src/win/*' 
