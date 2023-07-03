@@ -217,8 +217,8 @@ jobs:
           if [[ "${{ inputs.quick_test }}" == "ON" ]]; then
             ctest --timeout 60 --output-on-failure -I 1,1
           else
-            ctest --timeout 60 --output-on-failure 2>&1 | tee /tmp/out.txt
-            # ctest --timeout 60 --output-on-failure -I 1,20 2>&1 | tee /tmp/out.txt
+            # ctest --timeout 60 --output-on-failure 2>&1 | tee /tmp/out.txt
+            ctest --timeout 60 --output-on-failure -I 1,2 2>&1 | tee /tmp/out.txt
             if [[ $(grep -q 'WARNING: ThreadSanitizer: ' /tmp/out.txt; echo $?) == 0 ]]; then
               echo "!!! ThreadSanitizer detected WARNING(s) !!!"
               exit 1

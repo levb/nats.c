@@ -35927,7 +35927,7 @@ int main(int argc, char **argv)
     if (argc == 3)
     {
         testStart = atoi(argv[1]);
-        testEnd   = 2; // atoi(argv[2]);
+        testEnd   = atoi(argv[2]);
     }
 
     if ((argc != 3)
@@ -36001,7 +36001,6 @@ int main(int argc, char **argv)
     }
 
     // Execute tests
-    printf("<>/<> running tests from %d to %d\n", testStart, testEnd);
     for (i=testStart; (i<=testEnd) && !failed; i++)
     {
 #ifdef _WIN32
