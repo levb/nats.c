@@ -232,14 +232,24 @@ jobs:
       #   run: |
       #     pip install --user cpp-coveralls
       #     echo ">>>>>>> $COVERALLS_REPO_TOKEN <<<<<<<<"
-      #     coveralls --verbose \
-      #       --gcov-options '\-lp' \
-      #       -r . \
-      #       -i "src/" \
-      #       -e "src/win/" \
-      #       -e "src/unix/" \
-      #       -e "src/stan/protocol.pb-c.c" \
+      #     coveralls --verbose
+      #       --gcov-options '\-lp'
+      #       -r .
+      #       -i "src/"
+      #       -e "src/win/"
+      #       -e "src/unix/"
+      #       -e "src/stan/protocol.pb-c.c"
       #       -E ".*\.h$"
+
+      - name: Run lcov
+        id: lcov
+        if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
+        run: |
+          lcov --capture --directory . --output-file coverage.info 
+            --include 'src/*' 
+            --exclude 'src/win/*' 
+            --exclude 'src/unix/*' 
+            --exclude 'src/stan/protocol.pb-c.c'
 
       - name: Upload coverage
         id: upload-coverage
@@ -247,7 +257,7 @@ jobs:
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ github.token }}
-          format: gcov
+          path-to-lcov: ./coverage.info
           debug: true
 
       - name: "UPLOAD RESULTS"
