@@ -36001,6 +36001,7 @@ int main(int argc, char **argv)
     }
 
     // Execute tests
+    printf("<>/<> running tests from %d to %d\n", testStart, testEnd);
     for (i=testStart; (i<=testEnd) && !failed; i++)
     {
 #ifdef _WIN32
