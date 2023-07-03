@@ -15,3 +15,5 @@ jobs:
 
   build-debug:
     uses: ./.github/workflows/build-all-debug.yml
+    secrets:
+      COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}

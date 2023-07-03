@@ -45,6 +45,9 @@ on:
         type: string
         description: "Ubuntu version to use, e.g. '20.04'"
         default: "latest"
+    secrets:
+      COVERALLS_REPO_TOKEN:
+        description: "Coveralls repo token"
 
 permissions:
   contents: write # so it can comment
