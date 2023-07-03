@@ -225,24 +225,24 @@ jobs:
             fi
           fi
 
-      - name: "Upload coverage with coveralls CLI"
-        if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        run: |
-          pip install --user cpp-coveralls
-          echo ">>>>>>> $COVERALLS_REPO_TOKEN <<<<<<<<"
-          coveralls --verbose \
-            --gcov-options '\-lp' \
-            -r . \
-            -i "src/" \
-            -e "src/win/" \
-            -e "src/unix/" \
-            -e "src/stan/protocol.pb-c.c" \
-            -E ".*\.h$"
-
-      # - name: Upload coverage
+      # - name: "Upload coverage with coveralls CLI"
       #   if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
-      #   uses: coverallsapp/github-action@v2
-      #   with:
-      #     github-token: ${{ github.token }}
+      #   env:
+      #     COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      #   run: |
+      #     pip install --user cpp-coveralls
+      #     echo ">>>>>>> $COVERALLS_REPO_TOKEN <<<<<<<<"
+      #     coveralls --verbose \
+      #       --gcov-options '\-lp' \
+      #       -r . \
+      #       -i "src/" \
+      #       -e "src/win/" \
+      #       -e "src/unix/" \
+      #       -e "src/stan/protocol.pb-c.c" \
+      #       -E ".*\.h$"
+
+      - name: Upload coverage
+        if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ github.token }}
