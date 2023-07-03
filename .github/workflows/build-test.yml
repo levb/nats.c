@@ -247,13 +247,15 @@ jobs:
         run: |
           sudo apt-get -q update
           sudo apt-get -y install lcov
-          lcov --capture --directory . --output-file coverage.info \
-            --include 'src/*' \
-            --exclude 'src/win/*' \
-            --exclude 'src/unix/*' \
-            --exclude 'src/stan/protocol.pb-c.c'
+          lcov --capture --directory . --output-file coverage.info 
+          # \
+          #   --include 'src/*' \
+          #   --exclude 'src/win/*' \
+          #   --exclude 'src/unix/*' \
+          #   --exclude 'src/stan/protocol.pb-c.c'
           echo ">>>>>>> =================== <<<<<<<<"
           ls -lsa coverage.info
+          lcov --summary coverage.info
 
       - name: Upload coverage
         id: upload-coverage
