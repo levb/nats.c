@@ -247,7 +247,7 @@ jobs:
         run: |
           sudo apt-get -q update
           sudo apt-get -y install lcov
-          lcov --capture --directory . -v --debug --output-file coverage.info 
+          lcov --capture --directory . --debug --output-file coverage.info 
           # \
           #   --include 'src/*' \
           #   --exclude 'src/win/*' \
@@ -263,7 +263,7 @@ jobs:
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ github.token }}
-          # path-to-lcov: coverage.info
+          file: coverage.info
           debug: true
 
       - name: "UPLOAD RESULTS"
