@@ -969,7 +969,6 @@ _unblockLongWait(void *closure)
 static void
 test_natsCondition(void)
 {
-    return 0;
     natsStatus          s;
     natsMutex           *m  = NULL;
     natsThread          *t1 = NULL;
@@ -1187,7 +1186,6 @@ _timerStopCB(natsTimer *timer, void *arg)
 static void
 test_natsTimer(void)
 {
-    return;
     natsStatus          s;
     natsTimer           *t = NULL;
     struct threadArg    tArg;
