@@ -242,7 +242,15 @@ jobs:
       #       -E ".*\.h$"
 
       - name: Upload coverage
+        id: upload-coverage
         if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ github.token }}
+          base-path: build
+          debug: true
+
+      - name: "UPLOAD RESULTS"
+        if: steps.upload-coverage.outcome == 'success'
+        run: |
+          echo ">>>>>>> ${{ steps.upload-coverage.outputs.coveralls-api-result }} <<<<<<<<"
