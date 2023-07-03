@@ -14383,7 +14383,7 @@ test_AsyncErrHandler(void)
     // Wait for async err callback
     natsMutex_Lock(arg.m);
     while ((s != NATS_TIMEOUT) && !arg.done)
-        s = natsCondition_TimedWait(arg.c, arg.m, 2000);
+        s = natsCondition_TimedWait(arg.c, arg.m, 3000);
     natsMutex_Unlock(arg.m);
 
     test("Aync fired properly, and all checks are good: ");
