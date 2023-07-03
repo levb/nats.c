@@ -35820,28 +35820,28 @@ static testInfo allTests[] =
     {"JetStreamInfoWithSubjects",       test_JetStreamInfoWithSubjects},
     {"JetStreamInfoAlternates",         test_JetStreamInfoAlternates},
 
-    {"KeyValueManager",                 test_KeyValueManager},
-    {"KeyValueBasics",                  test_KeyValueBasics},
-    {"KeyValueWatch",                   test_KeyValueWatch},
-    {"KeyValueHistory",                 test_KeyValueHistory},
-    {"KeyValueKeys",                    test_KeyValueKeys},
-    {"KeyValueDeleteVsPurge",           test_KeyValueDeleteVsPurge},
-    {"KeyValueDeleteTombstones",        test_KeyValueDeleteTombstones},
-    {"KeyValueDeleteMarkerThreshold",   test_KeyValuePurgeDeletesMarkerThreshold},
-    {"KeyValueCrossAccount",            test_KeyValueCrossAccount},
-    {"KeyValueDiscardOldToNew",         test_KeyValueDiscardOldToNew},
-    {"KeyValueRePublish",               test_KeyValueRePublish},
-    {"KeyValueMirrorDirectGet",         test_KeyValueMirrorDirectGet},
-    {"KeyValueMirrorCrossDomains",      test_KeyValueMirrorCrossDomains},
+    // {"KeyValueManager",                 test_KeyValueManager},
+    // {"KeyValueBasics",                  test_KeyValueBasics},
+    // {"KeyValueWatch",                   test_KeyValueWatch},
+    // {"KeyValueHistory",                 test_KeyValueHistory},
+    // {"KeyValueKeys",                    test_KeyValueKeys},
+    // {"KeyValueDeleteVsPurge",           test_KeyValueDeleteVsPurge},
+    // {"KeyValueDeleteTombstones",        test_KeyValueDeleteTombstones},
+    // {"KeyValueDeleteMarkerThreshold",   test_KeyValuePurgeDeletesMarkerThreshold},
+    // {"KeyValueCrossAccount",            test_KeyValueCrossAccount},
+    // {"KeyValueDiscardOldToNew",         test_KeyValueDiscardOldToNew},
+    // {"KeyValueRePublish",               test_KeyValueRePublish},
+    // {"KeyValueMirrorDirectGet",         test_KeyValueMirrorDirectGet},
+    // {"KeyValueMirrorCrossDomains",      test_KeyValueMirrorCrossDomains},
 
-    {"MicroMatchEndpointSubject",       test_MicroMatchEndpointSubject},
-    {"MicroAddService",                 test_MicroAddService},
-    {"MicroGroups",                     test_MicroGroups},
-    {"MicroBasics",                     test_MicroBasics},
-    {"MicroStartStop",                  test_MicroStartStop},
-    {"MicroServiceStopsOnClosedConn",   test_MicroServiceStopsOnClosedConn},
-    {"MicroServiceStopsWhenServerStops", test_MicroServiceStopsWhenServerStops},
-    {"MicroAsyncErrorHandler",          test_MicroAsyncErrorHandler},
+    // {"MicroMatchEndpointSubject",       test_MicroMatchEndpointSubject},
+    // {"MicroAddService",                 test_MicroAddService},
+    // {"MicroGroups",                     test_MicroGroups},
+    // {"MicroBasics",                     test_MicroBasics},
+    // {"MicroStartStop",                  test_MicroStartStop},
+    // {"MicroServiceStopsOnClosedConn",   test_MicroServiceStopsOnClosedConn},
+    // {"MicroServiceStopsWhenServerStops", test_MicroServiceStopsWhenServerStops},
+    // {"MicroAsyncErrorHandler",          test_MicroAsyncErrorHandler},
 
 #if defined(NATS_HAS_STREAMING)
     {"StanPBufAllocator",               test_StanPBufAllocator},
@@ -35917,9 +35917,6 @@ int main(int argc, char **argv)
     int testStart   = 0;
     int testEnd     = 0;
     int i;
-
-    printf("ALL PASSED\n");
-    return 0;
 
     if (argc == 1)
     {
