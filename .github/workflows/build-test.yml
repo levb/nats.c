@@ -223,10 +223,9 @@ jobs:
 
       - name: "Upload coverage with coveralls CLI"
         if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
-        env:
-          COVERALLS_REPO_TOKEN: ${{ github.token }}
         run: |
           pip install --user cpp-coveralls
+          echo ">>>>>>> $COVERALLS_REPO_TOKEN <<<<<<<<"
           coveralls --gcov-options '\-lp' -r . -i "src/" -e "src/win/" -e "src/unix/" -e "src/stan/protocol.pb-c.c" -E ".*\.h$"
 
       # - name: Upload coverage
