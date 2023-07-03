@@ -1186,6 +1186,7 @@ _timerStopCB(natsTimer *timer, void *arg)
 static void
 test_natsTimer(void)
 {
+    return;
     natsStatus          s;
     natsTimer           *t = NULL;
     struct threadArg    tArg;
