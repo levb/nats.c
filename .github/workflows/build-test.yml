@@ -247,7 +247,7 @@ jobs:
         run: |
           sudo apt-get -q update
           sudo apt-get -y install lcov
-          lcov --capture --directory . --debug --output-file coverage.info 
+          lcov --capture --directory ./src --debug --compat-libtool --output-file coverage.info 
           # \
           #   --include 'src/*' \
           #   --exclude 'src/win/*' \
