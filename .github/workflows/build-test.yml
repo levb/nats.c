@@ -252,6 +252,8 @@ jobs:
             --exclude 'src/win/*' \
             --exclude 'src/unix/*' \
             --exclude 'src/stan/protocol.pb-c.c'
+          echo ">>>>>>> =================== <<<<<<<<"
+          ls -lsa coverage.info
 
       - name: Upload coverage
         id: upload-coverage
@@ -259,7 +261,7 @@ jobs:
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ github.token }}
-          path-to-lcov: ./coverage.info
+          # path-to-lcov: coverage.info
           debug: true
 
       - name: "UPLOAD RESULTS"
