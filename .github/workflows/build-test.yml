@@ -229,7 +229,7 @@ jobs:
         if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          COVERALLS_SERVICE_NAME: "nats-c"
+          COVERALLS_SERVICE_NAME: "nats-c" # does not appear to work!
         run: |
           pip install --user cpp-coveralls
           echo ">>>>>>> $COVERALLS_REPO_TOKEN <<<<<<<<"
