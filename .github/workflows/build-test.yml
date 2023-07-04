@@ -218,7 +218,7 @@ jobs:
             ctest --timeout 60 --output-on-failure -I 1,1
           else
             # ctest --timeout 60 --output-on-failure 2>&1 | tee /tmp/out.txt
-            ctest --timeout 60 --output-on-failure -I 1,40 2>&1 | tee /tmp/out.txt
+            ctest --timeout 60 --output-on-failure -I 1,20 2>&1 | tee /tmp/out.txt
             if [[ $(grep -q 'WARNING: ThreadSanitizer: ' /tmp/out.txt; echo $?) == 0 ]]; then
               echo "!!! ThreadSanitizer detected WARNING(s) !!!"
               exit 1
@@ -229,7 +229,7 @@ jobs:
         if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          COVERALLS_SERVICE_NAME: "nats-c"
+          COVERALLS_SERVICE_NAME: "nats-c" # does not appear to work!
         run: |
           pip install --user cpp-coveralls
           echo ">>>>>>> $COVERALLS_REPO_TOKEN <<<<<<<<"
