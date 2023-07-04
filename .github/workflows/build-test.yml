@@ -164,8 +164,6 @@ jobs:
           cd build
           cmake .. ${{ steps.cmake-flags.outputs.flags }}
           make rebuild_cache && make
-          cd ..
-          tar -czf build.tar.gz build
 
       - name: "Rebuild the list of tests to match the compile flags"
         if: steps.download-prior-build.outcome != 'success'
