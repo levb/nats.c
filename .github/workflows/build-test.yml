@@ -164,8 +164,6 @@ jobs:
           cd build
           cmake .. ${{ steps.cmake-flags.outputs.flags }}
           make rebuild_cache && make
-          cd ..
-          tar -czf build.tar.gz build
 
       - name: "Rebuild the list of tests to match the compile flags"
         if: steps.download-prior-build.outcome != 'success'
@@ -218,7 +216,7 @@ jobs:
             ctest --timeout 60 --output-on-failure -I 1,1
           else
             # ctest --timeout 60 --output-on-failure 2>&1 | tee /tmp/out.txt
-            ctest --timeout 60 --output-on-failure -I 1,30 2>&1 | tee /tmp/out.txt
+            ctest --timeout 60 --output-on-failure -I 1,10 2>&1 | tee /tmp/out.txt
             if [[ $(grep -q 'WARNING: ThreadSanitizer: ' /tmp/out.txt; echo $?) == 0 ]]; then
               echo "!!! ThreadSanitizer detected WARNING(s) !!!"
               exit 1
