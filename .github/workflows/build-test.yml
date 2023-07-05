@@ -254,6 +254,7 @@ jobs:
           gcov: true
           gcov_args: -lp
           verbose: true
+          gcov_include: 'src/*.c'
           gcov_ignore: 'examples/**'
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
