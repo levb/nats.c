@@ -239,7 +239,7 @@ jobs:
       #   run: |
       #     find ./src -name "*.c" \
       #       -not -path "./src/win/*" \
-      #       -not path "./src/unix/" 
+      #       -not path "./src/unix/"
       #       -not path "./src/stan/protocol.pb-c.c"
       #     sudo apt-get -q update
       #     sudo apt-get -y install lcov
@@ -247,13 +247,17 @@ jobs:
 
       - name: Upload coverage reports to Codecov
         if: inputs.quick_test != 'ON' && inputs.coverage == 'ON'
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
-          gcov: true
-          gcov_args: -lp
-          verbose: true
-          gcov_ignore: 'examples/**,src/win/**,src/unix/**' # ' src/stan/protocol.pb-c.c'
+        # uses: codecov/codecov-action@v3
+        # with:
+        #   token: ${{ secrets.CODECOV_TOKEN }}
+        #   fail_ci_if_error: true
+        #   gcov: true
+        #   gcov_args: -lp
+        #   verbose: true
+        #   gcov_ignore: 'examples/**,src/win/**,src/unix/**' # ' src/stan/protocol.pb-c.c'
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          ./codecov -Q 'issue1011' -C ${{ github.sha }} -Z -g --ga '-lp' --gi 'examples/**' --gi 'src/win/**' --gi 'src/unix/**' --gi 'src/stan/protocol.pb-c.c'
