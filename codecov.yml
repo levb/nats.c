@@ -2,6 +2,9 @@ coverage:
   status:
     project:
       default:
-        target: 80%
+        target: auto
         threshold: 0.5%
-github_checks: true
+github_checks: 
+  annotations: true
+comment:
+  require_changes: false
