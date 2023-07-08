@@ -1,7 +1,16 @@
 name: build all (Release)
 
 on:
-  workflow_call:
+  push:
+    branches:
+      - main
+      - release-**
+  pull_request:
+    types:
+      - synchronize
+      - opened
+      - labeled
+
 
 permissions:
   contents: write # so it can comment
@@ -11,6 +20,18 @@ defaults:
     shell: bash --noprofile --norc -x -eo pipefail {0}
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push') || 
+      (github.event_name == 'pull_request' && github.event.pull_request.action == 'labeled')
+    outputs:
+      do: ${{ steps.check.outputs.do }}
+    steps:
+      - id: check
+        name: check if need to run the release build
+        run: |
+          echo "::set-output name=do::true"
+
   default:
     strategy:
       fail-fast: false

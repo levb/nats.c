@@ -1,12 +1,7 @@
-name: build all (Debug)
+name: Debug build
 
 on:
-  workflow_call:
-    secrets:
-      CODECOV_TOKEN:
-        required: true
-      COVERALLS_REPO_TOKEN:
-        required: true
+  push:
 
 permissions:
   contents: write # so it can comment
