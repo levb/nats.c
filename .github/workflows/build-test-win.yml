@@ -51,16 +51,22 @@ jobs:
       # configure the cmake flags and NATS_... environment variables
       - id: cmake-flags
         name: Configure cmake flags
-        env:
-          flags: -DNATS_BUILD_ARCH=${{ inputs.arch }}
-            -DCMAKE_BUILD_TYPE=${{ inputs.type }}
-            -DNATS_BUILD_STREAMING=${{ inputs.streaming }}
-            -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
-            -DNATS_PROTOBUF_DIR="${GITHUB_WORKSPACE}\\deps\\pbuf"
-            -DNATS_BUILD_USE_SODIUM=ON
-            -DNATS_SODIUM_DIR="${GITHUB_WORKSPACE}\\deps\\sodium"
+        # env:
+        #   flags: -DNATS_BUILD_ARCH=${{ inputs.arch }}
+        #     -DCMAKE_BUILD_TYPE=${{ inputs.type }}
+        #     -DNATS_BUILD_STREAMING=${{ inputs.streaming }}
+        #     -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
+        #     -DNATS_PROTOBUF_DIR="${GITHUB_WORKSPACE}\\deps\\pbuf"
+        #     -DNATS_BUILD_USE_SODIUM=ON
+        #     -DNATS_SODIUM_DIR="${GITHUB_WORKSPACE}\\deps\\sodium"
         run: |
-          export
+          export flags = "-DNATS_BUILD_ARCH=${{ inputs.arch }} \
+            -DCMAKE_BUILD_TYPE=${{ inputs.type }} \
+            -DNATS_BUILD_STREAMING=${{ inputs.streaming }} \
+            -DNATS_BUILD_WITH_TLS=${{ inputs.tls }} \
+            -DNATS_PROTOBUF_DIR=${GITHUB_WORKSPACE}\\deps\\pbuf
+            -DNATS_BUILD_USE_SODIUM=ON
+            -DNATS_SODIUM_DIR=${GITHUB_WORKSPACE}\\deps\\sodium"
           echo ${flags}
           echo "flags=$flags" >> $GITHUB_OUTPUT
           echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
