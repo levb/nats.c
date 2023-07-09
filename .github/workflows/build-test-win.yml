@@ -60,6 +60,7 @@ jobs:
             -DNATS_BUILD_USE_SODIUM=ON
             -DNATS_SODIUM_DIR=${{ github.workspace}}/deps/sodium
         run: |
+          export
           echo ${GITHUB_WORKSPACE}
           echo '${{ github.workspace}}' 
           echo "flags=$flags" >> $GITHUB_OUTPUT
