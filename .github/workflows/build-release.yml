@@ -22,8 +22,9 @@ defaults:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # if: (github.event_name == 'push') || 
-    #   (github.event_name == 'pull_request' && github.event.pull_request.action == 'labeled')
+    if: (github.event_name == 'push') || 
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'build-release') ||
+      (github.event_name == 'pull_request' && github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'build-release'))
     outputs:
       do: ${{ steps.check.outputs.do }}
     steps:
@@ -31,7 +32,6 @@ jobs:
         name: check if need to run the release build
         run: |
           cat $GITHUB_EVENT_PATH
-          export
           echo "do=true" >> $GITHUB_OUTPUT
 
   default:
