@@ -66,7 +66,6 @@ set(LIBEVENT_DIR "" CACHE PATH "Libevent install directory")
 set(NATS_DOC_PROJECT_NAME "NATS C Client with JetStream support")
 if(NATS_BUILD_STREAMING)
   IF(DEFINED ENV{NATS_PROTOBUF_DIR})
-    message("-- Using NATS_PROTOBUF_DIR from environment: $ENV{NATS_PROTOBUF_DIR}")
     SET(NATS_PROTOBUF_DIR "$ENV{NATS_PROTOBUF_DIR}")
   ENDIF()
   FIND_PATH(
