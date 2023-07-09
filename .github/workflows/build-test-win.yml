@@ -32,7 +32,7 @@ on:
 
 defaults:
   run:
-    shell: bash --noprofile --norc -x -eo pipefail {0}
+    shell: powershell -NonInteractive 
 
 jobs:
   build-test:
@@ -49,8 +49,8 @@ jobs:
           path: deps
 
       # configure the cmake flags and NATS_... environment variables
-      - id: cmake-flags
-        name: Configure cmake flags
+      # - id: cmake-flags
+      #   name: Configure cmake flags
         # env:
         #   flags: -DNATS_BUILD_ARCH=${{ inputs.arch }}
         #     -DCMAKE_BUILD_TYPE=${{ inputs.type }}
@@ -59,22 +59,30 @@ jobs:
         #     -DNATS_PROTOBUF_DIR="${GITHUB_WORKSPACE}\\deps\\pbuf"
         #     -DNATS_BUILD_USE_SODIUM=ON
         #     -DNATS_SODIUM_DIR="${GITHUB_WORKSPACE}\\deps\\sodium"
-        run: |
-          export flags = "-DNATS_BUILD_ARCH=${{ inputs.arch }} \
-            -DCMAKE_BUILD_TYPE=${{ inputs.type }} \
-            -DNATS_BUILD_STREAMING=${{ inputs.streaming }} \
-            -DNATS_BUILD_WITH_TLS=${{ inputs.tls }} \
-            -DNATS_PROTOBUF_DIR=${GITHUB_WORKSPACE}\\deps\\pbuf \
-            -DNATS_BUILD_USE_SODIUM=ON \
-            -DNATS_SODIUM_DIR=${GITHUB_WORKSPACE}\\deps\\sodium"
-          echo $flags
-          echo "flags=$flags" >> $GITHUB_OUTPUT
-          echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
+        # run: |
+        #   export flags = "-DNATS_BUILD_ARCH=${{ inputs.arch }} \
+        #     -DCMAKE_BUILD_TYPE=${{ inputs.type }} \
+        #     -DNATS_BUILD_STREAMING=${{ inputs.streaming }} \
+        #     -DNATS_BUILD_WITH_TLS=${{ inputs.tls }} \
+        #     -DNATS_PROTOBUF_DIR=${GITHUB_WORKSPACE}\\deps\\pbuf \
+        #     -DNATS_BUILD_USE_SODIUM=ON \
+        #     -DNATS_SODIUM_DIR=${GITHUB_WORKSPACE}\\deps\\sodium"
+        #   echo $flags
+        #   echo "flags=$flags" >> $GITHUB_OUTPUT
+        #   echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
 
       # otherwise, configure cmake, build, archive and upload
       - name: CMake
         run: |
           mkdir -p build
           cd build
-          cmake .. ${{ steps.cmake-flags.outputs.flags }}
+          export CC=${{ inputs.compiler }}
+          export NATS_BUILD_ARCH=${{ inputs.arch }}
+          export NATS_BUILD_STREAMING=${{ inputs.streaming }}
+          export NATS_BUILD_WITH_TLS=${{ inputs.tls }}
+          export NATS_PROTOBUF_DIR="${GITHUB_WORKSPACE}\\deps\\pbuf"
+          export NATS_BUILD_USE_SODIUM=ON
+          export NATS_SODIUM_DIR="${GITHUB_WORKSPACE}\\deps\\sodium"
+          export CMAKE_BUILD_TYPE=${{ inputs.type }}
+          cmake .. 
           make rebuild_cache && make
