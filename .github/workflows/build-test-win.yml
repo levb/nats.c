@@ -76,7 +76,7 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          export WS=$(wslpath -a $GITHUB_WORKSPACE)
+          export WS=$(pwd)
           export CC=${{ inputs.compiler }}
           export NATS_BUILD_ARCH=${{ inputs.arch }}
           export NATS_BUILD_STREAMING=${{ inputs.streaming }}
