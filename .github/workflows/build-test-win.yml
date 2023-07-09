@@ -56,13 +56,12 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ inputs.type }}
             -DNATS_BUILD_STREAMING=${{ inputs.streaming }}
             -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
-            -DNATS_PROTOBUF_DIR=${{ github.workspace}}/deps/pbuf
+            -DNATS_PROTOBUF_DIR="${GITHUB_WORKSPACE}\\deps\\pbuf"
             -DNATS_BUILD_USE_SODIUM=ON
-            -DNATS_SODIUM_DIR=${{ github.workspace}}/deps/sodium
+            -DNATS_SODIUM_DIR="${GITHUB_WORKSPACE}\\deps\\sodium"
         run: |
           export
-          echo ${GITHUB_WORKSPACE}
-          echo '${{ github.workspace}}' 
+          echo ${flags}
           echo "flags=$flags" >> $GITHUB_OUTPUT
           echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
 
