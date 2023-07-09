@@ -22,17 +22,21 @@ defaults:
 jobs:
   check:
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push') || 
-      (github.event_name == 'pull_request' && github.event.pull_request.action == 'labeled')
+    # if: (github.event_name == 'push') || 
+    #   (github.event_name == 'pull_request' && github.event.pull_request.action == 'labeled')
     outputs:
       do: ${{ steps.check.outputs.do }}
     steps:
       - id: check
         name: check if need to run the release build
         run: |
-          echo "::set-output name=do::true"
+          cat $GITHUB_EVENT_PATH
+          export
+          echo "do=true" >> $GITHUB_OUTPUT
 
   default:
+    needs: check
+    if: needs.check.outputs.do == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -45,7 +49,8 @@ jobs:
       name: "ubuntu-${{ matrix.ubuntu_version }} ${{ matrix.compiler }}: latest"
 
   more-server-versions:
-    needs: default
+    needs: [check, default]
+    if: needs.check.outputs.do == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +61,8 @@ jobs:
       name: "ubuntu-latest gcc: ${{ matrix.server_version }}"
 
   TLS-OFF:
+    needs: [check, default]
+    if: needs.check.outputs.do == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +73,8 @@ jobs:
       name: "ubuntu-latest ${{ matrix.compiler }}: no TLS, latest"
 
   older-cc:
+    needs: [check, default]
+    if: needs.check.outputs.do == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -78,6 +87,8 @@ jobs:
       name: "ubuntu-20.04 (${{ matrix.compiler }}: quick check"
 
   no-streaming:
+    needs: [check, default]
+    if: needs.check.outputs.do == 'true'
     uses: ./.github/workflows/build-test.yml
     with:
       streaming: OFF

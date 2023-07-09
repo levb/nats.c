@@ -1,7 +1,5 @@
 name: Debug build
-
-on:
-  push:
+on: push
 
 permissions:
   contents: write # so it can comment
