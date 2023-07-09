@@ -32,7 +32,7 @@ on:
 
 defaults:
   run:
-    shell: powershell -NonInteractive 
+    shell: bash --noprofile --norc -x -eo pipefail {0}
 
 jobs:
   build-test:
