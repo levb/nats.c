@@ -84,5 +84,7 @@ jobs:
           export NATS_BUILD_USE_SODIUM=ON
           export NATS_SODIUM_DIR="${GITHUB_WORKSPACE}\\deps\\sodium"
           export CMAKE_BUILD_TYPE=${{ inputs.type }}
+          ls -lsa $GITHUB_WORKSPACE
+          ls -lsa $GITHUB_WORKSPACE/deps
           cmake .. 
           make rebuild_cache && make
