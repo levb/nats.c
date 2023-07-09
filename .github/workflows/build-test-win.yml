@@ -74,9 +74,9 @@ jobs:
       # otherwise, configure cmake, build, archive and upload
       - name: CMake
         run: |
+          export WS=$(pwd)
           mkdir -p build
           cd build
-          export WS=$(pwd)
           export CC=${{ inputs.compiler }}
           export NATS_BUILD_ARCH=${{ inputs.arch }}
           export NATS_BUILD_STREAMING=${{ inputs.streaming }}
