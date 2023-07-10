@@ -16865,7 +16865,7 @@ test_Version(void)
     char *sanitize_write_after_free = calloc(1, 1);
     free(sanitize_write_after_free);
     *sanitize_write_after_free = 1;
-    testCond(sanitize_write_after_free == 1);
+    testCond(*sanitize_write_after_free == 1);
 
     test("Compatibility: ");
     testCond(nats_CheckCompatibility() == true);
