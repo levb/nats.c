@@ -16860,10 +16860,12 @@ test_Version(void)
 {
     const char *str = NULL;
 
-    void *sanitize_leak_pointer = malloc(1);
-    char *sanitize_write_after_free = malloc(1);
+    void *sanitize_leak_pointer = calloc(1, 1);
+    testCond(sanitize_leak_pointer != NULL);
+    char *sanitize_write_after_free = calloc(1, 1);
     free(sanitize_write_after_free);
-    *sanitize_write_after_free = 0;
+    *sanitize_write_after_free = 1;
+    testCond(sanitize_write_after_free == 1);
 
     test("Compatibility: ");
     testCond(nats_CheckCompatibility() == true);
