@@ -87,8 +87,9 @@ jobs:
             -DNATS_BUILD_USE_SODIUM=ON
             -DNATS_SODIUM_DIR=${{ github.workspace}}/deps/sodium
         run: |
+          CMAKE_C_FLAGS="${CMAKE_C_FLAGS} -Werror"
           if [[ -n "${{ inputs.sanitize }}" ]]; then
-            flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS=-fsanitize=${{ inputs.sanitize }}"
+            flags="$flags -DNATS_SANITIZE=ON -DCMAKE_C_FLAGS='${CMAKE_C_FLAGS} -fsanitize=${{ inputs.sanitize }}'"
           fi
           if [[ "${{ inputs.coverage }}" == "ON" ]]; then
             flags="$flags -DNATS_COVERAGE=ON"
