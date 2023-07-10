@@ -16862,11 +16862,6 @@ test_Version(void)
 
     void *sanitize_leak_pointer = calloc(1, 1);
     testCond(sanitize_leak_pointer != NULL);
-    char *sanitize_write_after_free = calloc(1, 1);
-    free(sanitize_write_after_free);
-    *sanitize_write_after_free = 1;
-    testCond(*sanitize_write_after_free == 1);
-
     test("Compatibility: ");
     testCond(nats_CheckCompatibility() == true);
 
@@ -16885,12 +16880,21 @@ test_VersionMatchesTag(void)
     natsStatus  s = NATS_OK;
     const char  *tag;
 
+    char *sanitize_write_after_free = calloc(1, 1);
+    free(sanitize_write_after_free);
+    *sanitize_write_after_free = 1;
+    testCond(*sanitize_write_after_free == 1);
+
     tag = getenv("TRAVIS_TAG");
     if ((tag == NULL) || (tag[0] == '\0'))
     {
-        test("Skipping test since no tag detected: ");
-        testCond(true);
-        return;
+        tag = getenv("GITHUB_TAG");
+        if ((tag == NULL) || (tag[0] == '\0'))
+        {
+            test("Skipping test since no tag detected: ");
+            testCond(true);
+            return;
+        }
     }
     test("Check tag and version match: ");
     // We expect a tag of the form vX.Y.Z. If that's not the case,
