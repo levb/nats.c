@@ -18,6 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         server_version: [main, dev]
+    concurrency:
+      group: ${{ matrix.server_version }}
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: ${{ matrix.server_version }}
