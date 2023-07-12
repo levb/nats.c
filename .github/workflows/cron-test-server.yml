@@ -19,7 +19,7 @@ jobs:
       matrix:
         server_version: [main, dev]
     concurrency:
-      group: ${{ matrix.server_version }}
+      group: test-server
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: ${{ matrix.server_version }}
