@@ -42,15 +42,16 @@ jobs:
         compiler: [gcc, clang]
         ubuntu_version: [latest, 20.04]
         include:
+          # cache the ubuntu.latest-gcc build to use in more-server-versions
           - compiler: gcc
             ubuntu_version: latest
-            use_cache_key: ubuntu-latest-gcc-${{ github.sha }}
+            cache_build: true
     uses: ./.github/workflows/build-test.yml
     with:
       ubuntu_version: ${{ matrix.ubuntu_version }}
       compiler: ${{ matrix.compiler }}
       name: "ubuntu.${{ matrix.ubuntu_version }}-${{ matrix.compiler }}-latest"
-      use_cache_key: ${{ matrix.use_cache_key }}
+      cache_build: ${{ matrix.cache_build }}
 
   more-server-versions:
     needs: [check, default]
@@ -63,7 +64,7 @@ jobs:
     with:
       server_version: ${{ matrix.server_version }}
       name: "ubuntu.latest-gcc-${{ matrix.server_version }}"
-      use_cache_key: ubuntu-latest-gcc-${{ github.sha }}
+      cache_build: true
 
   TLS-OFF:
     needs: [check, default]
