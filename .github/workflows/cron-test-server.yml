@@ -1,9 +1,12 @@
-name: release
+name: test-server
 
 on:
   schedule:
     - cron: "0 2 * * *" # every day at 2AM
   workflow_dispatch:
+
+permissions:
+  contents: write # so it can comment
 
 defaults:
   run:
