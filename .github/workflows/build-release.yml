@@ -10,6 +10,7 @@ on:
       - synchronize
       - opened
       - labeled
+  workflow_dispatch:
 
 permissions:
   contents: write # so it can comment
@@ -30,7 +31,6 @@ jobs:
       - id: check
         name: check if need to run the release build
         run: |
-          cat $GITHUB_EVENT_PATH
           echo "do=true" >> $GITHUB_OUTPUT
 
   default:

@@ -1,0 +1,37 @@
+name: Cut minor release
+
+on:
+  workflow_dispatch:
+    inputs:
+      comment:
+        description: 'Comment'
+        required: true
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -x -eo pipefail {0}
+
+jobs:
+  cut-minor-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Make local release branch
+        run: |
+          minor=$(grep "set(NATS_VERSION_MINOR" CMakeLists.txt | awk -F'[ )]' '{print $3}')          
+          minor = $(expr $minor + 1)          
+          echo "minor: " >> $GITHUB_ENV
+
+          git checkout -b release/v${major}.${minor}.0
+          cp CMakeLists.txt CMakeLists.txt.old
+          sed -i bak -E 's/^set\(NATS_VERSION_MINOR.*$/set(NATS_VERSION_MINOR ${minor})/g' CMakeLists.txt
+          sed -i bak -E 's/^set\(NATS_VERSION_PATCH.*$/set(NATS_VERSION_PATCH 0)/g' CMakeLists.txt
+          sed -i bak -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
+          grep "set(NATS_VERSION_" CMakeLists.txt
+
+      - name: build release
+        uses: ./.github/workflows/build-release.yml
+
+      - name: FINAL
+        run: echo "FINAL"
