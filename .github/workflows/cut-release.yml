@@ -20,8 +20,8 @@ jobs:
       - name: Make local release branch
         run: |
           minor=$(grep "set(NATS_VERSION_MINOR" CMakeLists.txt | awk -F'[ )]' '{print $3}')          
-          minor = $(expr $minor + 1)          
-          echo "minor: " >> $GITHUB_ENV
+          minor=$(expr ${minor} + 1)          
+          echo "minor=${minor}" >> $GITHUB_ENV
 
           git checkout -b release/v${major}.${minor}.0
           cp CMakeLists.txt CMakeLists.txt.old
