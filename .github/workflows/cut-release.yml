@@ -95,10 +95,15 @@ jobs:
           cmake .. -DNATS_PROTOBUF_DIR=${{ github.workspace }}/deps/pbuf -DNATS_UPDATE_DOC=ON -DNATS_UPDATE_VERSION=ON
           make
 
-      - name: Make a PR for the release
-        run: |
-          RELEASE_PR_BRANCH=${RELEASE_BRANCH}-pr-${{github.sha}}
-          git checkout -b $RELEASE_PR_BRANCH
-          git commit -am "(cut-release) Updated version to $VERSION"
-          git push origin $RELEASE_PR_BRANCH
-          hub pull-request -b ${RELEASE_BRANCH} -h ${RELEASE_PR_BRANCH} -m "Release $VERSION"
+      # - name: Prepare a PR branch
+      #   run: |
+      #     RELEASE_PR_BRANCH=${RELEASE_BRANCH}-pr-${{github.sha}}
+      #     git checkout -b $RELEASE_PR_BRANCH
+      #     git commit -am "(cut-release) Updated version to $VERSION"
+      #     git push origin $RELEASE_PR_BRANCH
+      #     hub pull-request -b ${RELEASE_BRANCH} -h ${RELEASE_PR_BRANCH} -m "Release $VERSION"
+
+      - name: Prepare a PR
+        uses: peter-evans/create-pull-request@v3
+        with:
+          title: "Release $VERSION"
