@@ -80,8 +80,10 @@ jobs:
         if: steps.version.outputs.patch == '0'
         run: |
           major_hex=$(printf "%02x" $MAJOR)
+          echo ${major_hex}
           minor_hex=$(printf "%02x" $MINOR)
-          sed -i -E 's/^set\(NATS_VERSION_REQUIRED_NUMBER.*$/set(NATS_VERSION_REQUIRED_NUMBER 0x${major_hex}${minor_hex}00)/g' CMakeLists.txt
+          echo ${minor_hex}
+          sed -i -E 's/^set\(NATS_VERSION_REQUIRED_NUMBER.*$/set(NATS_VERSION_REQUIRED_NUMBER 0x$major_hex$minor_hex00)/g' CMakeLists.txt
           grep "set(NATS_VERSION_" CMakeLists.txt
 
       - name: Rebuild with updated version
