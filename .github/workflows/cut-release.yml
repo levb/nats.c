@@ -107,4 +107,4 @@ jobs:
       - name: Prepare a PR
         uses: peter-evans/create-pull-request@v3
         with:
-          title: "Release $VERSION"
+          title: "Release ${{steps.version.outputs.version}}"
