@@ -103,7 +103,7 @@ jobs:
 
       - name: Generate the docs
         run: |
-          cd docs
+          cd doc
           doxygen DoxyFile.NATS.Client
           git add html
           git status
