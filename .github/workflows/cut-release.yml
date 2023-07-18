@@ -51,7 +51,7 @@ jobs:
       - name: Use existing ${{steps.version.outputs.release_branch}} branch
         if: inputs.kind == 'patch'
         run: |
-            if [[ "${{github.ref_name}}" != "${RELEASE_BRANCH}" ]] then;
+            if [[ "${{github.ref_name}}" != "${RELEASE_BRANCH}" ]]; then
               echo "ERROR: You are trying to cut a patch release from a branch other than ${{steps.version.outputs.release_branch}}"
               exit 1
             fi
