@@ -11,6 +11,10 @@ defaults:
   run:
     shell: bash --noprofile --norc -x -eo pipefail {0}
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   cut-minor-release:
     runs-on: ubuntu-latest
@@ -25,7 +29,6 @@ jobs:
 
           git checkout -b release/v${major}.${minor}.0
           git push origin release/v${major}.${minor}.0
-
 
           # cp CMakeLists.txt CMakeLists.txt.old
           # sed -i bak -E 's/^set\(NATS_VERSION_MINOR.*$/set(NATS_VERSION_MINOR ${minor})/g' CMakeLists.txt
