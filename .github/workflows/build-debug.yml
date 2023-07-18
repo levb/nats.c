@@ -5,9 +5,10 @@ on:
       - main
       - release-**
   pull_request:
-    types:
-      - synchronize
-      - opened
+    # types:
+    #   - synchronize
+    #   - opened
+    #   - reopened
 
 permissions:
   contents: write # so it can comment
