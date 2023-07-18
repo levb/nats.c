@@ -35,37 +35,25 @@ jobs:
           echo "RELEASE_BRANCH=release/v${major}.${minor}" >> $GITHUB_OUTPUT
           echo "RELEASE_BRANCH=release/v${major}.${minor}" >> $GITHUB_ENV
 
-      - name: Make a new branch ${{steps.version.outputs.RELEASE_BRANCH}}
+      - name: Make release branch ${{steps.version.outputs.RELEASE_BRANCH}}
         if: inputs.kind != 'patch'
         run: |
             git checkout -b ${RELEASE_BRANCH}
             git push origin ${RELEASE_BRANCH}
 
       - name: Use existing branch ${{steps.version.outputs.RELEASE_BRANCH}}
-        if: inputs.kind != 'patch'
+        if: inputs.kind == 'patch'
         run: |
-            git checkout -b ${RELEASE_BRANCH}
-            git push origin ${RELEASE_BRANCH}
+            if [[ "${{github.ref_name}}" != "${{steps.version.outputs.RELEASE_BRANCH}}" ]] then;
+              echo "ERROR: You are trying to cut a patch release from a branch other than ${{steps.version.outputs.RELEASE_BRANCH}}"
+              exit 1
+            fi
 
-      - name: Gather version information
+      - name: Remove "beta" from version
         run: |
-          # for major and minor, we need to make a release branch, for patch we
-          # use the existing release branch.
-          if [[ "${{inputs.kind}}" != "patch"]] then;
-            git checkout -b ${RELEASE_BRANCH}
-            git push origin ${RELEASE_BRANCH}
-          else
-            git checkout ${RELEASE_BRANCH}
-          fi
-
-
-          cp CMakeLists.txt CMakeLists.txt.old
-          sed -i bak -E 's/^set\(NATS_VERSION_MINOR.*$/set(NATS_VERSION_MINOR ${minor})/g' CMakeLists.txt
-          sed -i bak -E 's/^set\(NATS_VERSION_PATCH.*$/set(NATS_VERSION_PATCH 0)/g' CMakeLists.txt
-          sed -i bak -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
+          sed -i .bak -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
           grep "set(NATS_VERSION_" CMakeLists.txt
-          git commit -am "Bumped the version to v${major}.${minor}.0"
-
+          git commit -am "(cut-release) Removed 'beta' from version"
 
       - name: build release
         uses: ./.github/workflows/build-release.yml
