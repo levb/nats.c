@@ -99,5 +99,5 @@ jobs:
         run: |
           git commit -am "(cut-release) Updated version to $VERSION"
 
-          RELEASE_PR_BRANCH=$(RELEASE_BRANCH)-pr-${{github.sha}}
+          RELEASE_PR_BRANCH=${RELEASE_BRANCH}-pr-${{github.sha}}
           hub pull-request -b ${RELEASE_BRANCH} -h ${RELEASE_PR_BRANCH} -m "Release $VERSION"
