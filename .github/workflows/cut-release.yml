@@ -62,6 +62,8 @@ jobs:
 
       - name: Remove "beta" from version
         run: |
+          git config --global user.name 'release bot for ${{github.actor}}'
+          git config --global user.email '${{github.actor}}@users.noreply.github.com'
           sed -i -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
           grep "set(NATS_VERSION_" CMakeLists.txt
           git commit -am "(cut-release) Removed 'beta' from version"
