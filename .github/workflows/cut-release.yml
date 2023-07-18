@@ -43,12 +43,13 @@ jobs:
           PATCH=$(grep "set(NATS_VERSION_PATCH" CMakeLists.txt | awk -F'[ )]' '{print $3}')
           RELEASE_BRANCH="release/v${MAJOR}.${MINOR}" >> $GITHUB_ENV
 
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "minor=$MINOR" >> $GITHUB_OUTPUT
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "release_branch=release/v${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
           echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
 
+          echo "MAJOR=$MAJOR" >> $GITHUB_ENV
+          echo "MINOR=$MINOR" >> $GITHUB_ENV
+          echo "PATCH=$PATCH" >> $GITHUB_ENV
           echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
           echo "VERSION=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_ENV
 
@@ -83,7 +84,8 @@ jobs:
           echo ${major_hex}
           minor_hex=$(printf "%02x" $MINOR)
           echo ${minor_hex}
-          sed -i -E 's/^set\(NATS_VERSION_REQUIRED_NUMBER.*$/set(NATS_VERSION_REQUIRED_NUMBER 0x$major_hex$minor_hex00)/g' CMakeLists.txt
+          regexp='^set\(NATS_VERSION_REQUIRED_NUMBER.*$'
+          sed -i -E "s/$regexp/set(NATS_VERSION_REQUIRED_NUMBER 0x${major_hex}${minor_hex}00)/g" CMakeLists.txt
           grep "set(NATS_VERSION_" CMakeLists.txt
 
       - name: Rebuild with updated version
