@@ -1,11 +1,16 @@
-name: Cut minor release
+name: New Release
 
 on:
   workflow_dispatch:
     inputs:
-      comment:
-        description: 'Comment'
+      kind:
+        type: choice
         required: true
+        description: 'Type of the release (major, minor, or patch)'
+        options:
+          - major
+          - minor
+          - patch
 
 defaults:
   run:
@@ -16,25 +21,51 @@ permissions:
   pull-requests: write
 
 jobs:
-  cut-minor-release:
+  cut-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Make the release branch
+      - name: Gather version information
+        id: version
         run: |
-          minor=$(grep "set(NATS_VERSION_MINOR" CMakeLists.txt | awk -F'[ )]' '{print $3}')          
-          minor=$(expr ${minor} + 1)          
-          echo "minor=${minor}" >> $GITHUB_ENV
+          echo "MAJOR=$(grep "set(NATS_VERSION_MAJOR" CMakeLists.txt | awk -F'[ )]' '{print $3}')" >> $GITHUB_OUTPUT
+          echo "MINOR=$(grep "set(NATS_VERSION_MINOR" CMakeLists.txt | awk -F'[ )]' '{print $3}')" >> $GITHUB_OUTPUT
+          echo "PATCH=$(grep "set(NATS_VERSION_PATCH" CMakeLists.txt | awk -F'[ )]' '{print $3}')" >> $GITHUB_OUTPUT
+          echo "RELEASE_BRANCH=release/v${major}.${minor}" >> $GITHUB_OUTPUT
+          echo "RELEASE_BRANCH=release/v${major}.${minor}" >> $GITHUB_ENV
 
-          git checkout -b release/v${major}.${minor}.0
-          git push origin release/v${major}.${minor}.0
+      - name: Make a new branch ${{steps.version.outputs.RELEASE_BRANCH}}
+        if: inputs.kind != 'patch'
+        run: |
+            git checkout -b ${RELEASE_BRANCH}
+            git push origin ${RELEASE_BRANCH}
 
-          # cp CMakeLists.txt CMakeLists.txt.old
-          # sed -i bak -E 's/^set\(NATS_VERSION_MINOR.*$/set(NATS_VERSION_MINOR ${minor})/g' CMakeLists.txt
-          # sed -i bak -E 's/^set\(NATS_VERSION_PATCH.*$/set(NATS_VERSION_PATCH 0)/g' CMakeLists.txt
-          # sed -i bak -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
-          # grep "set(NATS_VERSION_" CMakeLists.txt
+      - name: Use existing branch ${{steps.version.outputs.RELEASE_BRANCH}}
+        if: inputs.kind != 'patch'
+        run: |
+            git checkout -b ${RELEASE_BRANCH}
+            git push origin ${RELEASE_BRANCH}
+
+      - name: Gather version information
+        run: |
+          # for major and minor, we need to make a release branch, for patch we
+          # use the existing release branch.
+          if [[ "${{inputs.kind}}" != "patch"]] then;
+            git checkout -b ${RELEASE_BRANCH}
+            git push origin ${RELEASE_BRANCH}
+          else
+            git checkout ${RELEASE_BRANCH}
+          fi
+
+
+          cp CMakeLists.txt CMakeLists.txt.old
+          sed -i bak -E 's/^set\(NATS_VERSION_MINOR.*$/set(NATS_VERSION_MINOR ${minor})/g' CMakeLists.txt
+          sed -i bak -E 's/^set\(NATS_VERSION_PATCH.*$/set(NATS_VERSION_PATCH 0)/g' CMakeLists.txt
+          sed -i bak -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
+          grep "set(NATS_VERSION_" CMakeLists.txt
+          git commit -am "Bumped the version to v${major}.${minor}.0"
+
 
       - name: build release
         uses: ./.github/workflows/build-release.yml
