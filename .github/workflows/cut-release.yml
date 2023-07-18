@@ -6,14 +6,14 @@ on:
       kind:
         type: choice
         required: true
-        description: 'Type of the release (major, minor, or patch)'
+        description: "Type of the release (major, minor, or patch)"
         options:
           - major
           - minor
           - patch
       update_required_lib_version:
         type: boolean
-        description: 'Require the library version to match the release version'
+        description: "Require the library version to match the release version"
 
 defaults:
   run:
@@ -36,25 +36,29 @@ jobs:
           MINOR=$(grep "set(NATS_VERSION_MINOR" CMakeLists.txt | awk -F'[ )]' '{print $3}')
           PATCH=$(grep "set(NATS_VERSION_PATCH" CMakeLists.txt | awk -F'[ )]' '{print $3}')
           RELEASE_BRANCH="release/v${MAJOR}.${MINOR}" >> $GITHUB_ENV
+
           echo "major=$MAJOR" >> $GITHUB_OUTPUT
           echo "minor=$MINOR" >> $GITHUB_OUTPUT
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "release_branch=release/v${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
+          echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+
           echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
+          echo "VERSION=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_ENV
 
       - name: Make ${{steps.version.outputs.release_branch}} branch
         if: inputs.kind != 'patch'
         run: |
-            git checkout -b ${RELEASE_BRANCH}
-            git push origin ${RELEASE_BRANCH}
+          git checkout -b ${RELEASE_BRANCH}
+          git push origin ${RELEASE_BRANCH}
 
       - name: Use existing ${{steps.version.outputs.release_branch}} branch
         if: inputs.kind == 'patch'
         run: |
-            if [[ "${{github.ref_name}}" != "${RELEASE_BRANCH}" ]]; then
-              echo "ERROR: You are trying to cut a patch release from a branch other than ${{steps.version.outputs.release_branch}}"
-              exit 1
-            fi
+          if [[ "${{github.ref_name}}" != "${RELEASE_BRANCH}" ]]; then
+            echo "ERROR: You are trying to cut a patch release $VERSION from branch ${{github.ref_name}}. A patch release must be cut from an existing release branch."
+            exit 1
+          fi
 
       - name: Remove "beta" from version
         run: |
