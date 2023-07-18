@@ -29,6 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: "Checkout dependencies (nats.c.deps)"
+        uses: actions/checkout@v3
+        with:
+          repository: nats-io/nats.c.deps
+          path: deps
+
       - name: Gather version information
         id: version
         run: |
