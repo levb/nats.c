@@ -55,7 +55,7 @@ jobs:
         if: steps.version.outputs.patch == '0'
         run: |
           git checkout -b ${{steps.version.outputs.release_branch}}
-          git push origin ${{steps.version.outputs.release_branch}}}
+          git push origin ${{steps.version.outputs.release_branch}}
 
       - name: Use existing ${{steps.version.outputs.release_branch}} branch
         if: steps.version.outputs.patch != '0'
