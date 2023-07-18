@@ -62,7 +62,7 @@ jobs:
 
       - name: Remove "beta" from version
         run: |
-          sed -i .bak -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
+          sed -i '.bak' -E 's/^set\(NATS_VERSION_SUFFIX.*$/set(NATS_VERSION_SUFFIX "")/g' CMakeLists.txt
           grep "set(NATS_VERSION_" CMakeLists.txt
           git commit -am "(cut-release) Removed 'beta' from version"
 
