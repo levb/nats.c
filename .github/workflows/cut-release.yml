@@ -111,7 +111,7 @@ jobs:
           git status
 
       - name: Prepare the release PR
-        uses: peter-evans/create-pull-request@v3
+        uses: peter-evans/create-pull-request@v5
         with:
           title: "Release ${{steps.version.outputs.version}}"
           commit-message: "Updated version to ${{steps.version.outputs.version}}"
