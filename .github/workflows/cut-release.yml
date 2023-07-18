@@ -103,6 +103,8 @@ jobs:
 
       - name: Generate the docs
         run: |
+          sudo apt-get -q update
+          sudo apt-get -y install doxygen
           cd doc
           doxygen DoxyFile.NATS.Client
           git add html
