@@ -97,7 +97,8 @@ jobs:
 
       - name: Make a PR for the release
         run: |
-          git commit -am "(cut-release) Updated version to $VERSION"
-
           RELEASE_PR_BRANCH=${RELEASE_BRANCH}-pr-${{github.sha}}
+          git checkout -b $RELEASE_PR_BRANCH
+          git commit -am "(cut-release) Updated version to $VERSION"
+          git push origin $RELEASE_PR_BRANCH
           hub pull-request -b ${RELEASE_BRANCH} -h ${RELEASE_PR_BRANCH} -m "Release $VERSION"
