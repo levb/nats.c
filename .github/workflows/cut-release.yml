@@ -120,3 +120,4 @@ jobs:
             --head ${{steps.version.outputs.release_pr_branch}} \
             --milestone ${{steps.version.outputs.version}} \
             --label release
+            --json number,url,headRefOid
