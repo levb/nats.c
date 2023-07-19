@@ -73,7 +73,7 @@ jobs:
         run: |
           git config --global user.name 'cut-release for ${{github.actor}}'
           git config --global user.email '${{github.actor}}@users.noreply.github.com'
-          git checkout -b ${{steps.version.outputs.release_pr_branch}}
+          # git checkout -b ${{steps.version.outputs.release_pr_branch}}
 
       - name: Remove "beta" from version
         run: |
@@ -100,7 +100,7 @@ jobs:
           cd ..
           rm -rf deps
           git status
-          git commit -a -m "Updated version to ${{steps.version.outputs.version}}"
+          # git commit -a -m "Updated version to ${{steps.version.outputs.version}}"
 
       - name: Generate the docs
         run: |
@@ -110,7 +110,7 @@ jobs:
           doxygen DoxyFile.NATS.Client
           git add html
           git status
-          git commit -a -m "Updated docs for ${{steps.version.outputs.version}}"
+          # git commit -a -m "Updated docs for ${{steps.version.outputs.version}}"
 
       # - name: Create the release PR
       #   id: create_pr
