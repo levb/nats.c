@@ -125,7 +125,8 @@ jobs:
             --head ${{steps.version.outputs.release_pr_branch}} \
             --milestone ${{steps.version.outputs.version}} \
             --label release)
-          echo "ref=$(gh pr view $PR_URL --json headRefOid | jq -r '.headRefOid') " >> $GITHUB_OUTPUT
+          # echo "ref=$(gh pr view $PR_URL --json headRefOid | jq -r '.headRefOid') " >> $GITHUB_OUTPUT
+          echo "ref=origin/pull/$(gh pr view $PR_URL --json number)/merge" >> $GITHUB_OUTPUT
 
   build-PR:
     needs: branch-and-PR
