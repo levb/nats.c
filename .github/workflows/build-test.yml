@@ -60,7 +60,8 @@ on:
         description: "Codecov repo token"
 
 permissions:
-  contents: write # so it can comment
+  contents: write
+  pull-requests: write
 
 defaults:
   run:
