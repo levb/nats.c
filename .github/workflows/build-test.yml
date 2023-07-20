@@ -28,10 +28,6 @@ on:
       quick_test:
         type: string
         default: "OFF"
-      ref:
-        description: "Branch or tag ref to checkout"
-        default: ${{ github.event.inputs.ref || github.ref }}
-        type: string
       sanitize:
         type: string
         description: "sanitize option to use, 'address' or 'thread'"
@@ -60,8 +56,7 @@ on:
         description: "Codecov repo token"
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: write # so it can comment
 
 defaults:
   run:
@@ -74,8 +69,6 @@ jobs:
     steps:
       - name: Checkout nats.c
         uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: "Checkout dependencies (nats.c.deps)"
         uses: actions/checkout@v3
