@@ -129,8 +129,8 @@ jobs:
   create_pr:
     needs: [make_branch] # , build-release]
     runs-on: ubuntu-latest
-
     steps:
+      - uses: actions/checkout@v3
       - name: Create the release PR with gh
         id: pr
         env:
@@ -146,7 +146,6 @@ jobs:
             --label release)
           # echo "ref=$(gh pr view $PR_URL --json headRefOid | jq -r '.headRefOid') " >> $GITHUB_OUTPUT
           echo "ref=pull/$(gh pr view $PR_URL --json number | jq -r '.number')/merge" >> $GITHUB_OUTPUT
-
       - uses: actions/checkout@v3
         with:
           ref: ${{ steps.pr.outputs.ref }}
