@@ -11,6 +11,11 @@ on:
       - opened
       - reopened
       - labeled
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ${{ github.ref }}
 
 permissions:
   contents: write # so it can comment
@@ -44,6 +49,7 @@ jobs:
         ubuntu_version: [latest, 20.04]
     uses: ./.github/workflows/build-test.yml
     with:
+      ref: ${{ inputs.ref }}
       ubuntu_version: ${{ matrix.ubuntu_version }}
       compiler: ${{ matrix.compiler }}
       name: "ubuntu.${{ matrix.ubuntu_version }}-${{ matrix.compiler }}-latest"
@@ -58,6 +64,7 @@ jobs:
         server_version: [main, dev, v2.9.11]
     uses: ./.github/workflows/build-test.yml
     with:
+      ref: ${{ inputs.ref }}
       server_version: ${{ matrix.server_version }}
       name: "ubuntu.latest-gcc-${{ matrix.server_version }}"
       cache_build: true
@@ -71,6 +78,7 @@ jobs:
         compiler: [gcc, clang]
     uses: ./.github/workflows/build-test.yml
     with:
+      ref: ${{ inputs.ref }}
       tls: OFF
       name: "ubuntu.latest-${{ matrix.compiler }}-latest: no TLS"
 
@@ -83,6 +91,7 @@ jobs:
         compiler: [gcc-7, gcc-8, clang-8]
     uses: ./.github/workflows/build-test.yml
     with:
+      ref: ${{ inputs.ref }}
       ubuntu_version: 20.04
       compiler: ${{ matrix.compiler }}
       quick_test: ON
@@ -93,5 +102,6 @@ jobs:
     if: needs.check.outputs.do == 'true'
     uses: ./.github/workflows/build-test.yml
     with:
+      ref: ${{ inputs.ref }}
       streaming: OFF
       name: "ubuntu.latest-gcc-latest: no streaming"
