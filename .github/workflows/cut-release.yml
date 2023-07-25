@@ -120,11 +120,11 @@ jobs:
         run: |
           git push origin ${{steps.version.outputs.release_pr_branch}}
 
-  build-release:
-    needs: make_branch
-    uses: ./.github/workflows/build-release.yml
-    with:
-      ref: ${{ needs.make_branch.outputs.pr }}
+  # build-release:
+  #   needs: make_branch
+  #   uses: ./.github/workflows/build-release.yml
+  #   with:
+  #     ref: ${{ needs.make_branch.outputs.pr }}
 
   # pr:
   #     - name: Create the release PR with gh
