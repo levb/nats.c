@@ -27,7 +27,7 @@ defaults:
 jobs:
   check:
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push') ||
+    if: (github.event_name != 'pull_request') ||
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'build-release') ||
       (github.event_name == 'pull_request' && github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'build-release'))
     outputs:
