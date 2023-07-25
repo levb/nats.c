@@ -133,8 +133,9 @@ jobs:
     steps:
       - name: Create the release PR with gh
         id: pr
-        # env:
-          # GITHUB_TOKEN: ${{secrets.CUT_RELEASE_TOKEN}}
+        env:
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          # GH_TOKEN: ${{secrets.CUT_RELEASE_TOKEN}}
         run: |
           PR_URL=$(gh pr create \
             --title "Release ${{needs.make_branch.outputs.version}}" \
