@@ -94,26 +94,26 @@ jobs:
           sed -i -E "s/$regexp/set(NATS_VERSION_REQUIRED_NUMBER 0x${major_hex}${minor_hex}00)/g" CMakeLists.txt
           grep "set(NATS_VERSION_" CMakeLists.txt
 
-      - name: Rebuild with updated version
-        run: |
-          mkdir -p build
-          cd build
-          cmake .. -DNATS_PROTOBUF_DIR=${{ github.workspace }}/deps/pbuf -DNATS_UPDATE_DOC=ON -DNATS_UPDATE_VERSION=ON
-          make
-          cd ..
-          rm -rf deps
-          git status
-          git commit -a -m "Updated version to ${{steps.version.outputs.version}}"
+      # - name: Rebuild with updated version
+      #   run: |
+      #     mkdir -p build
+      #     cd build
+      #     cmake .. -DNATS_PROTOBUF_DIR=${{ github.workspace }}/deps/pbuf -DNATS_UPDATE_DOC=ON -DNATS_UPDATE_VERSION=ON
+      #     make
+      #     cd ..
+      #     rm -rf deps
+      #     git status
+      #     git commit -a -m "Updated version to ${{steps.version.outputs.version}}"
 
-      - name: Generate the docs
-        run: |
-          sudo apt-get -q update
-          sudo apt-get -y install doxygen
-          cd doc
-          doxygen DoxyFile.NATS.Client
-          git add html
-          git status
-          git commit -a -m "Updated docs for ${{steps.version.outputs.version}}"
+      # - name: Generate the docs
+      #   run: |
+      #     sudo apt-get -q update
+      #     sudo apt-get -y install doxygen
+      #     cd doc
+      #     doxygen DoxyFile.NATS.Client
+      #     git add html
+      #     git status
+      #     git commit -a -m "Updated docs for ${{steps.version.outputs.version}}"
 
       - name: Push the changes
         id: branch
@@ -144,8 +144,7 @@ jobs:
             --head ${{needs.make_branch.outputs.pr}} \
             --milestone ${{needs.make_branch.outputs.version}} \
             --label release)
-          # echo "ref=$(gh pr view $PR_URL --json headRefOid | jq -r '.headRefOid') " >> $GITHUB_OUTPUT
-          echo "ref=pull/$(gh pr view $PR_URL --json number | jq -r '.number')/merge" >> $GITHUB_OUTPUT
+          echo "ref=$(gh pr view $PR_URL --json headRefOid | jq -r '.headRefOid') " >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
         with:
           ref: ${{ steps.pr.outputs.ref }}
