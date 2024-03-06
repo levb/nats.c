@@ -38,6 +38,6 @@ jobs:
                 title: Update documentation
                 body: This pull request updates the documentation.
                 labels: documentation
-                base: main
+                base: gh-action-doxygen
                 branch-suffix: timestamp
                 delete-branch: true
