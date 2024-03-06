@@ -20,7 +20,7 @@ jobs:
 
             - name: Generate Documentation
               run: |
-                cd ../doc
+                cd doc
                 doxygen DoxyFile.NATS.Client
 
             - name: Check for Changes
