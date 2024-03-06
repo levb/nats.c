@@ -13,7 +13,6 @@
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
 <script type="text/javascript" src="navtree.js"></script>
-<script type="text/javascript" src="cookie.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -27,7 +26,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;" >
    <div id="projectname">NATS C Client with JetStream and Streaming support
-   &#160;<span id="projectnumber">3.7.1-beta</span>
+   &#160;<span id="projectnumber">3.9.0-beta</span>
    </div>
    <div id="projectbrief">The nats.io C Client, Supported by Synadia Communications Inc.</div>
   </td>
@@ -48,7 +47,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search','.html');
 /* @license magnet:?xt=urn:btih:cf05388f2679ee054f2beb29a391d25f4e673ac3&amp;dn=gpl-2.0.txt GPL-v2 */
 $(function() {
   initMenu('',true,false,'search.php','Search');
-  $(function() { init_search(); });
+  $(document).ready(function() { init_search(); });
 });
 /* @license-end */</script>
 <div id="main-nav"></div>
@@ -205,7 +204,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> jsStreamConfig_Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_config.html">jsStreamConfig</a> *</td>          <td class="paramname"><span class="paramname"><em>cfg</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_stream_config.html">jsStreamConfig</a> *&#160;</td>
+          <td class="paramname"><em>cfg</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -229,7 +229,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> jsPlacement_Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_placement.html">jsPlacement</a> *</td>          <td class="paramname"><span class="paramname"><em>placement</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_placement.html">jsPlacement</a> *&#160;</td>
+          <td class="paramname"><em>placement</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -253,7 +254,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> jsStreamSource_Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_source.html">jsStreamSource</a> *</td>          <td class="paramname"><span class="paramname"><em>source</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_stream_source.html">jsStreamSource</a> *&#160;</td>
+          <td class="paramname"><em>source</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -277,7 +279,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> jsExternalStream_Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_external_stream.html">jsExternalStream</a> *</td>          <td class="paramname"><span class="paramname"><em>external</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_external_stream.html">jsExternalStream</a> *&#160;</td>
+          <td class="paramname"><em>external</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -301,7 +304,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> jsRePublish_Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_re_publish.html">jsRePublish</a> *</td>          <td class="paramname"><span class="paramname"><em>rp</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_re_publish.html">jsRePublish</a> *&#160;</td>
+          <td class="paramname"><em>rp</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -325,35 +329,45 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_AddStream </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> **</td>          <td class="paramname"><span class="paramname"><em>si</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> **&#160;</td>
+          <td class="paramname"><em>si</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_stream_config.html">jsStreamConfig</a> *</td>          <td class="paramname"><span class="paramname"><em>cfg</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_stream_config.html">jsStreamConfig</a> *&#160;</td>
+          <td class="paramname"><em>cfg</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Creates a stream based on the provided configuration (that cannot be <code>NULL</code>). The name is mandatory and cannot contain <code>.</code> characters.</p>
 <dl class="section note"><dt>Note</dt><dd>If you do not need a <a class="el" href="structjs_stream_info.html">jsStreamInfo</a> to be returned, you can pass <code>NULL</code>, otherwise, on success you are responsible for freeing this object.</dd></dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#gac230f71dbdc4d10bc7471d01763881d6" title="Initializes a streaming configuration structure.">jsStreamConfig_Init</a> </dd>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#gac230f71dbdc4d10bc7471d01763881d6" title="Initializes a streaming configuration structure.">jsStreamConfig_Init</a> </dd>
 <dd>
-<a class="el" href="#ga8ee87ef86e94be42685941abe9638bbd" title="Destroys the stream information object.">jsStreamInfo_Destroy</a></dd></dl>
+<a class="el" href="group__js_assets_group.html#ga8ee87ef86e94be42685941abe9638bbd" title="Destroys the stream information object.">jsStreamInfo_Destroy</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">si</td><td>the location where to store the pointer to the new <a class="el" href="structjs_stream_info.html">jsStreamInfo</a> object in response to the creation request, or <code>NULL</code> if the stream information is not needed. </td></tr>
@@ -376,35 +390,45 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_UpdateStream </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> **</td>          <td class="paramname"><span class="paramname"><em>si</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> **&#160;</td>
+          <td class="paramname"><em>si</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_stream_config.html">jsStreamConfig</a> *</td>          <td class="paramname"><span class="paramname"><em>cfg</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_stream_config.html">jsStreamConfig</a> *&#160;</td>
+          <td class="paramname"><em>cfg</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Updates a stream based on the provided configuration (that cannot be <code>NULL</code>). The name is mandatory and cannot contain <code>.</code> characters.</p>
 <dl class="section note"><dt>Note</dt><dd>If you do not need a <a class="el" href="structjs_stream_info.html">jsStreamInfo</a> to be returned, you can pass <code>NULL</code>, otherwise, on success you are responsible for freeing this object.</dd></dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#gac230f71dbdc4d10bc7471d01763881d6" title="Initializes a streaming configuration structure.">jsStreamConfig_Init</a> </dd>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#gac230f71dbdc4d10bc7471d01763881d6" title="Initializes a streaming configuration structure.">jsStreamConfig_Init</a> </dd>
 <dd>
-<a class="el" href="#ga8ee87ef86e94be42685941abe9638bbd" title="Destroys the stream information object.">jsStreamInfo_Destroy</a></dd></dl>
+<a class="el" href="group__js_assets_group.html#ga8ee87ef86e94be42685941abe9638bbd" title="Destroys the stream information object.">jsStreamInfo_Destroy</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">si</td><td>the location where to store the pointer to the new <a class="el" href="structjs_stream_info.html">jsStreamInfo</a> object in response to the creation request, or <code>NULL</code> if the stream information is not needed. </td></tr>
@@ -427,22 +451,31 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_PurgeStream </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -476,22 +509,31 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_DeleteStream </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -517,38 +559,49 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_GetMsg </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gadcab54026c4ed78f344ce03ce31bb61a">natsMsg</a> **</td>          <td class="paramname"><span class="paramname"><em>msg</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gadcab54026c4ed78f344ce03ce31bb61a">natsMsg</a> **&#160;</td>
+          <td class="paramname"><em>msg</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint64_t</td>          <td class="paramname"><span class="paramname"><em>seq</em>, </span></td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>seq</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Retrieves a raw stream message stored in JetStream by sequence number.</p>
 <dl class="section note"><dt>Note</dt><dd>The message needs to be destroyed by calling <a class="el" href="group__msg_group.html#ga9e9590018284939f43f60964283f33ae" title="Destroys the message object.">natsMsg_Destroy</a>.</dd></dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga6835b53da27d5721eddb3698e582cf0c" title="Retrieves the last JetStream message from the stream for a given subject.">js_GetLastMsg</a> </dd>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#ga6835b53da27d5721eddb3698e582cf0c" title="Retrieves the last JetStream message from the stream for a given subject.">js_GetLastMsg</a> </dd>
 <dd>
 <a class="el" href="group__msg_group.html#ga9e9590018284939f43f60964283f33ae" title="Destroys the message object.">natsMsg_Destroy</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
@@ -574,38 +627,49 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_GetLastMsg </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gadcab54026c4ed78f344ce03ce31bb61a">natsMsg</a> **</td>          <td class="paramname"><span class="paramname"><em>msg</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gadcab54026c4ed78f344ce03ce31bb61a">natsMsg</a> **&#160;</td>
+          <td class="paramname"><em>msg</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>subject</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>subject</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Retrieves the last JetStream message from the stream for a given subject.</p>
 <dl class="section note"><dt>Note</dt><dd>The message needs to be destroyed by calling <a class="el" href="group__msg_group.html#ga9e9590018284939f43f60964283f33ae" title="Destroys the message object.">natsMsg_Destroy</a>.</dd></dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga9fe289ae172f83e53ca1b1b747744c1f" title="Retrieves a JetStream message from the stream by sequence.">js_GetMsg</a> </dd>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#ga9fe289ae172f83e53ca1b1b747744c1f" title="Retrieves a JetStream message from the stream by sequence.">js_GetMsg</a> </dd>
 <dd>
 <a class="el" href="group__msg_group.html#ga9e9590018284939f43f60964283f33ae" title="Destroys the message object.">natsMsg_Destroy</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
@@ -631,12 +695,13 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> jsDirectGetMsgOptions_Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_direct_get_msg_options.html">jsDirectGetMsgOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_direct_get_msg_options.html">jsDirectGetMsgOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Use this before setting specific direct get message options and passing it to <a class="el" href="#ga62c250cecc650b1eed0fa1691893e2ae" title="Retrieves directly a JetStream message based on provided options.">js_DirectGetMsg</a> API.</p>
+<p>Use this before setting specific direct get message options and passing it to <a class="el" href="group__js_assets_group.html#ga62c250cecc650b1eed0fa1691893e2ae" title="Retrieves directly a JetStream message based on provided options.">js_DirectGetMsg</a> API.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">opts</td><td>the pointer to the <a class="el" href="structjs_direct_get_msg_options.html">jsDirectGetMsgOptions</a> object. </td></tr>
@@ -655,32 +720,42 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_DirectGetMsg </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gadcab54026c4ed78f344ce03ce31bb61a">natsMsg</a> **</td>          <td class="paramname"><span class="paramname"><em>msg</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gadcab54026c4ed78f344ce03ce31bb61a">natsMsg</a> **&#160;</td>
+          <td class="paramname"><em>msg</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_direct_get_msg_options.html">jsDirectGetMsgOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>dgOpts</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="structjs_direct_get_msg_options.html">jsDirectGetMsgOptions</a> *&#160;</td>
+          <td class="paramname"><em>dgOpts</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>If a stream is created with <code>AllowDirect</code>, it is possible to retrieve a message without going through the leader.</p>
-<p>To specify the options, call <a class="el" href="#ga8d835d47aed9c84ce3b8dcfea469f4cb" title="Initializes a direct get message options structure.">jsDirectGetMsgOptions_Init</a> first and the set the appropriate options, then invoke this function.</p>
+<p>To specify the options, call <a class="el" href="group__js_assets_group.html#ga8d835d47aed9c84ce3b8dcfea469f4cb" title="Initializes a direct get message options structure.">jsDirectGetMsgOptions_Init</a> first and the set the appropriate options, then invoke this function.</p>
 <dl class="section note"><dt>Note</dt><dd>Some options are mutually exclusive but the library is not doing the check and leave it to the server to do it and return the error returned by the server.</dd>
 <dd>
 This API can only be used against servers that support the direct get feature, which is <code>v2.9.0+</code>. If running against an older server the call will likely timeout.</dd></dl>
@@ -706,33 +781,43 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_DeleteMsg </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint64_t</td>          <td class="paramname"><span class="paramname"><em>seq</em>, </span></td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>seq</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Deletes the message at sequence <code>seq</code> in the stream named <code>stream</code>.</p>
-<dl class="section note"><dt>Note</dt><dd>To completely erase the content of the deleted message when stored on disk, use <a class="el" href="#ga7158f73e183462e9a15e9802e1746ff0" title="Erases a message from the stream.">js_EraseMsg</a> instead.</dd></dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga7158f73e183462e9a15e9802e1746ff0" title="Erases a message from the stream.">js_EraseMsg</a></dd></dl>
+<dl class="section note"><dt>Note</dt><dd>To completely erase the content of the deleted message when stored on disk, use <a class="el" href="group__js_assets_group.html#ga7158f73e183462e9a15e9802e1746ff0" title="Erases a message from the stream.">js_EraseMsg</a> instead.</dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#ga7158f73e183462e9a15e9802e1746ff0" title="Erases a message from the stream.">js_EraseMsg</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">js</td><td>the pointer to the <a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> context. </td></tr>
@@ -755,32 +840,42 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_EraseMsg </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint64_t</td>          <td class="paramname"><span class="paramname"><em>seq</em>, </span></td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>seq</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Similar to <a class="el" href="#gaeba5d45abbe811c0e40830c5f26c78fd" title="Deletes a message from the stream.">js_DeleteMsg</a> except that the content of the deleted message is erased from stable storage.</p>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#gaeba5d45abbe811c0e40830c5f26c78fd" title="Deletes a message from the stream.">js_DeleteMsg</a></dd></dl>
+<p>Similar to <a class="el" href="group__js_assets_group.html#gaeba5d45abbe811c0e40830c5f26c78fd" title="Deletes a message from the stream.">js_DeleteMsg</a> except that the content of the deleted message is erased from stable storage.</p>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#gaeba5d45abbe811c0e40830c5f26c78fd" title="Deletes a message from the stream.">js_DeleteMsg</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">js</td><td>the pointer to the <a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> context. </td></tr>
@@ -803,27 +898,37 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_GetStreamInfo </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> **</td>          <td class="paramname"><span class="paramname"><em>si</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> **&#160;</td>
+          <td class="paramname"><em>si</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -835,7 +940,7 @@ This API can only be used against servers that support the direct get feature, w
 <div class="line">jsOptions_Init(&amp;o);</div>
 <div class="line">o.Stream.Info.DeletedDetails = true;</div>
 <div class="line">js_GetStreamInfo(&amp;si, js, &quot;MY_STREAM&quot;, &amp;o, &amp;jerr);</div>
-</div><!-- fragment --><dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga8ee87ef86e94be42685941abe9638bbd" title="Destroys the stream information object.">jsStreamInfo_Destroy</a></dd></dl>
+</div><!-- fragment --><dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#ga8ee87ef86e94be42685941abe9638bbd" title="Destroys the stream information object.">jsStreamInfo_Destroy</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">si</td><td>the location where to store the pointer to the new <a class="el" href="structjs_stream_info.html">jsStreamInfo</a> object in response to the creation request. </td></tr>
@@ -858,7 +963,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void jsStreamInfo_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> *</td>          <td class="paramname"><span class="paramname"><em>si</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_stream_info.html">jsStreamInfo</a> *&#160;</td>
+          <td class="paramname"><em>si</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -882,27 +988,36 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_Streams </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_info_list.html">jsStreamInfoList</a> **</td>          <td class="paramname"><span class="paramname"><em>list</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_stream_info_list.html">jsStreamInfoList</a> **&#160;</td>
+          <td class="paramname"><em>list</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Retrieves the list of all <a class="el" href="structjs_stream_info.html">jsStreamInfo</a>. It is possible to filter which streams are to be retrieved based on a subject filter.</p>
-<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="#ga38cdcc339eb8976d23296b99aa37d629" title="Destroys the stream information list object.">jsStreamInfoList_Destroy</a>.</dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="group__js_assets_group.html#ga38cdcc339eb8976d23296b99aa37d629" title="Destroys the stream information list object.">jsStreamInfoList_Destroy</a>.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">list</td><td>the location where to store the pointer to the new <a class="el" href="structjs_stream_info_list.html">jsStreamInfoList</a> object. </td></tr>
@@ -924,7 +1039,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void jsStreamInfoList_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_info_list.html">jsStreamInfoList</a> *</td>          <td class="paramname"><span class="paramname"><em>list</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_stream_info_list.html">jsStreamInfoList</a> *&#160;</td>
+          <td class="paramname"><em>list</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -949,27 +1065,36 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_StreamNames </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_names_list.html">jsStreamNamesList</a> **</td>          <td class="paramname"><span class="paramname"><em>list</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_stream_names_list.html">jsStreamNamesList</a> **&#160;</td>
+          <td class="paramname"><em>list</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Retrieves the list of all stream names. It is possible to filter which streams are to be retrieved based on a subject filter.</p>
-<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="#gaf8644f281d4e24893a6a170b4f7faa65" title="Destroys the stream names list object.">jsStreamNamesList_Destroy</a>.</dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="group__js_assets_group.html#gaf8644f281d4e24893a6a170b4f7faa65" title="Destroys the stream names list object.">jsStreamNamesList_Destroy</a>.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">list</td><td>the location where to store the pointer to the new <a class="el" href="structjs_stream_names_list.html">jsStreamNamesList</a> object. </td></tr>
@@ -991,7 +1116,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void jsStreamNamesList_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_stream_names_list.html">jsStreamNamesList</a> *</td>          <td class="paramname"><span class="paramname"><em>list</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_stream_names_list.html">jsStreamNamesList</a> *&#160;</td>
+          <td class="paramname"><em>list</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -1016,7 +1142,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> jsConsumerConfig_Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_config.html">jsConsumerConfig</a> *</td>          <td class="paramname"><span class="paramname"><em>cc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_config.html">jsConsumerConfig</a> *&#160;</td>
+          <td class="paramname"><em>cc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -1041,40 +1168,51 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_AddConsumer </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> **</td>          <td class="paramname"><span class="paramname"><em>ci</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> **&#160;</td>
+          <td class="paramname"><em>ci</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_config.html">jsConsumerConfig</a> *</td>          <td class="paramname"><span class="paramname"><em>cfg</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_config.html">jsConsumerConfig</a> *&#160;</td>
+          <td class="paramname"><em>cfg</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Adds a consumer based on the provided configuration (that cannot be <code>NULL</code>).</p>
 <dl class="section note"><dt>Note</dt><dd>If you do not need a <a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> to be returned, you can pass <code>NULL</code>, otherwise, on success you are responsible for freeing this object.</dd></dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga3381bb05c05bf4a8979adde68d37dd66" title="Initializes a consumer configuration structure.">jsConsumerConfig_Init</a> </dd>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#ga3381bb05c05bf4a8979adde68d37dd66" title="Initializes a consumer configuration structure.">jsConsumerConfig_Init</a> </dd>
 <dd>
-<a class="el" href="#ga9c1d5ed2f24ba836c10e415231f80088" title="Destroys the consumer information object.">jsConsumerInfo_Destroy</a></dd></dl>
+<a class="el" href="group__js_assets_group.html#ga9c1d5ed2f24ba836c10e415231f80088" title="Destroys the consumer information object.">jsConsumerInfo_Destroy</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">ci</td><td>the location where to store the pointer to the new <a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> object in response to the creation request, or <code>NULL</code> if the consumer information is not needed. </td></tr>
@@ -1098,40 +1236,51 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_UpdateConsumer </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> **</td>          <td class="paramname"><span class="paramname"><em>ci</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> **&#160;</td>
+          <td class="paramname"><em>ci</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_config.html">jsConsumerConfig</a> *</td>          <td class="paramname"><span class="paramname"><em>cfg</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_config.html">jsConsumerConfig</a> *&#160;</td>
+          <td class="paramname"><em>cfg</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Updates a consumer based on the provided configuration (that cannot be <code>NULL</code>).</p>
 <dl class="section note"><dt>Note</dt><dd>If you do not need a <a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> to be returned, you can pass <code>NULL</code>, otherwise, on success you are responsible for freeing this object.</dd></dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga3381bb05c05bf4a8979adde68d37dd66" title="Initializes a consumer configuration structure.">jsConsumerConfig_Init</a> </dd>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__js_assets_group.html#ga3381bb05c05bf4a8979adde68d37dd66" title="Initializes a consumer configuration structure.">jsConsumerConfig_Init</a> </dd>
 <dd>
-<a class="el" href="#ga9c1d5ed2f24ba836c10e415231f80088" title="Destroys the consumer information object.">jsConsumerInfo_Destroy</a></dd></dl>
+<a class="el" href="group__js_assets_group.html#ga9c1d5ed2f24ba836c10e415231f80088" title="Destroys the consumer information object.">jsConsumerInfo_Destroy</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">ci</td><td>the location where to store the pointer to the new <a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> object in response to the creation request, or <code>NULL</code> if the consumer information is not needed. </td></tr>
@@ -1155,36 +1304,47 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_GetConsumerInfo </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> **</td>          <td class="paramname"><span class="paramname"><em>ci</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> **&#160;</td>
+          <td class="paramname"><em>ci</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>consumer</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>consumer</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-<dl class="section note"><dt>Note</dt><dd>The returned object should be destroyed using <a class="el" href="#ga9c1d5ed2f24ba836c10e415231f80088" title="Destroys the consumer information object.">jsConsumerInfo_Destroy</a> in order to free allocated memory.</dd></dl>
+<dl class="section note"><dt>Note</dt><dd>The returned object should be destroyed using <a class="el" href="group__js_assets_group.html#ga9c1d5ed2f24ba836c10e415231f80088" title="Destroys the consumer information object.">jsConsumerInfo_Destroy</a> in order to free allocated memory.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">ci</td><td>the location where to store the pointer to the new <a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> object. </td></tr>
@@ -1208,27 +1368,37 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_DeleteConsumer </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>consumer</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>consumer</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -1255,7 +1425,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void jsConsumerInfo_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> *</td>          <td class="paramname"><span class="paramname"><em>ci</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> *&#160;</td>
+          <td class="paramname"><em>ci</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -1279,32 +1450,42 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_Consumers </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_info_list.html">jsConsumerInfoList</a> **</td>          <td class="paramname"><span class="paramname"><em>list</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_info_list.html">jsConsumerInfoList</a> **&#160;</td>
+          <td class="paramname"><em>list</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Retrieves the list of all <a class="el" href="structjs_consumer_info.html">jsConsumerInfo</a> for a given stream.</p>
-<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="#ga421de40d8e91658353111c3f2ea90ec8" title="Destroys the consumer information list object.">jsConsumerInfoList_Destroy</a>.</dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="group__js_assets_group.html#ga421de40d8e91658353111c3f2ea90ec8" title="Destroys the consumer information list object.">jsConsumerInfoList_Destroy</a>.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">list</td><td>the location where to store the pointer to the new <a class="el" href="structjs_consumer_info_list.html">jsConsumerInfoList</a> object. </td></tr>
@@ -1327,7 +1508,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void jsConsumerInfoList_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_info_list.html">jsConsumerInfoList</a> *</td>          <td class="paramname"><span class="paramname"><em>list</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_info_list.html">jsConsumerInfoList</a> *&#160;</td>
+          <td class="paramname"><em>list</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -1352,32 +1534,42 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_ConsumerNames </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_names_list.html">jsConsumerNamesList</a> **</td>          <td class="paramname"><span class="paramname"><em>list</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_names_list.html">jsConsumerNamesList</a> **&#160;</td>
+          <td class="paramname"><em>list</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>stream</em>, </span></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>stream</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Retrieves the list of all consumer names for a given stream.</p>
-<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="#ga2ced0d190131460bf4608ab893dffc50" title="Destroys the consumer names list object.">jsConsumerNamesList_Destroy</a>.</dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The list should be destroyed when no longer used by calling <a class="el" href="group__js_assets_group.html#ga2ced0d190131460bf4608ab893dffc50" title="Destroys the consumer names list object.">jsConsumerNamesList_Destroy</a>.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">list</td><td>the location where to store the pointer to the new <a class="el" href="structjs_consumer_names_list.html">jsConsumerNamesList</a> object. </td></tr>
@@ -1400,7 +1592,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void jsConsumerNamesList_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_consumer_names_list.html">jsConsumerNamesList</a> *</td>          <td class="paramname"><span class="paramname"><em>list</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_consumer_names_list.html">jsConsumerNamesList</a> *&#160;</td>
+          <td class="paramname"><em>list</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -1425,27 +1618,36 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> js_GetAccountInfo </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_account_info.html">jsAccountInfo</a> **</td>          <td class="paramname"><span class="paramname"><em>ai</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_account_info.html">jsAccountInfo</a> **&#160;</td>
+          <td class="paramname"><em>ai</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *</td>          <td class="paramname"><span class="paramname"><em>js</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaaf12cdd24c6cc23a57c20466c92ff8c1">jsCtx</a> *&#160;</td>
+          <td class="paramname"><em>js</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>opts</em>, </span></td>
+          <td class="paramtype"><a class="el" href="structjs_options.html">jsOptions</a> *&#160;</td>
+          <td class="paramname"><em>opts</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *</td>          <td class="paramname"><span class="paramname"><em>errCode</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="status_8h.html#a10731415ffcd3e2330df10c4d5fd3d70">jsErrCode</a> *&#160;</td>
+          <td class="paramname"><em>errCode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Retrieves information about the JetStream usage from an account.</p>
-<dl class="section note"><dt>Note</dt><dd>The returned object should be destroyed using <a class="el" href="#ga7c8664b38fcce8497746367d35e5f60b" title="Destroys the account information object.">jsAccountInfo_Destroy</a> in order to free allocated memory.</dd></dl>
+<dl class="section note"><dt>Note</dt><dd>The returned object should be destroyed using <a class="el" href="group__js_assets_group.html#ga7c8664b38fcce8497746367d35e5f60b" title="Destroys the account information object.">jsAccountInfo_Destroy</a> in order to free allocated memory.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">ai</td><td>the location where to store the pointer to the new <a class="el" href="structjs_account_info.html">jsAccountInfo</a> object in response to the account information request. </td></tr>
@@ -1467,7 +1669,8 @@ This API can only be used against servers that support the direct get feature, w
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void jsAccountInfo_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structjs_account_info.html">jsAccountInfo</a> *</td>          <td class="paramname"><span class="paramname"><em>ai</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="structjs_account_info.html">jsAccountInfo</a> *&#160;</td>
+          <td class="paramname"><em>ai</em></td><td>)</td>
           <td></td>
         </tr>
       </table>

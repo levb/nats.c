@@ -13,7 +13,6 @@
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
 <script type="text/javascript" src="navtree.js"></script>
-<script type="text/javascript" src="cookie.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -27,7 +26,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;" >
    <div id="projectname">NATS C Client with JetStream and Streaming support
-   &#160;<span id="projectnumber">3.7.1-beta</span>
+   &#160;<span id="projectnumber">3.9.0-beta</span>
    </div>
    <div id="projectbrief">The nats.io C Client, Supported by Synadia Communications Inc.</div>
   </td>
@@ -48,7 +47,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search','.html');
 /* @license magnet:?xt=urn:btih:cf05388f2679ee054f2beb29a391d25f4e673ac3&amp;dn=gpl-2.0.txt GPL-v2 */
 $(function() {
   initMenu('',true,false,'search.php','Search');
-  $(function() { init_search(); });
+  $(document).ready(function() { init_search(); });
 });
 /* @license-end */</script>
 <div id="main-nav"></div>
@@ -243,7 +242,7 @@ Typedefs</h2></td></tr>
 <p>The <code>NATS</code> library will invoke this callback to indicate if the event loop should start (<code>add is</code>true<code>) or stop (</code>add<code>is</code>false`) polling for read events on the socket.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">userData</td><td>the pointer to an user object created in <a class="el" href="#ga245eab0a01a485e40fba267f84ec037f" title="Attach this connection to the external event loop.">natsEvLoop_Attach</a>. </td></tr>
+    <tr><td class="paramname">userData</td><td>the pointer to an user object created in <a class="el" href="group__callbacks_group.html#ga245eab0a01a485e40fba267f84ec037f" title="Attach this connection to the external event loop.">natsEvLoop_Attach</a>. </td></tr>
     <tr><td class="paramname">add</td><td><code>true</code> if the event library should start polling, <code>false</code> otherwise. </td></tr>
   </table>
   </dd>
@@ -265,7 +264,7 @@ Typedefs</h2></td></tr>
 <p>The <code>NATS</code> library will invoke this callback to indicate if the event loop should start (<code>add is</code>true<code>) or stop (</code>add<code>is</code>false`) polling for write events on the socket.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">userData</td><td>the pointer to an user object created in <a class="el" href="#ga245eab0a01a485e40fba267f84ec037f" title="Attach this connection to the external event loop.">natsEvLoop_Attach</a>. </td></tr>
+    <tr><td class="paramname">userData</td><td>the pointer to an user object created in <a class="el" href="group__callbacks_group.html#ga245eab0a01a485e40fba267f84ec037f" title="Attach this connection to the external event loop.">natsEvLoop_Attach</a>. </td></tr>
     <tr><td class="paramname">add</td><td><code>true</code> if the event library should start polling, <code>false</code> otherwise. </td></tr>
   </table>
   </dd>
@@ -287,7 +286,7 @@ Typedefs</h2></td></tr>
 <p>The <code>NATS</code> library will invoke this callback to indicate that the connection no longer needs to be attached to the event loop. User can cleanup some state.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">userData</td><td>the pointer to an user object created in <a class="el" href="#ga245eab0a01a485e40fba267f84ec037f" title="Attach this connection to the external event loop.">natsEvLoop_Attach</a>. </td></tr>
+    <tr><td class="paramname">userData</td><td>the pointer to an user object created in <a class="el" href="group__callbacks_group.html#ga245eab0a01a485e40fba267f84ec037f" title="Attach this connection to the external event loop.">natsEvLoop_Attach</a>. </td></tr>
   </table>
   </dd>
 </dl>

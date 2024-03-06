@@ -24,7 +24,7 @@
  */
 function initMenu(relPath,searchEnabled,serverSide,searchPage,search) {
   function makeTree(data,relPath) {
-    let result='';
+    var result='';
     if ('children' in data) {
       result+='<ul>';
       for (var i in data.children) {

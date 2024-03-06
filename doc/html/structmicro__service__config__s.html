@@ -13,7 +13,6 @@
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
 <script type="text/javascript" src="navtree.js"></script>
-<script type="text/javascript" src="cookie.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -27,7 +26,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;" >
    <div id="projectname">NATS C Client with JetStream and Streaming support
-   &#160;<span id="projectnumber">3.7.1-beta</span>
+   &#160;<span id="projectnumber">3.9.0-beta</span>
    </div>
    <div id="projectbrief">The nats.io C Client, Supported by Synadia Communications Inc.</div>
   </td>
@@ -48,7 +47,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search','.html');
 /* @license magnet:?xt=urn:btih:cf05388f2679ee054f2beb29a391d25f4e673ac3&amp;dn=gpl-2.0.txt GPL-v2 */
 $(function() {
   initMenu('',true,false,'search.php','Search');
-  $(function() { init_search(); });
+  $(document).ready(function() { init_search(); });
 });
 /* @license-end */</script>
 <div id="main-nav"></div>
@@ -93,7 +92,7 @@ $(document).ready(function(){initNavTree('structmicro__service__config__s.html',
 <div class="contents">
 
 <p>The Microservice top-level configuration object.  
- <a href="#details">More...</a></p>
+ <a href="structmicro__service__config__s.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="nats_8h_source.html">nats.h</a>&gt;</code></p>
 <table class="memberdecls">

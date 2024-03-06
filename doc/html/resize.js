@@ -56,13 +56,17 @@ function initResizable()
     document.cookie = cookie_namespace + "_" + cookie + "=" + val + "; expires=" + expiration+"; path=/";
   }
 
-  function resizeWidth() {
-    const sidenavWidth = $(sidenav).outerWidth();
+  function resizeWidth()
+  {
+    var windowWidth = $(window).width() + "px";
+    var sidenavWidth = $(sidenav).outerWidth();
     content.css({marginLeft:parseInt(sidenavWidth)+"px"});
     writeCookie('width',sidenavWidth-barWidth, null);
   }
 
-  function restoreWidth(navWidth) {
+  function restoreWidth(navWidth)
+  {
+    var windowWidth = $(window).width() + "px";
     content.css({marginLeft:parseInt(navWidth)+barWidth+"px"});
     sidenav.css({width:navWidth + "px"});
   }
@@ -111,11 +115,11 @@ function initResizable()
   content = $("#doc-content");
   navtree = $("#nav-tree");
   footer  = $("#nav-path");
-  $(".side-nav-resizable").resizable({resize: () => resizeWidth() });
+  $(".side-nav-resizable").resizable({resize: function(e, ui) { resizeWidth(); } });
   $(sidenav).resizable({ minWidth: 0 });
-  $(window).resize(() => resizeHeight());
-  const device = navigator.userAgent.toLowerCase();
-  const touch_device = device.match(/(iphone|ipod|ipad|android)/);
+  $(window).resize(function() { resizeHeight(); });
+  var device = navigator.userAgent.toLowerCase();
+  var touch_device = device.match(/(iphone|ipod|ipad|android)/);
   if (touch_device) { /* wider split bar for touch only devices */
     $(sidenav).css({ paddingRight:'20px' });
     $('.ui-resizable-e').css({ width:'20px' });
@@ -125,10 +129,10 @@ function initResizable()
   var width = readCookie('width');
   if (width) { restoreWidth(width); } else { resizeWidth(); }
   resizeHeight();
-  const url = location.href;
-  const i=url.indexOf("#");
+  var url = location.href;
+  var i=url.indexOf("#");
   if (i>=0) window.location.hash=url.substr(i);
-  const _preventDefault = (evt) => evt.preventDefault();
+  var _preventDefault = function(evt) { evt.preventDefault(); };
   $("#splitbar").bind("dragstart", _preventDefault).bind("selectstart", _preventDefault);
   $(".ui-resizable-handle").dblclick(collapseExpand);
   $(window).on('load',resizeHeight);

@@ -13,7 +13,6 @@
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
 <script type="text/javascript" src="navtree.js"></script>
-<script type="text/javascript" src="cookie.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -27,7 +26,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;" >
    <div id="projectname">NATS C Client with JetStream and Streaming support
-   &#160;<span id="projectnumber">3.7.1-beta</span>
+   &#160;<span id="projectnumber">3.9.0-beta</span>
    </div>
    <div id="projectbrief">The nats.io C Client, Supported by Synadia Communications Inc.</div>
   </td>
@@ -48,7 +47,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search','.html');
 /* @license magnet:?xt=urn:btih:cf05388f2679ee054f2beb29a391d25f4e673ac3&amp;dn=gpl-2.0.txt GPL-v2 */
 $(function() {
   initMenu('',true,false,'search.php','Search');
-  $(function() { init_search(); });
+  $(document).ready(function() { init_search(); });
 });
 /* @license-end */</script>
 <div id="main-nav"></div>
@@ -190,24 +189,31 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_Connect </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> **</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> **&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gabcc48b40a81fe302188f4ee06ea9c54e">natsOptions</a> *</td>          <td class="paramname"><span class="paramname"><em>options</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gabcc48b40a81fe302188f4ee06ea9c54e">natsOptions</a> *&#160;</td>
+          <td class="paramname"><em>options</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Attempts to connect to a <code>NATS Server</code> with multiple options.</p>
-<p>This call is cloning the <a class="el" href="group__types_group.html#gabcc48b40a81fe302188f4ee06ea9c54e" title="Way to configure a natsConnection.">natsOptions</a> object. Once this call returns, changes made to the <code>options</code> will not have an effect to this connection. The <code>options</code> can however be changed prior to be passed to another <a class="el" href="#ga740be1ba16a8570eb98ef6755ebf52ce" title="Connects to a NATS Server using the provided options.">natsConnection_Connect()</a> call if desired.</p>
+<p>This call is cloning the <a class="el" href="group__types_group.html#gabcc48b40a81fe302188f4ee06ea9c54e" title="Way to configure a natsConnection.">natsOptions</a> object. Once this call returns, changes made to the <code>options</code> will not have an effect to this connection. The <code>options</code> can however be changed prior to be passed to another <a class="el" href="group__conn_mgt_group.html#ga740be1ba16a8570eb98ef6755ebf52ce" title="Connects to a NATS Server using the provided options.">natsConnection_Connect()</a> call if desired.</p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="group__types_group.html#gabcc48b40a81fe302188f4ee06ea9c54e" title="Way to configure a natsConnection.">natsOptions</a> </dd>
 <dd>
-<a class="el" href="#gafda2f702276fb0ac301efac10df09495" title="Destroys the connection object.">natsConnection_Destroy()</a></dd></dl>
+<a class="el" href="group__conn_mgt_group.html#gafda2f702276fb0ac301efac10df09495" title="Destroys the connection object.">natsConnection_Destroy()</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">nc</td><td>the location where to store the pointer to the newly created <a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec" title="A connection to a NATS Server.">natsConnection</a> object. </td></tr>
-    <tr><td class="paramname">options</td><td>the options to use for this connection. If <code>NULL</code> this call is equivalent to <a class="el" href="#gafb83c8d7970ba68be0e6c40c38cdfde4" title="Connects to a NATS Server using any of the URL from the given list.">natsConnection_ConnectTo()</a> with <a class="el" href="nats_8h.html#a911c54900b46b968205871cd9f68d36c" title="The default NATS Server URL.">NATS_DEFAULT_URL</a>. </td></tr>
+    <tr><td class="paramname">options</td><td>the options to use for this connection. If <code>NULL</code> this call is equivalent to <a class="el" href="group__conn_mgt_group.html#gafb83c8d7970ba68be0e6c40c38cdfde4" title="Connects to a NATS Server using any of the URL from the given list.">natsConnection_ConnectTo()</a> with <a class="el" href="nats_8h.html#a911c54900b46b968205871cd9f68d36c" title="The default NATS Server URL.">NATS_DEFAULT_URL</a>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -223,7 +229,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void natsConnection_ProcessReadEvent </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -248,7 +255,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void natsConnection_ProcessWriteEvent </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -273,24 +281,31 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_ConnectTo </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> **</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> **&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>urls</em></span>&#160;)</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>urls</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Attempts to connect to a <code>NATS Server</code>.</p>
 <p>This call supports multiple comma separated URLs. If more than one is specified, it behaves as if you were using a <a class="el" href="group__types_group.html#gabcc48b40a81fe302188f4ee06ea9c54e" title="Way to configure a natsConnection.">natsOptions</a> object and called <a class="el" href="group__opts_group.html#gacb7e964ae54b74d972d72e118b7b8bdf" title="Set the list of servers to try to (re)connect to.">natsOptions_SetServers()</a> with the equivalent array of URLs. The list is randomized before the connect sequence starts.</p>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="#gafda2f702276fb0ac301efac10df09495" title="Destroys the connection object.">natsConnection_Destroy()</a> </dd>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__conn_mgt_group.html#gafda2f702276fb0ac301efac10df09495" title="Destroys the connection object.">natsConnection_Destroy()</a> </dd>
 <dd>
 <a class="el" href="group__opts_group.html#gacb7e964ae54b74d972d72e118b7b8bdf" title="Set the list of servers to try to (re)connect to.">natsOptions_SetServers()</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">nc</td><td>the location where to store the pointer to the newly created <a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec" title="A connection to a NATS Server.">natsConnection</a> object. </td></tr>
-    <tr><td class="paramname">urls</td><td>the URL to connect to, or the list of URLs to chose from. If <code>NULL</code> this call is equivalent to <a class="el" href="#gafb83c8d7970ba68be0e6c40c38cdfde4" title="Connects to a NATS Server using any of the URL from the given list.">natsConnection_ConnectTo()</a> with <a class="el" href="nats_8h.html#a911c54900b46b968205871cd9f68d36c" title="The default NATS Server URL.">NATS_DEFAULT_URL</a> </td></tr>
+    <tr><td class="paramname">urls</td><td>the URL to connect to, or the list of URLs to chose from. If <code>NULL</code> this call is equivalent to <a class="el" href="group__conn_mgt_group.html#gafb83c8d7970ba68be0e6c40c38cdfde4" title="Connects to a NATS Server using any of the URL from the given list.">natsConnection_ConnectTo()</a> with <a class="el" href="nats_8h.html#a911c54900b46b968205871cd9f68d36c" title="The default NATS Server URL.">NATS_DEFAULT_URL</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -306,7 +321,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> bool natsConnection_IsClosed </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -330,7 +346,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> bool natsConnection_IsReconnecting </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -354,7 +371,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> bool natsConnection_IsDraining </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -378,7 +396,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a6d667c1f8dd289a7e0f39bf10e800b51">natsConnStatus</a> natsConnection_Status </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -403,7 +422,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> int natsConnection_Buffered </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -428,7 +448,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_Flush </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -454,17 +475,24 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_FlushTimeout </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int64_t</td>          <td class="paramname"><span class="paramname"><em>timeout</em></span>&#160;)</td>
+          <td class="paramtype">int64_t&#160;</td>
+          <td class="paramname"><em>timeout</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Performs a round trip to the server and return when it receives the internal reply, or if the call times-out (timeout is expressed in milliseconds).</p>
-<p>See possible failure case described in <a class="el" href="#ga1c98f8d89bb8e20ea8621e860a90267f" title="Flushes the connection.">natsConnection_Flush()</a>.</p>
+<p>See possible failure case described in <a class="el" href="group__conn_mgt_group.html#ga1c98f8d89bb8e20ea8621e860a90267f" title="Flushes the connection.">natsConnection_Flush()</a>.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">nc</td><td>the pointer to the <a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec" title="A connection to a NATS Server.">natsConnection</a> object. </td></tr>
@@ -484,7 +512,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> int64_t natsConnection_GetMaxPayload </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -509,12 +538,19 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetStats </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#ga57a4b8c7109e2773878655722ce028aa">natsStatistics</a> *</td>          <td class="paramname"><span class="paramname"><em>stats</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#ga57a4b8c7109e2773878655722ce028aa">natsStatistics</a> *&#160;</td>
+          <td class="paramname"><em>stats</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -538,17 +574,25 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetConnectedUrl </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">char *</td>          <td class="paramname"><span class="paramname"><em>buffer</em>, </span></td>
+          <td class="paramtype">char *&#160;</td>
+          <td class="paramname"><em>buffer</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>bufferSize</em></span>&#160;)</td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>bufferSize</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -573,17 +617,25 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetConnectedServerId </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">char *</td>          <td class="paramname"><span class="paramname"><em>buffer</em>, </span></td>
+          <td class="paramtype">char *&#160;</td>
+          <td class="paramname"><em>buffer</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>bufferSize</em></span>&#160;)</td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>bufferSize</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -608,17 +660,25 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetServers </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">char ***</td>          <td class="paramname"><span class="paramname"><em>servers</em>, </span></td>
+          <td class="paramtype">char ***&#160;</td>
+          <td class="paramname"><em>servers</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int *</td>          <td class="paramname"><span class="paramname"><em>count</em></span>&#160;)</td>
+          <td class="paramtype">int *&#160;</td>
+          <td class="paramname"><em>count</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -646,21 +706,29 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetDiscoveredServers </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">char ***</td>          <td class="paramname"><span class="paramname"><em>servers</em>, </span></td>
+          <td class="paramtype">char ***&#160;</td>
+          <td class="paramname"><em>servers</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int *</td>          <td class="paramname"><span class="paramname"><em>count</em></span>&#160;)</td>
+          <td class="paramtype">int *&#160;</td>
+          <td class="paramname"><em>count</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Unlike <a class="el" href="#gaf4ee7262e35e44c40ad5dfe9240db76b" title="Returns the list of server URLs known to this connection.">natsConnection_GetServers</a>, this function only returns the list of servers that have been discovered after the a connection has been established (with servers version 0.9.2 and above).</p>
+<p>Unlike <a class="el" href="group__conn_mgt_group.html#gaf4ee7262e35e44c40ad5dfe9240db76b" title="Returns the list of server URLs known to this connection.">natsConnection_GetServers</a>, this function only returns the list of servers that have been discovered after the a connection has been established (with servers version 0.9.2 and above).</p>
 <p>No credential information is included in any of the server URLs returned by this call.<br  />
  If you want to use any of these URLs to connect to a server that requires authentication, you will need to use <a class="el" href="group__opts_group.html#ga5b99da7dd74aac3be962f323c3863d9e" title="Sets the user name/password to use when not specified in the URL.">natsOptions_SetUserInfo</a> or <a class="el" href="group__opts_group.html#gad58a5b9dabadeebda30e952ff7b39193" title="Sets the token to use when not specified in the URL.">natsOptions_SetToken</a>.</p>
 <dl class="section note"><dt>Note</dt><dd>The user is responsible for freeing the memory of the returned array.</dd></dl>
@@ -684,12 +752,19 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetLastError </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char **</td>          <td class="paramname"><span class="paramname"><em>lastError</em></span>&#160;)</td>
+          <td class="paramtype">const char **&#160;</td>
+          <td class="paramname"><em>lastError</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -714,12 +789,19 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetClientID </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint64_t *</td>          <td class="paramname"><span class="paramname"><em>cid</em></span>&#160;)</td>
+          <td class="paramtype">uint64_t *&#160;</td>
+          <td class="paramname"><em>cid</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -745,7 +827,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_Drain </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -755,7 +838,7 @@ Functions</h2></td></tr>
 <dl class="section warning"><dt>Warning</dt><dd>This function does not block waiting for the draining operation to complete.</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="group__opts_group.html#ga44410242e73134e5bb51ef27904a9253" title="Sets the callback to be invoked when a connection to a server is permanently lost.">natsOptions_SetClosedCB</a> </dd>
 <dd>
-<a class="el" href="#gae06fe6f5933f216d6d93645a122a7dd4" title="Drains the connection with given timeout.">natsConnection_DrainTimeout</a></dd></dl>
+<a class="el" href="group__conn_mgt_group.html#gae06fe6f5933f216d6d93645a122a7dd4" title="Drains the connection with given timeout.">natsConnection_DrainTimeout</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">nc</td><td>the pointer to the <a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec" title="A connection to a NATS Server.">natsConnection</a> object. </td></tr>
@@ -774,21 +857,28 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_DrainTimeout </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int64_t</td>          <td class="paramname"><span class="paramname"><em>timeout</em></span>&#160;)</td>
+          <td class="paramtype">int64_t&#160;</td>
+          <td class="paramname"><em>timeout</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Identical to <a class="el" href="#ga59bdc4ad9fea2053f5d3841f6b83f88b" title="Drains the connection with default timeout.">natsConnection_Drain</a> but the timeout can be specified here.</p>
+<p>Identical to <a class="el" href="group__conn_mgt_group.html#ga59bdc4ad9fea2053f5d3841f6b83f88b" title="Drains the connection with default timeout.">natsConnection_Drain</a> but the timeout can be specified here.</p>
 <p>The value is expressed in milliseconds. Zero or negative value means that the operation will not timeout.</p>
 <dl class="section warning"><dt>Warning</dt><dd>This function does not block waiting for the draining operation to complete.</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="group__opts_group.html#ga44410242e73134e5bb51ef27904a9253" title="Sets the callback to be invoked when a connection to a server is permanently lost.">natsOptions_SetClosedCB</a> </dd>
 <dd>
-<a class="el" href="#ga59bdc4ad9fea2053f5d3841f6b83f88b" title="Drains the connection with default timeout.">natsConnection_Drain</a></dd></dl>
+<a class="el" href="group__conn_mgt_group.html#ga59bdc4ad9fea2053f5d3841f6b83f88b" title="Drains the connection with default timeout.">natsConnection_Drain</a></dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">nc</td><td>the pointer to the <a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec" title="A connection to a NATS Server.">natsConnection</a> object. </td></tr>
@@ -808,22 +898,31 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_Sign </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const unsigned char *</td>          <td class="paramname"><span class="paramname"><em>message</em>, </span></td>
+          <td class="paramtype">const unsigned char *&#160;</td>
+          <td class="paramname"><em>message</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>messageLen</em>, </span></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>messageLen</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">unsigned char</td>          <td class="paramname"><span class="paramname"><em>sig</em>[64]</span>&#160;)</td>
+          <td class="paramtype">unsigned char&#160;</td>
+          <td class="paramname"><em>sig</em>[64]&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -850,12 +949,19 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetClientIP </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">char **</td>          <td class="paramname"><span class="paramname"><em>ip</em></span>&#160;)</td>
+          <td class="paramtype">char **&#160;</td>
+          <td class="paramname"><em>ip</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -883,12 +989,19 @@ This is supported on servers &gt;= version 2.1.6. Calling <a class="el" href="gr
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetRTT </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int64_t *</td>          <td class="paramname"><span class="paramname"><em>rtt</em></span>&#160;)</td>
+          <td class="paramtype">int64_t *&#160;</td>
+          <td class="paramname"><em>rtt</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -913,7 +1026,8 @@ This is supported on servers &gt;= version 2.1.6. Calling <a class="el" href="gr
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_HasHeaderSupport </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -937,21 +1051,29 @@ This is supported on servers &gt;= version 2.1.6. Calling <a class="el" href="gr
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> natsConnection_GetLocalIPAndPort </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">char **</td>          <td class="paramname"><span class="paramname"><em>ip</em>, </span></td>
+          <td class="paramtype">char **&#160;</td>
+          <td class="paramname"><em>ip</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int *</td>          <td class="paramname"><span class="paramname"><em>port</em></span>&#160;)</td>
+          <td class="paramtype">int *&#160;</td>
+          <td class="paramname"><em>port</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Unlike <a class="el" href="#gadafcfeeeac2733c7119981ab97b7103d" title="Returns the client&#39;s IP address as reported by the server.">natsConnection_GetClientIP</a>, this function returns the connection's local IP and port.</p>
+<p>Unlike <a class="el" href="group__conn_mgt_group.html#gadafcfeeeac2733c7119981ab97b7103d" title="Returns the client&#39;s IP address as reported by the server.">natsConnection_GetClientIP</a>, this function returns the connection's local IP and port.</p>
 <dl class="section note"><dt>Note</dt><dd>The user is responsible for freeing the memory allocated for the returned IP string.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -982,12 +1104,13 @@ This is supported on servers &gt;= version 2.1.6. Calling <a class="el" href="gr
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void natsConnection_Close </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Closes the connection to the server. This call will release all blocking calls, such as <a class="el" href="#ga1c98f8d89bb8e20ea8621e860a90267f" title="Flushes the connection.">natsConnection_Flush()</a> and <a class="el" href="group__sub_group.html#ga6538a5d78dfb0f16514b94c8e74c11af" title="Returns the next available message.">natsSubscription_NextMsg()</a>. The connection object is still usable until the call to <a class="el" href="#gafda2f702276fb0ac301efac10df09495" title="Destroys the connection object.">natsConnection_Destroy()</a>.</p>
+<p>Closes the connection to the server. This call will release all blocking calls, such as <a class="el" href="group__conn_mgt_group.html#ga1c98f8d89bb8e20ea8621e860a90267f" title="Flushes the connection.">natsConnection_Flush()</a> and <a class="el" href="group__sub_group.html#ga6538a5d78dfb0f16514b94c8e74c11af" title="Returns the next available message.">natsSubscription_NextMsg()</a>. The connection object is still usable until the call to <a class="el" href="group__conn_mgt_group.html#gafda2f702276fb0ac301efac10df09495" title="Destroys the connection object.">natsConnection_Destroy()</a>.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">nc</td><td>the pointer to the <a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec" title="A connection to a NATS Server.">natsConnection</a> object. </td></tr>
@@ -1006,7 +1129,8 @@ This is supported on servers &gt;= version 2.1.6. Calling <a class="el" href="gr
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void natsConnection_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *</td>          <td class="paramname"><span class="paramname"><em>nc</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gaf88dca0a18efb5c5e994d265a9f04aec">natsConnection</a> *&#160;</td>
+          <td class="paramname"><em>nc</em></td><td>)</td>
           <td></td>
         </tr>
       </table>

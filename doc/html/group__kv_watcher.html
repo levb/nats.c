@@ -13,7 +13,6 @@
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
 <script type="text/javascript" src="navtree.js"></script>
-<script type="text/javascript" src="cookie.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -27,7 +26,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;" >
    <div id="projectname">NATS C Client with JetStream and Streaming support
-   &#160;<span id="projectnumber">3.7.1-beta</span>
+   &#160;<span id="projectnumber">3.9.0-beta</span>
    </div>
    <div id="projectbrief">The nats.io C Client, Supported by Synadia Communications Inc.</div>
   </td>
@@ -48,7 +47,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search','.html');
 /* @license magnet:?xt=urn:btih:cf05388f2679ee054f2beb29a391d25f4e673ac3&amp;dn=gpl-2.0.txt GPL-v2 */
 $(function() {
   initMenu('',true,false,'search.php','Search');
-  $(function() { init_search(); });
+  $(document).ready(function() { init_search(); });
 });
 /* @license-end */</script>
 <div id="main-nav"></div>
@@ -116,22 +115,30 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> kvWatcher_Next </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#gad489fb4074f27427560ca71797db6191">kvEntry</a> **</td>          <td class="paramname"><span class="paramname"><em>new_entry</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#gad489fb4074f27427560ca71797db6191">kvEntry</a> **&#160;</td>
+          <td class="paramname"><em>new_entry</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#ga526fa6d37e818784b94cdc1713f3a043">kvWatcher</a> *</td>          <td class="paramname"><span class="paramname"><em>w</em>, </span></td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#ga526fa6d37e818784b94cdc1713f3a043">kvWatcher</a> *&#160;</td>
+          <td class="paramname"><em>w</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int64_t</td>          <td class="paramname"><span class="paramname"><em>timeout</em></span>&#160;)</td>
+          <td class="paramtype">int64_t&#160;</td>
+          <td class="paramname"><em>timeout</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Returns the next entry for this watcher. The entry may be <code>NULL</code> (with <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80a9cee6c417868ecaa69f99ff4f6576990" title="Success.">NATS_OK</a> status) to indicate that the initial state has been retrieved.</p>
-<p>If a thread is waiting on this call, it can be canceled with a call to <a class="el" href="#ga73adf44114fedd62ef75ebd81839b65e" title="Stops the watcher.">kvWatcher_Stop</a>.</p>
+<p>If a thread is waiting on this call, it can be canceled with a call to <a class="el" href="group__kv_watcher.html#ga73adf44114fedd62ef75ebd81839b65e" title="Stops the watcher.">kvWatcher_Stop</a>.</p>
 <dl class="section note"><dt>Note</dt><dd>The entry should be destroyed to release memory using <a class="el" href="group__kv_entry.html#ga8359ffcdeefb9c5821e6442d0d5ee388" title="Destroys the KeyValue entry object.">kvEntry_Destroy</a>.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -153,13 +160,14 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80">natsStatus</a> kvWatcher_Stop </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#ga526fa6d37e818784b94cdc1713f3a043">kvWatcher</a> *</td>          <td class="paramname"><span class="paramname"><em>w</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#ga526fa6d37e818784b94cdc1713f3a043">kvWatcher</a> *&#160;</td>
+          <td class="paramname"><em>w</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Stops the watcher. Stopping a stopped watcher returns <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80a9cee6c417868ecaa69f99ff4f6576990" title="Success.">NATS_OK</a>.</p>
-<p>After this call, new and existing calls to <a class="el" href="#ga562c216a0199c30455af4c2da46000e5" title="Returns the next entry for this watcher.">kvWatcher_Next</a> (that are waiting for an update) will return with <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80a9bb78b4f245d2870040d25c450febd4b">NATS_ILLEGAL_STATE</a>.</p>
+<p>After this call, new and existing calls to <a class="el" href="group__kv_watcher.html#ga562c216a0199c30455af4c2da46000e5" title="Returns the next entry for this watcher.">kvWatcher_Next</a> (that are waiting for an update) will return with <a class="el" href="status_8h.html#a36c934157b663b7b5fb5d6609c897c80a9bb78b4f245d2870040d25c450febd4b">NATS_ILLEGAL_STATE</a>.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">w</td><td>the pointer to the <a class="el" href="group__types_group.html#ga526fa6d37e818784b94cdc1713f3a043">kvWatcher</a> object. </td></tr>
@@ -178,7 +186,8 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="nats_8h.html#a3bc1b3fe7f64083e60c7c3b93f205bad">NATS_EXTERN</a> void kvWatcher_Destroy </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__types_group.html#ga526fa6d37e818784b94cdc1713f3a043">kvWatcher</a> *</td>          <td class="paramname"><span class="paramname"><em>w</em></span></td><td>)</td>
+          <td class="paramtype"><a class="el" href="group__types_group.html#ga526fa6d37e818784b94cdc1713f3a043">kvWatcher</a> *&#160;</td>
+          <td class="paramname"><em>w</em></td><td>)</td>
           <td></td>
         </tr>
       </table>

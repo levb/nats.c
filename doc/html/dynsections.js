@@ -64,10 +64,7 @@ function toggleLevel(level)
       a.html('&#9658;');
       $(this).show();
     } else {
-      content.show();
-      summary.hide();
-      $(linkObj).removeClass('closed').addClass('opened');
-      $(trigger).attr('src',src.substring(0,src.length-10)+'open.png');
+      $(this).hide();
     }
   });
   updateStripes();

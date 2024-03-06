@@ -13,7 +13,6 @@
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
 <script type="text/javascript" src="navtree.js"></script>
-<script type="text/javascript" src="cookie.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -27,7 +26,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;" >
    <div id="projectname">NATS C Client with JetStream and Streaming support
-   &#160;<span id="projectnumber">3.7.1-beta</span>
+   &#160;<span id="projectnumber">3.9.0-beta</span>
    </div>
    <div id="projectbrief">The nats.io C Client, Supported by Synadia Communications Inc.</div>
   </td>
@@ -48,7 +47,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search','.html');
 /* @license magnet:?xt=urn:btih:cf05388f2679ee054f2beb29a391d25f4e673ac3&amp;dn=gpl-2.0.txt GPL-v2 */
 $(function() {
   initMenu('',true,false,'search.php','Search');
-  $(function() { init_search(); });
+  $(document).ready(function() { init_search(); });
 });
 /* @license-end */</script>
 <div id="main-nav"></div>
@@ -143,7 +142,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct micro_client_s <a class="el" href="#ga22c8eebaa1ca15ba0834b89cc1081130">microClient</a></td>
+          <td class="memname">typedef struct micro_client_s <a class="el" href="group__micro_types.html#ga22c8eebaa1ca15ba0834b89cc1081130">microClient</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -159,7 +158,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct __for_forward_compatibility_only <a class="el" href="#ga550430b08d2e071e3901c6d720f4a039">microClientConfig</a></td>
+          <td class="memname">typedef struct __for_forward_compatibility_only <a class="el" href="group__micro_types.html#ga550430b08d2e071e3901c6d720f4a039">microClientConfig</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -173,7 +172,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct micro_endpoint_s <a class="el" href="#gaea03a1fb23faec1d7919054b27acfbc3">microEndpoint</a></td>
+          <td class="memname">typedef struct micro_endpoint_s <a class="el" href="group__micro_types.html#gaea03a1fb23faec1d7919054b27acfbc3">microEndpoint</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -189,7 +188,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct <a class="el" href="structmicro__endpoint__config__s.html">micro_endpoint_config_s</a> <a class="el" href="#ga7718d2f2c911e4cf677788f4ffe048cd">microEndpointConfig</a></td>
+          <td class="memname">typedef struct <a class="el" href="structmicro__endpoint__config__s.html">micro_endpoint_config_s</a> <a class="el" href="group__micro_types.html#ga7718d2f2c911e4cf677788f4ffe048cd">microEndpointConfig</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -204,7 +203,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct <a class="el" href="structmicro__endpoint__info__s.html">micro_endpoint_info_s</a> <a class="el" href="#gadd4fcc67087b4d5f42015a7269cb6496">microEndpointInfo</a></td>
+          <td class="memname">typedef struct <a class="el" href="structmicro__endpoint__info__s.html">micro_endpoint_info_s</a> <a class="el" href="group__micro_types.html#gadd4fcc67087b4d5f42015a7269cb6496">microEndpointInfo</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -220,7 +219,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct <a class="el" href="structmicro__endpoint__stats__s.html">micro_endpoint_stats_s</a> <a class="el" href="#ga0a429a5ecfff69b212a3ba9abebcba53">microEndpointStats</a></td>
+          <td class="memname">typedef struct <a class="el" href="structmicro__endpoint__stats__s.html">micro_endpoint_stats_s</a> <a class="el" href="group__micro_types.html#ga0a429a5ecfff69b212a3ba9abebcba53">microEndpointStats</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -236,7 +235,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct micro_error_s <a class="el" href="#ga41ae4121cf2f8e326369bbc2e44e20d7">microError</a></td>
+          <td class="memname">typedef struct micro_error_s <a class="el" href="group__micro_types.html#ga41ae4121cf2f8e326369bbc2e44e20d7">microError</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -252,7 +251,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct micro_group_s <a class="el" href="#ga2681ea21e9f5f6681b972bbb67e32133">microGroup</a></td>
+          <td class="memname">typedef struct micro_group_s <a class="el" href="group__micro_types.html#ga2681ea21e9f5f6681b972bbb67e32133">microGroup</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -267,7 +266,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct micro_request_s <a class="el" href="#ga417ace5dc09fe8a2f6fd3882302a37c4">microRequest</a></td>
+          <td class="memname">typedef struct micro_request_s <a class="el" href="group__micro_types.html#ga417ace5dc09fe8a2f6fd3882302a37c4">microRequest</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -282,7 +281,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct micro_service_s <a class="el" href="#gaf6f5aef8773b70746e84c100c2b19b28">microService</a></td>
+          <td class="memname">typedef struct micro_service_s <a class="el" href="group__micro_types.html#gaf6f5aef8773b70746e84c100c2b19b28">microService</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -298,7 +297,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct <a class="el" href="structmicro__service__config__s.html">micro_service_config_s</a> <a class="el" href="#ga1e46c0657cf42e83b366d224f380fb55">microServiceConfig</a></td>
+          <td class="memname">typedef struct <a class="el" href="structmicro__service__config__s.html">micro_service_config_s</a> <a class="el" href="group__micro_types.html#ga1e46c0657cf42e83b366d224f380fb55">microServiceConfig</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -314,7 +313,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct <a class="el" href="structmicro__service__info__s.html">micro_service_info_s</a> <a class="el" href="#ga033705d0404de94efb7a6444c6e91743">microServiceInfo</a></td>
+          <td class="memname">typedef struct <a class="el" href="structmicro__service__info__s.html">micro_service_info_s</a> <a class="el" href="group__micro_types.html#ga033705d0404de94efb7a6444c6e91743">microServiceInfo</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -330,7 +329,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef struct <a class="el" href="structmicro__service__stats__s.html">micro_service_stats_s</a> <a class="el" href="#gaf832de937edc57bcc3af5e1456b3760c">microServiceStats</a></td>
+          <td class="memname">typedef struct <a class="el" href="structmicro__service__stats__s.html">micro_service_stats_s</a> <a class="el" href="group__micro_types.html#gaf832de937edc57bcc3af5e1456b3760c">microServiceStats</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
