@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
+        with:
+          repository: git@github.com:levb/nats.c.git
 
       - name: Cache Doxygen
         id: cache-doxygen
