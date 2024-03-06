@@ -617,30 +617,11 @@ function SearchResults() {
         parent.searchBox.CloseResultsWindow();
         parent.document.getElementById("MSearchField").focus();
       }
-    } else if (this.lastKey==40) { // Down
-      const newIndex = itemIndex+1;
-      let focusItem;
-      const item = document.getElementById('Item'+itemIndex);
-      const elem = this.FindChildElement(item.parentNode.parentNode.id);
-      if (elem && elem.style.display == 'block') { // children visible
-        focusItem = document.getElementById('Item'+itemIndex+'_c0');
+      else if (this.lastKey==13) // Enter
+      {
+        return true;
       }
-      if (!focusItem) focusItem = this.NavNext(newIndex);
-      if (focusItem)  focusItem.focus();
-    } else if (this.lastKey==39) { // Right
-      const item = document.getElementById('Item'+itemIndex);
-      const elem = this.FindChildElement(item.parentNode.parentNode.id);
-      if (elem) elem.style.display = 'block';
-    } else if (this.lastKey==37) { // Left
-      const item = document.getElementById('Item'+itemIndex);
-      const elem = this.FindChildElement(item.parentNode.parentNode.id);
-      if (elem) elem.style.display = 'none';
-    } else if (this.lastKey==27) { // Escape
-      e.stopPropagation();
-      searchBox.CloseResultsWindow();
-      document.getElementById("MSearchField").focus();
-    } else if (this.lastKey==13) { // Enter
-      return true;
+      return false;
     }
     return false;
   }
