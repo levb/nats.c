@@ -35,11 +35,14 @@ jobs:
         run: |
           cd doc
           doxygen DoxyFile.NATS.Client
-          git diff --quiet || echo "changes=true" >> $GITHUB_ENV
+          echo "--------------------------------------------------"
+          git diff
+          echo "--------------------------------------------------"
+          git diff --quiet || echo "CHANGES=true" >> $GITHUB_ENV
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
-        if: steps.update.outputs.changes == 'true'
+        if: steps.update.outputs.CHANGES == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: Update documentation
