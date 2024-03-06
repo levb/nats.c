@@ -35,10 +35,7 @@ jobs:
         run: |
           cd doc
           doxygen DoxyFile.NATS.Client
-          echo "--------------------------------------------------"
-          git diff
-          echo "--------------------------------------------------"
-          git diff --quiet || echo "CHANGES=true" >> $GITHUB_ENV
+          git diff --quiet || echo "CHANGES=true" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
