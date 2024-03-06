@@ -1,0 +1,43 @@
+name: Update Docs
+
+on:
+    push:
+        # branches:
+        #     - main
+
+jobs:
+    update-docs:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v2
+
+            - name: Set up Doxygen
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y doxygen
+
+            - name: Generate Documentation
+              run: |
+                cd ../doc
+                doxygen DoxyFile.NATS.Client
+
+            - name: Check for Changes
+              id: git-diff
+              run: |
+                    git diff --quiet || echo "::set-output name=changes::true"
+
+            - name: Create Pull Request
+              uses: peter-evans/create-pull-request@v3
+              if: steps.git-diff.outputs.changes == 'true'
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+                commit-message: Update documentation
+                branch: update-docs
+                title: Update documentation
+                body: This pull request updates the documentation.
+                labels: documentation
+                base: main
+                branch-suffix: timestamp
+                delete-branch: true
