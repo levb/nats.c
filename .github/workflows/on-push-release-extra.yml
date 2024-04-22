@@ -61,4 +61,3 @@ jobs:
       type: Debug
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
