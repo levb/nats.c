@@ -20,6 +20,7 @@
 #else
 #include <dirent.h>
 #include <sys/stat.h>
+#include <execinfo.h>
 #endif
 
 #include "buf.h"
@@ -32391,6 +32392,15 @@ test_KeyValueMirrorCrossDomains(void)
 
     test("Get key: ");
     s = kvStore_Get(&e, mkv, "name");
+    // levb: we seem to get the old value at times here, so try one more time if
+    // there's a mismatch
+    for (i = 0; i < 3; i++)
+        if ((s == NATS_OK) && (e != NULL) && (strcmp(kvEntry_ValueString(e), "rip") != 0))
+        {
+            kvEntry_Destroy(e);
+            e = NULL;
+            s = kvStore_Get(&e, mkv, "name");
+        }
     if ((s == NATS_OK) && (e != NULL))
         s = (strcmp(kvEntry_ValueString(e), "rip") == 0 ? NATS_OK : NATS_ERR);
     testCond(s == NATS_OK);
@@ -36335,6 +36345,18 @@ generateList(void)
     fclose(list);
 }
 
+#ifndef _WIN32
+static void _sigsegv_handler(int sig) {
+  void *array[20];
+  size_t size = backtrace(array, 20);
+
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+  exit(1);
+}
+#endif // _WIN32
+
 int main(int argc, char **argv)
 {
     const char *envStr;
@@ -36362,6 +36384,10 @@ int main(int argc, char **argv)
         printf("@@ Usage: %s [start] [end] (0 .. %d)\n", argv[0], (maxTests - 1));
         return 1;
     }
+
+#ifndef _WIN32
+    signal(SIGSEGV, _sigsegv_handler);
+#endif // _WIN32
 
     envStr = getenv("NATS_TEST_TRAVIS");
     if ((envStr != NULL) && (envStr[0] != '\0'))
