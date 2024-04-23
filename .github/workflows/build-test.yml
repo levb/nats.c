@@ -169,9 +169,17 @@ jobs:
 
       - name: Upload coverage reports to Codecov
         if: inputs.coverage == 'ON'
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        run: |
-          pip install codecov-cli
-          /home/ubuntu/.local/bin/codecovcli --help
-          # ./codecov -Q 'issue1011' -C ${{ github.sha }} -Z -g --ga '-lp' --gi 'examples/**' --gi 'src/win/**' --gi 'src/unix/**' --gi 'src/stan/protocol.pb-c.c'
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: true # optional (default = false)
+          token: ${{ secrets.CODECOV_TOKEN }} # required
+          verbose: true # optional (default = false)
+          exclude: 'examples/**,src/win/**,src/unix/**,src/stan/protocol.pb-c.c' # optional
+
+
+        # env:
+        #   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        # run: |
+        #   pip install codecov-cli
+        #   /home/ubuntu/.local/bin/codecovcli --help
+        #   # ./codecov -Q 'issue1011' -C ${{ github.sha }} -Z -g --ga '-lp' --gi 'examples/**' --gi 'src/win/**' --gi 'src/unix/**' --gi 'src/stan/protocol.pb-c.c'
