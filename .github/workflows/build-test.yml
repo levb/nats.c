@@ -173,5 +173,5 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           pip install codecov-cli
-          codecov-cli --help
+          /home/ubuntu/.local/bin/codecovcli --help
           # ./codecov -Q 'issue1011' -C ${{ github.sha }} -Z -g --ga '-lp' --gi 'examples/**' --gi 'src/win/**' --gi 'src/unix/**' --gi 'src/stan/protocol.pb-c.c'
