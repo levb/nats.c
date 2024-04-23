@@ -41,8 +41,6 @@ on:
         description: "Ubuntu version to use, e.g. '20.04'"
         default: "latest"
     secrets:
-      COVERALLS_REPO_TOKEN:
-        description: "Coveralls repo token"
       CODECOV_TOKEN:
         description: "Codecov repo token"
 
@@ -174,6 +172,6 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          chmod +x codecov
-          ./codecov -Q 'issue1011' -C ${{ github.sha }} -Z -g --ga '-lp' --gi 'examples/**' --gi 'src/win/**' --gi 'src/unix/**' --gi 'src/stan/protocol.pb-c.c'
+          pip install codecov-cli
+          codecov-cli --help
+          # ./codecov -Q 'issue1011' -C ${{ github.sha }} -Z -g --ga '-lp' --gi 'examples/**' --gi 'src/win/**' --gi 'src/unix/**' --gi 'src/stan/protocol.pb-c.c'
