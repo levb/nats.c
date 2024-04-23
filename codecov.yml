@@ -7,7 +7,7 @@ ignore:
 coverage:
   precision: 2
   round: down
-  range: "60...80"
+  range: "70...80"
   status:
     project:
       default:
