@@ -174,7 +174,7 @@ jobs:
           fail_ci_if_error: true # optional (default = false)
           token: ${{ secrets.CODECOV_TOKEN }} # required
           verbose: true # optional (default = false)
-          exclude: 'examples/**,src/win/**,src/unix/**,src/stan/protocol.pb-c.c' # optional
+          exclude: 'examples/**,src/win/**,src/unix/**,src/stan/protocol.pb-c.c,test/**' # optional
 
 
         # env:
