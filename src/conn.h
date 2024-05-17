@@ -18,20 +18,6 @@
 
 #define RESP_INFO_POOL_MAX_SIZE (10)
 
-#ifdef DEV_MODE
-// For type safety
-
-void natsConn_Lock(natsConnection *nc);
-void natsConn_Unlock(natsConnection *nc);
-
-#else
-// We know what we are doing :-)
-
-#define natsConn_Lock(c)    (natsMutex_Lock((c)->mu))
-#define natsConn_Unlock(c)  (natsMutex_Unlock((c)->mu))
-
-#endif // DEV_MODE
-
 #define SET_WRITE_DEADLINE(nc) if ((nc)->opts->writeDeadline > 0) natsDeadline_Init(&(nc)->sockCtx.writeDeadline, (nc)->opts->writeDeadline)
 
 natsStatus
@@ -83,76 +69,14 @@ natsConn_processPong(natsConnection *nc);
 #define natsConn_queueSubscribe(sub, nc, subj, queue, cb, closure)                      natsConn_queueSubscribeWithTimeout((sub), (nc), (subj), (queue), 0, (cb), (closure))
 #define natsConn_queueSubscribeSync(sub, nc, subj, queue)                               natsConn_queueSubscribe((sub), (nc), (subj), (queue), NULL, NULL)
 
-natsStatus
-natsConn_subscribeImpl(natsSubscription **newSub,
-                       natsConnection *nc, bool lock, const char *subj, const char *queue,
-                       int64_t timeout, natsMsgHandler cb, void *cbClosure,
-                       bool preventUseOfLibDlvPool, jsSub *jsi);
-
-natsStatus
-natsConn_unsubscribe(natsConnection *nc, natsSubscription *sub, int max, bool drainMode, int64_t timeout);
-
-natsStatus
-natsConn_enqueueUnsubProto(natsConnection *nc, int64_t sid);
-
-natsStatus
-natsConn_drainSub(natsConnection *nc, natsSubscription *sub, bool checkConnDrainStatus);
-
-bool
-natsConn_isDraining(natsConnection *nc);
-
-bool
-natsConn_isDrainingPubs(natsConnection *nc);
-
-void
-natsConn_removeSubscription(natsConnection *nc, natsSubscription *sub);
-
 void
 natsConn_processAsyncINFO(natsConnection *nc, char *buf, int len);
 
-natsStatus
-natsConn_addRespInfo(respInfo **newResp, natsConnection *nc, char *respInbox, int respInboxSize);
-
-void
-natsConn_disposeRespInfo(natsConnection *nc, respInfo *resp, bool needsLock);
-
-natsStatus
-natsConn_initResp(natsConnection *nc, natsMsgHandler cb);
-
-void
-natsConn_destroyRespPool(natsConnection *nc);
-
-natsStatus
-natsConn_publish(natsConnection *nc, natsMsg *msg, const char *reply, bool directFlush);
-
-natsStatus
-natsConn_userCreds(char **userJWT, char **customErrTxt, void *closure);
-
-natsStatus
-natsConn_signatureHandler(char **customErrTxt, unsigned char **sig, int *sigLen, const char *nonce, void *closure);
-
-natsStatus
-natsConn_sendSubProto(natsConnection *nc, const char *subject, const char *queue, int64_t sid);
-
-natsStatus
-natsConn_sendUnsubProto(natsConnection *nc, int64_t subId, int max);
-
-#define natsConn_setFilter(c, f) natsConn_setFilterWithClosure((c), (f), NULL)
-
-void
-natsConn_setFilterWithClosure(natsConnection *nc, natsMsgFilter f, void* closure);
-
-natsStatus
-natsConn_initInbox(natsConnection *nc, char *buf, int bufSize, char **newInbox, bool *allocated);
-
-natsStatus
-natsConn_newInbox(natsConnection *nc, natsInbox **newInbox);
+// natsStatus
+// natsConn_publish(natsConnection *nc, natsMsg *msg, const char *reply, bool directFlush);
 
 bool
 natsConn_srvVersionAtLeast(natsConnection *nc, int major, int minor, int update);
-
-void
-natsConn_defaultErrHandler(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure);
 
 void
 natsConn_close(natsConnection *nc);

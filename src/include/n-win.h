@@ -26,23 +26,8 @@
 #pragma comment(lib, "Ws2_32.lib")
 #pragma warning(disable : 4996)
 
-typedef struct __natsThread
-{
-    HANDLE  t;
-    DWORD   id;
-
-} natsThread;
-
-typedef DWORD               natsThreadLocal;
-
-typedef CRITICAL_SECTION    natsMutex;
-typedef CONDITION_VARIABLE  natsCondition;
-typedef INIT_ONCE           natsInitOnceType;
 typedef int                 natsSockLen;
 typedef int                 natsRecvLen;
-
-#define NATS_ONCE_TYPE          INIT_ONCE
-#define NATS_ONCE_STATIC_INIT   INIT_ONCE_STATIC_INIT
 
 #define NATS_SOCK_INVALID               (INVALID_SOCKET)
 #define NATS_SOCK_CLOSE(s)              closesocket((s))

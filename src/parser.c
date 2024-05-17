@@ -15,7 +15,7 @@
 #include <stdio.h>
 
 #include "natsp.h"
-#include "conn.h"
+// #include "conn.h"
 #include "util.h"
 #include "mem.h"
 
@@ -25,50 +25,51 @@ static natsStatus
 _cloneMsgArg(natsConnection *nc)
 {
     natsStatus  s;
-    int         subjLen = natsBuf_Len(nc->ps->ma.subject);
+    natsParser  *ps = nc->ps;
+    int         subjLen = natsBuf_Len(ps->ma.subject);
 
-    s = natsBuf_InitWithBackend(&(nc->ps->argBufRec),
-                                nc->ps->scratch,
+    s = natsBuf_InitWith(&(ps->argBufRec),
+                                ps->scratch,
                                 0,
-                                sizeof(nc->ps->scratch));
+                                sizeof(ps->scratch));
     if (s == NATS_OK)
     {
-        nc->ps->argBuf = &(nc->ps->argBufRec);
+        ps->argBuf = &(ps->argBufRec);
 
-        s = natsBuf_Append(nc->ps->argBuf,
-                           natsBuf_Data(nc->ps->ma.subject),
-                           natsBuf_Len(nc->ps->ma.subject));
+        s = natsBuf_Append(ps->argBuf,
+                           natsBuf_Data(ps->ma.subject),
+                           natsBuf_Len(ps->ma.subject));
         if (s == NATS_OK)
         {
-            natsBuf_Destroy(nc->ps->ma.subject);
-            nc->ps->ma.subject = NULL;
+            natsBuf_Destroy(ps->ma.subject);
+            ps->ma.subject = NULL;
 
-            s = natsBuf_InitWithBackend(&(nc->ps->ma.subjectRec),
-                                        nc->ps->scratch,
+            s = natsBuf_InitWith(&(ps->ma.subjectRec),
+                                        ps->scratch,
                                         subjLen,
                                         subjLen);
             if (s == NATS_OK)
-                nc->ps->ma.subject = &(nc->ps->ma.subjectRec);
+                ps->ma.subject = &(ps->ma.subjectRec);
         }
     }
-    if ((s == NATS_OK) && (nc->ps->ma.reply != NULL))
+    if ((s == NATS_OK) && (ps->ma.reply != NULL))
     {
-        s = natsBuf_Append(nc->ps->argBuf,
-                           natsBuf_Data(nc->ps->ma.reply),
-                           natsBuf_Len(nc->ps->ma.reply));
+        s = natsBuf_Append(ps->argBuf,
+                           natsBuf_Data(ps->ma.reply),
+                           natsBuf_Len(ps->ma.reply));
         if (s == NATS_OK)
         {
-            int replyLen = natsBuf_Len(nc->ps->ma.reply);
+            int replyLen = natsBuf_Len(ps->ma.reply);
 
-            natsBuf_Destroy(nc->ps->ma.reply);
-            nc->ps->ma.reply = NULL;
+            natsBuf_Destroy(ps->ma.reply);
+            ps->ma.reply = NULL;
 
-            s = natsBuf_InitWithBackend(&(nc->ps->ma.replyRec),
-                                        nc->ps->scratch + subjLen,
+            s = natsBuf_InitWith(&(ps->ma.replyRec),
+                                        ps->scratch + subjLen,
                                         replyLen,
                                         replyLen);
             if (s == NATS_OK)
-                nc->ps->ma.reply = &(nc->ps->ma.replyRec);
+                ps->ma.reply = &(ps->ma.replyRec);
         }
     }
 
@@ -77,24 +78,24 @@ _cloneMsgArg(natsConnection *nc)
 
 struct slice
 {
-    char    *start;
+    uint8_t *start;
     int     len;
 };
 
 static natsStatus
-_processMsgArgs(natsConnection *nc, char *buf, int bufLen)
+_processMsgArgs(natsParser *ps, natsConnection *nc, uint8_t *buf, int bufLen)
 {
     natsStatus      s       = NATS_OK;
     int             start   = -1;
     int             index   = 0;
     int             i;
-    char            b;
+    uint8_t         b;
     struct slice    slices[5];
     char            errTxt[256];
     int             indexLimit = 3;
     int             minArgs    = 3;
     int             maxArgs    = 4;
-    bool            hasHeaders = (nc->ps->hdr >= 0 ? true : false);
+    bool            hasHeaders = (ps->hdr >= 0 ? true : false);
 
     // If headers, the content should be:
     // <subject> <sid> [reply] <hdr size> <overall size>
@@ -149,29 +150,29 @@ _processMsgArgs(natsConnection *nc, char *buf, int bufLen)
         int maSizeIndex  = index-1; // position of size is always last.
         int hdrSizeIndex = index-2; // position of hdr size is always before last.
 
-        s = natsBuf_InitWithBackend(&(nc->ps->ma.subjectRec),
+        s = natsBuf_InitWith(&(ps->ma.subjectRec),
                                     slices[0].start,
                                     slices[0].len,
                                     slices[0].len);
         if (s == NATS_OK)
         {
-            nc->ps->ma.subject = &(nc->ps->ma.subjectRec);
+            ps->ma.subject = &(ps->ma.subjectRec);
 
-            nc->ps->ma.sid   = nats_ParseInt64(slices[1].start, slices[1].len);
+            ps->ma.sid   = nats_ParseInt64((const char *)slices[1].start, slices[1].len);
 
             if (index == minArgs)
             {
-                nc->ps->ma.reply = NULL;
+                ps->ma.reply = NULL;
             }
             else
             {
-                s = natsBuf_InitWithBackend(&(nc->ps->ma.replyRec),
+                s = natsBuf_InitWith(&(ps->ma.replyRec),
                                             slices[2].start,
                                             slices[2].len,
                                             slices[2].len);
                 if (s == NATS_OK)
                 {
-                    nc->ps->ma.reply = &(nc->ps->ma.replyRec);
+                    ps->ma.reply = &(ps->ma.replyRec);
                 }
             }
         }
@@ -179,10 +180,10 @@ _processMsgArgs(natsConnection *nc, char *buf, int bufLen)
         {
             if (hasHeaders)
             {
-                nc->ps->ma.hdr = (int) nats_ParseInt64(slices[hdrSizeIndex].start,
+                ps->ma.hdr = (int) nats_ParseInt64((const char*)slices[hdrSizeIndex].start,
                                                        slices[hdrSizeIndex].len);
             }
-            nc->ps->ma.size = (int) nats_ParseInt64(slices[maSizeIndex].start,
+            ps->ma.size = (int) nats_ParseInt64((const char*)slices[maSizeIndex].start,
                                                     slices[maSizeIndex].len);
         }
     }
@@ -191,19 +192,19 @@ _processMsgArgs(natsConnection *nc, char *buf, int bufLen)
         snprintf(errTxt, sizeof(errTxt), "%s", "processMsgArgs Parse Error: wrong number of arguments");
         s = NATS_PROTOCOL_ERROR;
     }
-    if (nc->ps->ma.sid < 0)
+    if (ps->ma.sid < 0)
     {
         snprintf(errTxt, sizeof(errTxt), "processMsgArgs Bad or Missing Sid: '%.*s'",
                  bufLen, buf);
         s = NATS_PROTOCOL_ERROR;
     }
-    if (nc->ps->ma.size < 0)
+    if (ps->ma.size < 0)
     {
         snprintf(errTxt, sizeof(errTxt), "processMsgArgs Bad or Missing Size: '%.*s'",
                  bufLen, buf);
         s = NATS_PROTOCOL_ERROR;
     }
-    if (hasHeaders && ((nc->ps->ma.hdr < 0) || (nc->ps->ma.hdr > nc->ps->ma.size)))
+    if (hasHeaders && ((ps->ma.hdr < 0) || (ps->ma.hdr > ps->ma.size)))
     {
         snprintf(errTxt, sizeof(errTxt), "processMsgArgs Bad or Missing Header Size: '%.*s'",
                  bufLen, buf);
@@ -212,10 +213,10 @@ _processMsgArgs(natsConnection *nc, char *buf, int bufLen)
 
     if (s != NATS_OK)
     {
-        natsConn_Lock(nc);
+        // natsConn_Lock(nc); <>//<>
         snprintf(nc->errStr, sizeof(nc->errStr), "%s", errTxt);
         nc->err = s;
-        natsConn_Unlock(nc);
+        // natsConn_Unlock(nc);
     }
 
     return s;
@@ -223,17 +224,17 @@ _processMsgArgs(natsConnection *nc, char *buf, int bufLen)
 
 // parse is the fast protocol parser engine.
 natsStatus
-natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
+natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t* buf, size_t bufLen)
 {
     natsStatus  s = NATS_OK;
-    int         i;
-    char        b;
+    size_t      i;
+    uint8_t     b;
 
     for (i = 0; (s == NATS_OK) && (i < bufLen); i++)
     {
         b = buf[i];
 
-        switch (nc->ps->state)
+        switch (ps->state)
         {
             case OP_START:
             {
@@ -241,29 +242,29 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'M':
                     case 'm':
-                        nc->ps->state  = OP_M;
-                        nc->ps->hdr    = -1;
-                        nc->ps->ma.hdr = -1;
+                        ps->state  = OP_M;
+                        ps->hdr    = -1;
+                        ps->ma.hdr = -1;
                         break;
                     case 'H':
                     case 'h':
-                        nc->ps->state  = OP_H;
-                        nc->ps->hdr    = 0;
-                        nc->ps->ma.hdr = 0;
+                        ps->state  = OP_H;
+                        ps->hdr    = 0;
+                        ps->ma.hdr = 0;
                         break;
                     case 'P':
                     case 'p':
-                        nc->ps->state = OP_P;
+                        ps->state = OP_P;
                         break;
                     case '+':
-                        nc->ps->state = OP_PLUS;
+                        ps->state = OP_PLUS;
                         break;
                     case '-':
-                        nc->ps->state = OP_MINUS;
+                        ps->state = OP_MINUS;
                         break;
                     case 'I':
                     case 'i':
-                        nc->ps->state = OP_I;
+                        ps->state = OP_I;
                         break;
                     default:
                         goto parseErr;
@@ -276,7 +277,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'M':
                     case 'm':
-                        nc->ps->state = OP_M;
+                        ps->state = OP_M;
                         break;
                     default:
                         goto parseErr;
@@ -289,7 +290,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'S':
                     case 's':
-                        nc->ps->state = OP_MS;
+                        ps->state = OP_MS;
                         break;
                     default:
                         goto parseErr;
@@ -302,7 +303,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'G':
                     case 'g':
-                        nc->ps->state = OP_MSG;
+                        ps->state = OP_MSG;
                         break;
                     default:
                         goto parseErr;
@@ -315,7 +316,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case ' ':
                     case '\t':
-                        nc->ps->state = OP_MSG_SPC;
+                        ps->state = OP_MSG_SPC;
                         break;
                     default:
                         goto parseErr;
@@ -330,8 +331,8 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                     case '\t':
                         continue;
                     default:
-                        nc->ps->state      = MSG_ARG;
-                        nc->ps->afterSpace = i;
+                        ps->state      = MSG_ARG;
+                        ps->afterSpace = i;
                         break;
                 }
                 break;
@@ -341,42 +342,42 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 switch (b)
                 {
                     case '\r':
-                        nc->ps->drop = 1;
+                        ps->drop = 1;
                         break;
                     case '\n':
                     {
-                        char    *start = NULL;
-                        int     len    = 0;
+                        uint8_t *start = NULL;
+                        size_t  len    = 0;
 
-                        if (nc->ps->argBuf != NULL)
+                        if (ps->argBuf != NULL)
                         {
-                            start = natsBuf_Data(nc->ps->argBuf);
-                            len   = natsBuf_Len(nc->ps->argBuf);
+                            start = natsBuf_Data(ps->argBuf);
+                            len   = natsBuf_Len(ps->argBuf);
                         }
                         else
                         {
-                            start = buf + nc->ps->afterSpace;
-                            len   = (i - nc->ps->drop) - nc->ps->afterSpace;
+                            start = buf + ps->afterSpace;
+                            len   = (i - ps->drop) - ps->afterSpace;
                         }
 
-                        s = _processMsgArgs(nc, start, len);
+                        s = _processMsgArgs(ps, nc, start, len);
                         if (s == NATS_OK)
                         {
-                            nc->ps->drop        = 0;
-                            nc->ps->afterSpace  = i+1;
-                            nc->ps->state       = MSG_PAYLOAD;
+                            ps->drop        = 0;
+                            ps->afterSpace  = i+1;
+                            ps->state       = MSG_PAYLOAD;
 
                             // jump ahead with the index. If this overruns
                             // what is left we fall out and process split
                             // buffer.
-                            i = nc->ps->afterSpace + nc->ps->ma.size - 1;
+                            i = ps->afterSpace + ps->ma.size - 1;
                         }
                         break;
                     }
                     default:
                     {
-                        if (nc->ps->argBuf != NULL)
-                            s = natsBuf_AppendByte(nc->ps->argBuf, b);
+                        if (ps->argBuf != NULL)
+                            s = natsBuf_AppendByte(ps->argBuf, b);
                         break;
                     }
                 }
@@ -386,19 +387,19 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
             {
                 bool done = false;
 
-                if (nc->ps->msgBuf != NULL)
+                if (ps->msgBuf != NULL)
                 {
-                    if (natsBuf_Len(nc->ps->msgBuf) >= nc->ps->ma.size)
+                    if (natsBuf_Len(ps->msgBuf) >= ps->ma.size)
                     {
                         s = natsConn_processMsg(nc,
-                                                natsBuf_Data(nc->ps->msgBuf),
-                                                natsBuf_Len(nc->ps->msgBuf));
+                                                natsBuf_Data(ps->msgBuf),
+                                                natsBuf_Len(ps->msgBuf));
                         done = true;
                     }
                     else
                     {
                         // copy as much as we can to the buffer and skip ahead.
-                        int toCopy = nc->ps->ma.size - natsBuf_Len(nc->ps->msgBuf);
+                        int toCopy = ps->ma.size - natsBuf_Len(ps->msgBuf);
                         int avail  = bufLen - i;
 
                         if (avail < toCopy)
@@ -406,23 +407,23 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
 
                         if (toCopy > 0)
                         {
-                            s = natsBuf_Append(nc->ps->msgBuf, buf+i, toCopy);
+                            s = natsBuf_Append(ps->msgBuf, buf+i, toCopy);
                             if (s == NATS_OK)
                                 i += toCopy - 1;
                         }
                         else
                         {
-                            s = natsBuf_AppendByte(nc->ps->msgBuf, b);
+                            s = natsBuf_AppendByte(ps->msgBuf, b);
                         }
                     }
                 }
-                else if (i-nc->ps->afterSpace >= nc->ps->ma.size)
+                else if (i-ps->afterSpace >= ps->ma.size)
                 {
-                    char    *start  = NULL;
-                    int     len     = 0;
+                    uint8_t *start  = NULL;
+                    size_t  len     = 0;
 
-                    start = buf + nc->ps->afterSpace;
-                    len   = (i - nc->ps->afterSpace);
+                    start = buf + ps->afterSpace;
+                    len   = (i - ps->afterSpace);
 
                     s = natsConn_processMsg(nc, start, len);
 
@@ -431,11 +432,11 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
 
                 if (done)
                 {
-                    natsBuf_Destroy(nc->ps->argBuf);
-                    nc->ps->argBuf = NULL;
-                    natsBuf_Destroy(nc->ps->msgBuf);
-                    nc->ps->msgBuf = NULL;
-                    nc->ps->state = MSG_END;
+                    natsBuf_Destroy(ps->argBuf);
+                    ps->argBuf = NULL;
+                    natsBuf_Destroy(ps->msgBuf);
+                    ps->msgBuf = NULL;
+                    ps->state = MSG_END;
                 }
 
                 break;
@@ -445,9 +446,9 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 switch (b)
                 {
                     case '\n':
-                        nc->ps->drop        = 0;
-                        nc->ps->afterSpace  = i+1;
-                        nc->ps->state       = OP_START;
+                        ps->drop        = 0;
+                        ps->afterSpace  = i+1;
+                        ps->state       = OP_START;
                         break;
                     default:
                         continue;
@@ -460,7 +461,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'O':
                     case 'o':
-                        nc->ps->state = OP_PLUS_O;
+                        ps->state = OP_PLUS_O;
                         break;
                     default:
                         goto parseErr;
@@ -473,7 +474,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'K':
                     case 'k':
-                        nc->ps->state = OP_PLUS_OK;
+                        ps->state = OP_PLUS_OK;
                         break;
                     default:
                         goto parseErr;
@@ -486,8 +487,8 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case '\n':
                         natsConn_processOK(nc);
-                        nc->ps->drop  = 0;
-                        nc->ps->state = OP_START;
+                        ps->drop  = 0;
+                        ps->state = OP_START;
                         break;
                 }
                 break;
@@ -498,7 +499,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'E':
                     case 'e':
-                        nc->ps->state = OP_MINUS_E;
+                        ps->state = OP_MINUS_E;
                         break;
                     default:
                         goto parseErr;
@@ -511,7 +512,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'R':
                     case 'r':
-                        nc->ps->state = OP_MINUS_ER;
+                        ps->state = OP_MINUS_ER;
                         break;
                     default:
                         goto parseErr;
@@ -524,7 +525,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'R':
                     case 'r':
-                        nc->ps->state = OP_MINUS_ERR;
+                        ps->state = OP_MINUS_ERR;
                         break;
                     default:
                         goto parseErr;
@@ -537,7 +538,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case ' ':
                     case '\t':
-                        nc->ps->state = OP_MINUS_ERR_SPC;
+                        ps->state = OP_MINUS_ERR_SPC;
                         break;
                     default:
                         goto parseErr;
@@ -552,8 +553,8 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                     case '\t':
                         continue;
                     default:
-                        nc->ps->state       = MINUS_ERR_ARG;
-                        nc->ps->afterSpace  = i;
+                        ps->state       = MINUS_ERR_ARG;
+                        ps->afterSpace  = i;
                         break;
                 }
                 break;
@@ -563,42 +564,43 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 switch (b)
                 {
                     case '\r':
-                        nc->ps->drop = 1;
+                        ps->drop = 1;
                         break;
                     case '\n':
                     {
-                        char    *start = NULL;
-                        int     len    = 0;
+                        // uint8_t *start = NULL;
+                        // size_t  len    = 0;
 
-                        if (nc->ps->argBuf != NULL)
+                        // if (ps->argBuf != NULL)
+                        // {
+                        //     start = natsBuf_Data(ps->argBuf);
+                        //     len   = natsBuf_Len(ps->argBuf);
+                        // }
+                        // else
+                        // {
+                        //     start = buf + ps->afterSpace;
+                        //     len   = (i - ps->drop) - ps->afterSpace;
+                        // }
+
+                        // <>//<>
+                        // natsConn_processErr(nc, start, len);
+
+                        ps->drop        = 0;
+                        ps->afterSpace  = i+1;
+                        ps->state       = OP_START;
+
+                        if (ps->argBuf != NULL)
                         {
-                            start = natsBuf_Data(nc->ps->argBuf);
-                            len   = natsBuf_Len(nc->ps->argBuf);
-                        }
-                        else
-                        {
-                            start = buf + nc->ps->afterSpace;
-                            len   = (i - nc->ps->drop) - nc->ps->afterSpace;
-                        }
-
-                        natsConn_processErr(nc, start, len);
-
-                        nc->ps->drop        = 0;
-                        nc->ps->afterSpace  = i+1;
-                        nc->ps->state       = OP_START;
-
-                        if (nc->ps->argBuf != NULL)
-                        {
-                            natsBuf_Destroy(nc->ps->argBuf);
-                            nc->ps->argBuf = NULL;
+                            natsBuf_Destroy(ps->argBuf);
+                            ps->argBuf = NULL;
                         }
 
                         break;
                     }
                     default:
                     {
-                        if (nc->ps->argBuf != NULL)
-                            s = natsBuf_AppendByte(nc->ps->argBuf, b);
+                        if (ps->argBuf != NULL)
+                            s = natsBuf_AppendByte(ps->argBuf, b);
 
                         break;
                     }
@@ -611,11 +613,11 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'I':
                     case 'i':
-                        nc->ps->state = OP_PI;
+                        ps->state = OP_PI;
                         break;
                     case 'O':
                     case 'o':
-                        nc->ps->state = OP_PO;
+                        ps->state = OP_PO;
                         break;
                     default:
                         goto parseErr;
@@ -628,7 +630,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'N':
                     case 'n':
-                        nc->ps->state = OP_PON;
+                        ps->state = OP_PON;
                         break;
                     default:
                         goto parseErr;
@@ -641,7 +643,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'G':
                     case 'g':
-                        nc->ps->state = OP_PONG;
+                        ps->state = OP_PONG;
                         break;
                     default:
                         goto parseErr;
@@ -653,11 +655,12 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 switch (b)
                 {
                     case '\n':
-                        natsConn_processPong(nc);
+                        // <>//<>
+                        // natsConn_processPong(nc);
 
-                        nc->ps->drop        = 0;
-                        nc->ps->afterSpace  = i+1;
-                        nc->ps->state       = OP_START;
+                        ps->drop        = 0;
+                        ps->afterSpace  = i+1;
+                        ps->state       = OP_START;
                         break;
                 }
                 break;
@@ -668,7 +671,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'N':
                     case 'n':
-                        nc->ps->state = OP_PIN;
+                        ps->state = OP_PIN;
                         break;
                     default:
                         goto parseErr;
@@ -681,7 +684,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'G':
                     case 'g':
-                        nc->ps->state = OP_PING;
+                        ps->state = OP_PING;
                         break;
                     default:
                         goto parseErr;
@@ -693,11 +696,12 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 switch (b)
                 {
                     case '\n':
-                        natsConn_processPing(nc);
+                        // <>//<>
+                        // natsConn_processPing(nc);
 
-                        nc->ps->drop        = 0;
-                        nc->ps->afterSpace  = i+1;
-                        nc->ps->state       = OP_START;
+                        ps->drop        = 0;
+                        ps->afterSpace  = i+1;
+                        ps->state       = OP_START;
                         break;
                 }
                 break;
@@ -708,7 +712,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'N':
                     case 'n':
-                        nc->ps->state = OP_IN;
+                        ps->state = OP_IN;
                         break;
                     default:
                         goto parseErr;
@@ -721,7 +725,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'F':
                     case 'f':
-                        nc->ps->state = OP_INF;
+                        ps->state = OP_INF;
                         break;
                     default:
                         goto parseErr;
@@ -734,7 +738,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case 'O':
                     case 'o':
-                        nc->ps->state = OP_INFO;
+                        ps->state = OP_INFO;
                         break;
                     default:
                         goto parseErr;
@@ -747,7 +751,7 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 {
                     case ' ':
                     case '\t':
-                        nc->ps->state = OP_INFO_SPC;
+                        ps->state = OP_INFO_SPC;
                         break;
                     default:
                         goto parseErr;
@@ -762,8 +766,8 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                     case '\t':
                         continue;
                     default:
-                        nc->ps->state = INFO_ARG;
-                        nc->ps->afterSpace = i;
+                        ps->state = INFO_ARG;
+                        ps->afterSpace = i;
                         break;
                 }
                 break;
@@ -773,39 +777,40 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
                 switch (b)
                 {
                     case '\r':
-                        nc->ps->drop = 1;
+                        ps->drop = 1;
                         break;
                     case '\n':
                     {
-                        char    *start = NULL;
-                        int     len    = 0;
+                        // uint8_t *start = NULL;
+                        // size_t  len    = 0;
 
-                        if (nc->ps->argBuf != NULL)
-                        {
-                            start = natsBuf_Data(nc->ps->argBuf);
-                            len   = natsBuf_Len(nc->ps->argBuf);
-                        }
-                        else
-                        {
-                            start = buf + nc->ps->afterSpace;
-                            len   = (i - nc->ps->drop) - nc->ps->afterSpace;
-                        }
-                        natsConn_processAsyncINFO(nc, start, len);
-                        nc->ps->drop        = 0;
-                        nc->ps->afterSpace  = i+1;
-                        nc->ps->state       = OP_START;
+                        // if (ps->argBuf != NULL)
+                        // {
+                        //     start = natsBuf_Data(ps->argBuf);
+                        //     len   = natsBuf_Len(ps->argBuf);
+                        // }
+                        // else
+                        // {
+                        //     start = buf + ps->afterSpace;
+                        //     len   = (i - ps->drop) - ps->afterSpace;
+                        // }
+                        // <>//<>
+                        // natsConn_processAsyncINFO(nc, start, len);
+                        ps->drop        = 0;
+                        ps->afterSpace  = i+1;
+                        ps->state       = OP_START;
 
-                        if (nc->ps->argBuf != NULL)
+                        if (ps->argBuf != NULL)
                         {
-                            natsBuf_Destroy(nc->ps->argBuf);
-                            nc->ps->argBuf = NULL;
+                            natsBuf_Destroy(ps->argBuf);
+                            ps->argBuf = NULL;
                         }
                         break;
                     }
                     default:
                     {
-                        if (nc->ps->argBuf != NULL)
-                            s = natsBuf_AppendByte(nc->ps->argBuf, b);
+                        if (ps->argBuf != NULL)
+                            s = natsBuf_AppendByte(ps->argBuf, b);
                         break;
                     }
                 }
@@ -818,64 +823,64 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
 
     // Check for split buffer scenarios
     if ((s == NATS_OK)
-        && ((nc->ps->state == MSG_ARG)
-                || (nc->ps->state == MINUS_ERR_ARG)
-                || (nc->ps->state == INFO_ARG))
-        && (nc->ps->argBuf == NULL))
+        && ((ps->state == MSG_ARG)
+                || (ps->state == MINUS_ERR_ARG)
+                || (ps->state == INFO_ARG))
+        && (ps->argBuf == NULL))
     {
-        s = natsBuf_InitWithBackend(&(nc->ps->argBufRec),
-                                    nc->ps->scratch,
+        s = natsBuf_InitWith(&(ps->argBufRec),
+                                    ps->scratch,
                                     0,
-                                    sizeof(nc->ps->scratch));
+                                    sizeof(ps->scratch));
         if (s == NATS_OK)
         {
-            nc->ps->argBuf = &(nc->ps->argBufRec);
-            s = natsBuf_Append(nc->ps->argBuf,
-                               buf + nc->ps->afterSpace,
-                               (i - nc->ps->drop) - nc->ps->afterSpace);
+            ps->argBuf = &(ps->argBufRec);
+            s = natsBuf_Append(ps->argBuf,
+                               buf + ps->afterSpace,
+                               (i - ps->drop) - ps->afterSpace);
         }
     }
     // Check for split msg
     if ((s == NATS_OK)
-        && (nc->ps->state == MSG_PAYLOAD) && (nc->ps->msgBuf == NULL))
+        && (ps->state == MSG_PAYLOAD) && (ps->msgBuf == NULL))
     {
         // We need to clone the msgArg if it is still referencing the
         // read buffer and we are not able to process the msg.
-        if (nc->ps->argBuf == NULL)
+        if (ps->argBuf == NULL)
             s = _cloneMsgArg(nc);
 
         if (s == NATS_OK)
         {
-            int remainingInScratch;
-            int toCopy;
+            size_t remainingInScratch;
+            size_t toCopy;
 
 #ifdef _WIN32
-// Suppresses the warning that nc->ps->argBuf may be NULL.
-// If nc->ps->argBuf is NULL above, then _cloneMsgArg() will set it. If 's'
-// is NATS_OK here, then nc->ps->argBuf can't be NULL.
+// Suppresses the warning that ps->argBuf may be NULL.
+// If ps->argBuf is NULL above, then _cloneMsgArg() will set it. If 's'
+// is NATS_OK here, then ps->argBuf can't be NULL.
 #pragma warning(suppress: 6011)
 #endif
 
             // If we will overflow the scratch buffer, just create a
             // new buffer to hold the split message.
-            remainingInScratch = sizeof(nc->ps->scratch) - natsBuf_Len(nc->ps->argBuf);
-            toCopy = bufLen - nc->ps->afterSpace;
+            remainingInScratch = sizeof(ps->scratch) - natsBuf_Len(ps->argBuf);
+            toCopy = bufLen - ps->afterSpace;
 
-            if (nc->ps->ma.size > remainingInScratch)
+            if (ps->ma.size > remainingInScratch)
             {
-                s = natsBuf_Create(&(nc->ps->msgBuf), nc->ps->ma.size);
+                s = natsBuf_CreateCalloc(&(ps->msgBuf), ps->ma.size);
             }
             else
             {
-                s = natsBuf_InitWithBackend(&(nc->ps->msgBufRec),
-                                            nc->ps->scratch + natsBuf_Len(nc->ps->argBuf),
+                s = natsBuf_InitWith(&(ps->msgBufRec),
+                                            ps->scratch + natsBuf_Len(ps->argBuf),
                                             0, remainingInScratch);
                 if (s == NATS_OK)
-                    nc->ps->msgBuf = &(nc->ps->msgBufRec);
+                    ps->msgBuf = &(ps->msgBufRec);
             }
             if (s == NATS_OK)
-                s = natsBuf_Append(nc->ps->msgBuf,
-                                   buf + nc->ps->afterSpace,
+                s = natsBuf_Append(ps->msgBuf,
+                                   buf + ps->afterSpace,
                                    toCopy);
         }
     }
@@ -883,14 +888,14 @@ natsParser_Parse(natsConnection *nc, char* buf, int bufLen)
     if (s != NATS_OK)
     {
         // Let's clear all our pointers...
-        natsBuf_Destroy(nc->ps->argBuf);
-        nc->ps->argBuf = NULL;
-        natsBuf_Destroy(nc->ps->msgBuf);
-        nc->ps->msgBuf = NULL;
-        natsBuf_Destroy(nc->ps->ma.subject);
-        nc->ps->ma.subject = NULL;
-        natsBuf_Destroy(nc->ps->ma.reply);
-        nc->ps->ma.reply = NULL;
+        natsBuf_Destroy(ps->argBuf);
+        ps->argBuf = NULL;
+        natsBuf_Destroy(ps->msgBuf);
+        ps->msgBuf = NULL;
+        natsBuf_Destroy(ps->ma.subject);
+        ps->ma.subject = NULL;
+        natsBuf_Destroy(ps->ma.reply);
+        ps->ma.reply = NULL;
     }
 
     return s;
@@ -899,15 +904,16 @@ parseErr:
     if (s == NATS_OK)
         s = NATS_PROTOCOL_ERROR;
 
-    natsMutex_Lock(nc->mu);
+    // <>//<>
+    // natsMutex_Lock(nc->mu);
 
     snprintf(nc->errStr, sizeof(nc->errStr),
              "Parse Error [%u]: '%.*s'",
-             nc->ps->state,
-             bufLen - i,
+             ps->state,
+             (int)(bufLen - i),
              buf + i);
 
-    natsMutex_Unlock(nc->mu);
+    // natsMutex_Unlock(nc->mu);
 
     return s;
 }
@@ -931,10 +937,10 @@ natsParser_Destroy(natsParser *parser)
     if (parser == NULL)
         return;
 
-    natsBuf_Cleanup(&(parser->ma.subjectRec));
-    natsBuf_Cleanup(&(parser->ma.replyRec));
-    natsBuf_Cleanup(&(parser->argBufRec));
-    natsBuf_Cleanup(&(parser->msgBufRec));
+    natsBuf_Destroy(&(parser->ma.subjectRec));
+    natsBuf_Destroy(&(parser->ma.replyRec));
+    natsBuf_Destroy(&(parser->argBufRec));
+    natsBuf_Destroy(&(parser->msgBufRec));
 
     NATS_FREE(parser);
 }

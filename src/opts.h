@@ -16,24 +16,6 @@
 
 #include "natsp.h"
 
-static inline void natsOptions_lock(natsOptions *opts)
-{
-    natsMutex_Lock(opts->mu);
-}
-
-static inline void natsOptions_unlock(natsOptions *opts)
-{
-    natsMutex_Unlock(opts->mu);
-}
-
-#define LOCK_AND_CHECK_OPTIONS(o, c) \
-    if (((o) == NULL) || ((c))) \
-        return nats_setDefaultError(NATS_INVALID_ARG); \
-    natsMutex_Lock((o)->mu);
-
-#define UNLOCK_OPTS(o) natsMutex_Unlock((o)->mu)
-
-
 #define NATS_OPTS_DEFAULT_MAX_RECONNECT         (60)
 #define NATS_OPTS_DEFAULT_TIMEOUT               (2 * 1000)          // 2 seconds
 #define NATS_OPTS_DEFAULT_RECONNECT_WAIT        (2 * 1000)          // 2 seconds
@@ -48,8 +30,5 @@ static inline void natsOptions_unlock(natsOptions *opts)
 
 natsOptions*
 natsOptions_clone(natsOptions *opts);
-
-natsStatus
-natsOptions_setMicroCallbacks(natsOptions *opts, natsConnectionHandler closedCb, natsErrHandler errCb);
 
 #endif /* OPTS_H_ */

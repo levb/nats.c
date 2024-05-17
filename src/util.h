@@ -243,18 +243,6 @@ nats_marshalULong(natsBuffer *buf, bool comma, const char *fieldName, uint64_t u
 natsStatus
 nats_marshalDuration(natsBuffer *out_buf, bool comma, const char *field_name, int64_t d);
 
-natsStatus
-nats_marshalMetadata(natsBuffer *buf, bool comma, const char *fieldName, natsMetadata md);
-
-natsStatus
-nats_unmarshalMetadata(nats_JSON *json, const char *fieldName, natsMetadata *md);
-
-natsStatus
-nats_cloneMetadata(natsMetadata *clone, natsMetadata md);
-
-void
-nats_freeMetadata(natsMetadata *md);
-
 bool
 nats_IsSubjectValid(const char *subject, bool wcAllowed);
 

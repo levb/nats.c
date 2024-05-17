@@ -14,70 +14,49 @@
 #include "adapters/libevent.h"
 #include "examples.h"
 
-#ifndef WIN32
-#include <pthread.h>
-#define THREAD_T pthread_t
-#define THREAD_FN void *
-#define THREAD_RETURN() return (NULL)
-#define THREAD_START(threadvar, fn, arg) \
-    pthread_create(&(threadvar), NULL, fn, arg)
-#define THREAD_JOIN(th) pthread_join(th, NULL)
-#else
-#include <process.h>
-#define THREAD_T HANDLE
-#define THREAD_FN unsigned __stdcall
-#define THREAD_RETURN() return (0)
-#define THREAD_START(threadvar, fn, arg) do {       \
-    uintptr_t threadhandle = _beginthreadex(NULL,0,fn,(arg),0,NULL); \
-    (threadvar) = (HANDLE) threadhandle; \
-    } while (0)
-#define THREAD_JOIN(th) WaitForSingleObject(th, INFINITE)
-#endif
+static const char *usage = ""
+                           "-txt           text to send (default is 'hello')\n"
+                           "-count         number of messages to send\n";
 
-static const char *usage = ""\
-"-txt           text to send (default is 'hello')\n" \
-"-count         number of messages to send\n";
-
-typedef struct
+void onPublishOK(natsConnection *nc, void *closure)
 {
-    natsConnection  *conn;
-    natsStatus      status;
+}
 
-} threadInfo;
-
-static THREAD_FN
-pubThread(void *arg)
+void onConnectOK(natsConnection *nc, void *closure)
 {
-    threadInfo  *info = (threadInfo*) arg;
-    natsStatus  s     = NATS_OK;
+    natsStatus s;
 
-    for (count = 0; (s == NATS_OK) && (count < total); count++)
-        s = natsConnection_PublishString(info->conn, subj, payload);
-
+    s = natsConnection_PublishString(nc, subj, "test", onPublishOK, onPublishError);
     if (s == NATS_OK)
-        s = natsConnection_Flush(info->conn);
-
-    natsConnection_Close(info->conn);
-
-    info->status = s;
+        printf("Published test message\n");
+    if (s == NATS_OK)
+        natsConnection_Flush(nc);
 
     if (s != NATS_OK)
-        nats_PrintLastErrorStack(stderr);
+    {
+        printf("Error: %d - %s\n", s, natsStatus_GetText(s));
+    }
+    natsConnection_Close(nc);
+}
 
-    THREAD_RETURN();
+void onConnectError(natsConnection *nc, natsStatus err, void *closure)
+{
+    printf("Error: %d - %s\n", err, natsStatus_GetText(err));
+}
+
+void onPublishError(natsConnection *nc, natsStatus err, void *closure)
+{
+    printf("Error: %d - %s\n", err, natsStatus_GetText(err));
 }
 
 int main(int argc, char **argv)
 {
-    natsConnection      *conn  = NULL;
-    natsOptions         *opts  = NULL;
-    natsSubscription    *sub   = NULL;
-    natsStatus          s      = NATS_OK;
-    struct event_base   *evLoop= NULL;
-    THREAD_T            pub;
-    threadInfo          info;
+    natsConnection *conn = NULL;
+    natsOptions *opts = NULL;
+    natsStatus s = NATS_OK;
+    struct event_base *evLoop = NULL;
 
-    nats_Open(-1);
+    nats_Open();
 
     opts = parseArgs(argc, argv, usage);
 
@@ -93,46 +72,24 @@ int main(int argc, char **argv)
 
     // Indicate which loop and callbacks to use once connected.
     if (s == NATS_OK)
-        s = natsOptions_SetEventLoop(opts, (void*) evLoop,
+        s = natsOptions_SetEventLoop(opts, (void *)evLoop,
                                      natsLibevent_Attach,
                                      natsLibevent_Read,
                                      natsLibevent_Write,
                                      natsLibevent_Detach);
 
     if (s == NATS_OK)
-        s = natsConnection_Connect(&conn, opts);
+        s = natsConnection_Connect(&conn, opts, onConnectOK, onConnectError);
 
-    if (s == NATS_OK)
-        start = nats_Now();
-
-    if (s == NATS_OK)
-    {
-        info.conn   = conn;
-        info.status = NATS_OK;
-
-        THREAD_START(pub, pubThread, (void*) &info);
-    }
-
-    if (s == NATS_OK)
-    {
-        event_base_dispatch(evLoop);
-
-        THREAD_JOIN(pub);
-        s = info.status;
-    }
-
-    if (s == NATS_OK)
-    {
-        printPerf("Sent");
-    }
-    else
+    if (s != NATS_OK)
     {
         printf("Error: %d - %s\n", s, natsStatus_GetText(s));
         nats_PrintLastErrorStack(stderr);
+        return 1;
     }
 
-    // Destroy all our objects to avoid report of memory leak
-    natsSubscription_Destroy(sub);
+    event_base_dispatch(evLoop);
+
     natsConnection_Destroy(conn);
     natsOptions_Destroy(opts);
 

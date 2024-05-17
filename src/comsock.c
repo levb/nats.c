@@ -148,9 +148,6 @@ natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
     struct addrinfo *servInfos[2] = {NULL, NULL};
     int             numServInfo   = 0;
     int             numIPs        = 0;
-    int64_t         start         = 0;
-    int64_t         totalTimeout  = 0;
-    int64_t         timeoutPerIP  = 0;
     struct addrinfo *tmpStorage[64];
 
     if (phost == NULL)
@@ -172,8 +169,6 @@ natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
 
     if ((ctx->orderIP == 46) || (ctx->orderIP == 64))
         max = 2;
-
-    start = nats_Now();
 
     for (i=0; i<max; i++)
     {
@@ -224,16 +219,16 @@ natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
     }
 
     // Check if there has been a deadline set.
-    totalTimeout = natsDeadline_GetTimeout(&(ctx->writeDeadline));
-    if (totalTimeout > 0)
-    {
-        // If so, compute a timeout based on the number of IPs we are going
-        // to possibly try to connect to.
-        timeoutPerIP = totalTimeout / numIPs;
-        // If really small, give at least a 10ms timeout
-        if (timeoutPerIP < 10)
-            timeoutPerIP = 10;
-    }
+    // totalTimeout = natsDeadline_GetTimeout(&(ctx->writeDeadline));
+    // if (totalTimeout > 0)
+    // {
+    //     // If so, compute a timeout based on the number of IPs we are going
+    //     // to possibly try to connect to.
+    //     timeoutPerIP = totalTimeout / numIPs;
+    //     // If really small, give at least a 10ms timeout
+    //     if (timeoutPerIP < 10)
+    //         timeoutPerIP = 10;
+    // }
 
     for (i=0; i<numServInfo; i++)
     {
@@ -269,8 +264,8 @@ natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
                 if ((res == NATS_SOCK_ERROR)
                     && (NATS_SOCK_GET_ERROR == NATS_SOCK_CONNECT_IN_PROGRESS))
                 {
-                    if (timeoutPerIP > 0)
-                        natsDeadline_Init(&(ctx->writeDeadline), timeoutPerIP);
+                    // if (timeoutPerIP > 0)
+                    //     natsDeadline_Init(&(ctx->writeDeadline), timeoutPerIP);
 
                     s = natsSock_WaitReady(WAIT_FOR_CONNECT, ctx);
                     if ((s == NATS_OK) && !natsSock_IsConnected(ctx->fd))
@@ -305,13 +300,13 @@ natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
         nats_FreeAddrInfo(servInfos[i]);
 
     // If there was a deadline, reset the deadline with whatever is left.
-    if (totalTimeout > 0)
-    {
-        int64_t used = nats_Now() - start;
-        int64_t left = totalTimeout - used;
+    // if (totalTimeout > 0)
+    // {
+    //     int64_t used = nats_Now() - start;
+    //     int64_t left = totalTimeout - used;
 
-        natsDeadline_Init(&(ctx->writeDeadline), (left > 0 ? left : 0));
-    }
+    //     natsDeadline_Init(&(ctx->writeDeadline), (left > 0 ? left : 0));
+    // }
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -400,18 +395,17 @@ natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize)
 natsStatus
 natsSock_Read(natsSockCtx *ctx, char *buffer, size_t maxBufferSize, int *n)
 {
-    natsStatus  s         = NATS_OK;
-    int         readBytes = 0;
-    bool        needRead  = true;
+    int readBytes = 0;
+    bool needRead = true;
 
     while (needRead)
     {
 #if defined(NATS_HAS_TLS)
         if (ctx->ssl != NULL)
-            readBytes = SSL_read(ctx->ssl, buffer, (int) maxBufferSize);
+            readBytes = SSL_read(ctx->ssl, buffer, (int)maxBufferSize);
         else
 #endif
-            readBytes = recv(ctx->fd, buffer, (natsRecvLen) maxBufferSize, 0);
+            readBytes = recv(ctx->fd, buffer, (natsRecvLen)maxBufferSize, 0);
 
         if (readBytes == 0)
         {
@@ -447,35 +441,20 @@ natsSock_Read(natsSockCtx *ctx, char *buffer, size_t maxBufferSize, int *n)
 #if defined(NATS_HAS_TLS)
                 if (ctx->ssl != NULL)
                     return nats_setError(NATS_IO_ERROR, "SSL_read error: %s",
-                                        NATS_SSL_ERR_REASON_STRING);
+                                         NATS_SSL_ERR_REASON_STRING);
                 else
 #endif
                     return nats_setError(NATS_IO_ERROR, "recv error: %d",
-                                        NATS_SOCK_GET_ERROR);
-            }
-            else if (ctx->useEventLoop)
-            {
-                // When using an external event loop, we are done. We will be
-                // called again...
-                if (n != NULL)
-                    *n = 0;
-
-                return NATS_OK;
+                                         NATS_SOCK_GET_ERROR);
             }
 
-            // For non-blocking sockets, if the read would block, we need to
-            // wait up to the deadline.
-            s = natsSock_WaitReady(WAIT_FOR_READ, ctx);
-            if (s != NATS_OK)
-                return NATS_UPDATE_ERR_STACK(s);
+            // When using an external event loop, we are done. We will be
+            // called again...
+            if (n != NULL)
+                *n = 0;
 
-            continue;
+            return NATS_OK;
         }
-
-        if (n != NULL)
-            *n = readBytes;
-
-        needRead = false;
     }
 
     return NATS_OK;
@@ -484,9 +463,8 @@ natsSock_Read(natsSockCtx *ctx, char *buffer, size_t maxBufferSize, int *n)
 natsStatus
 natsSock_Write(natsSockCtx *ctx, const char *data, int len, int *n)
 {
-    natsStatus  s         = NATS_OK;
-    int         bytes     = 0;
-    bool        needWrite = true;
+    int bytes = 0;
+    bool needWrite = true;
 
     while (needWrite)
     {
@@ -541,29 +519,13 @@ natsSock_Write(natsSockCtx *ctx, const char *data, int len, int *n)
                     return nats_setError(NATS_IO_ERROR, "send error: %d",
                                          NATS_SOCK_GET_ERROR);
             }
-            else if (ctx->useEventLoop)
-            {
-                // With external event loop, we are done now, we will be
-                // called later for more.
-                if (n != NULL)
-                    *n = 0;
+            // With external event loop, we are done now, we will be
+            // called later for more.
+            if (n != NULL)
+                *n = 0;
 
-                return NATS_OK;
-            }
-
-            // For non-blocking sockets, if the write would block, we need to
-            // wait up to the deadline.
-            s = natsSock_WaitReady(WAIT_FOR_WRITE, ctx);
-            if (s != NATS_OK)
-                return NATS_UPDATE_ERR_STACK(s);
-
-            continue;
+            return NATS_OK;
         }
-
-        if (n != NULL)
-            *n = bytes;
-
-        needWrite = false;
     }
 
     return NATS_OK;
@@ -602,20 +564,6 @@ natsSock_WriteFully(natsSockCtx *ctx, const char *data, int len)
     }
 
     return NATS_UPDATE_ERR_STACK(s);
-}
-
-void
-natsSock_ClearDeadline(natsSockCtx *ctx)
-{
-    natsDeadline_Clear(&ctx->readDeadline);
-    natsDeadline_Clear(&ctx->writeDeadline);
-}
-
-void
-natsSock_InitDeadline(natsSockCtx *ctx, int64_t timeout)
-{
-    natsDeadline_Init(&ctx->readDeadline, timeout);
-    natsDeadline_Init(&ctx->writeDeadline, timeout);
 }
 
 natsStatus

@@ -16,9 +16,8 @@
 
 #include <stdint.h>
 
-//#include "natsp.h"
 #include "status.h"
-#include "buf.h"
+#include "mem.h"
 
 typedef enum
 {
@@ -63,8 +62,8 @@ typedef struct __natsMsgArg
     natsBuffer  replyRec;
     natsBuffer  *reply;
     int64_t     sid;
-    int         hdr;
-    int         size;
+    size_t      hdr;
+    size_t      size;
 
 } natsMsgArg;
 
@@ -81,7 +80,7 @@ typedef struct __natsParser
     natsBuffer  *argBuf;
     natsBuffer  msgBufRec;
     natsBuffer  *msgBuf;
-    char        scratch[MAX_CONTROL_LINE_SIZE];
+    uint8_t     scratch[MAX_CONTROL_LINE_SIZE];
 
 } natsParser;
 
@@ -93,7 +92,7 @@ natsStatus
 natsParser_Create(natsParser **newParser);
 
 natsStatus
-natsParser_Parse(struct __natsConnection *nc, char *buf, int bufLen);
+natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen);
 
 void
 natsParser_Destroy(natsParser *parser);

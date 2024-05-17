@@ -1984,7 +1984,7 @@ nats_ReadFile(natsBuffer **buffer, int initBufSize, const char *fn)
     natsStatus  s;
     FILE        *f      = NULL;
     natsBuffer  *buf    = NULL;
-    char        *ptr    = NULL;
+    uint8_t     *ptr    = NULL;
     int         total   = 0;
 
     if ((initBufSize <= 0) || nats_IsStringEmpty(fn))
@@ -1994,12 +1994,12 @@ nats_ReadFile(natsBuffer **buffer, int initBufSize, const char *fn)
     if (f == NULL)
         return nats_setError(NATS_ERR, "error opening file '%s': %s", fn, strerror(errno));
 
-    s = natsBuf_Create(&buf, initBufSize);
+    s = natsBuf_CreateCalloc(&buf, initBufSize);
     if (s == NATS_OK)
         ptr = natsBuf_Data(buf);
     while (s == NATS_OK)
     {
-        int r = (int) fread(ptr, 1, (size_t) natsBuf_Available(buf), f);
+        int r = (int) fread(ptr, 1, natsBuf_Available(buf), f);
         if (r == 0)
             break;
 
@@ -2197,19 +2197,19 @@ nats_GetJWTOrSeed(char **val, const char *content, int item)
 static natsStatus
 _marshalLongVal(natsBuffer *buf, bool comma, const char *fieldName, bool l, int64_t lval, uint64_t uval)
 {
-    natsStatus  s = NATS_OK;
-    char        temp[32];
-    const char  *start = (comma ? ",\"" : "\"");
+    natsStatus s = NATS_OK;
+    char       temp[32];
+    const char *start = (comma ? ",\"" : "\"");
 
     if (l)
         snprintf(temp, sizeof(temp), "%" PRId64, lval);
     else
         snprintf(temp, sizeof(temp), "%" PRIi64, uval);
 
-    s = natsBuf_Append(buf, start, -1);
-    IFOK(s, natsBuf_Append(buf, fieldName, -1));
-    IFOK(s, natsBuf_Append(buf, "\":", -1));
-    IFOK(s, natsBuf_Append(buf, temp, -1));
+    s = natsBuf_AppendString(buf, start);
+    IFOK(s, natsBuf_AppendString(buf, fieldName));
+    IFOK(s, natsBuf_AppendString(buf, "\":"));
+    IFOK(s, natsBuf_AppendString(buf, temp));
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -2233,7 +2233,7 @@ nats_marshalULong(natsBuffer *buf, bool comma, const char *fieldName, uint64_t u
 // point too when the fraction is 0. It returns the index where the
 // output bytes begin and the value v/10**prec.
 static void
-fmt_frac(char *buf, int w, uint64_t v, int prec, int *nw, uint64_t *nv)
+fmt_frac(uint8_t *buf, int w, uint64_t v, int prec, int *nw, uint64_t *nv)
 {
     // Omit trailing zeros up to and including decimal point.
     bool print = false;
@@ -2263,7 +2263,7 @@ fmt_frac(char *buf, int w, uint64_t v, int prec, int *nw, uint64_t *nv)
 // fmtInt formats v into the tail of buf.
 // It returns the index where the output begins.
 static int
-fmt_int(char *buf, int w, uint64_t v)
+fmt_int(uint8_t *buf, int w, uint64_t v)
 {
     if (v == 0)
     {
@@ -2286,7 +2286,7 @@ natsStatus
 nats_marshalDuration(natsBuffer *out_buf, bool comma, const char *field_name, int64_t d)
 {
     // Largest time is 2540400h10m10.000000000s
-    char buf[32];
+    uint8_t buf[32];
     int w = 32;
     bool neg = d < 0;
     uint64_t u = (uint64_t) (neg ? -d : d);
@@ -2303,9 +2303,9 @@ nats_marshalDuration(natsBuffer *out_buf, bool comma, const char *field_name, in
         w--;
         if (u == 0)
         {
-            s = natsBuf_Append(out_buf, start, -1);
-            IFOK(s, natsBuf_Append(out_buf, field_name, -1));
-            IFOK(s, natsBuf_Append(out_buf, "\":\"0s\"", -1));
+            s = natsBuf_AppendString(out_buf, start);
+            IFOK(s, natsBuf_AppendString(out_buf, field_name));
+            IFOK(s, natsBuf_AppendString(out_buf, "\":\"0s\""));
             return NATS_UPDATE_ERR_STACK(s);
         }
         else if (u < 1000)
@@ -2368,11 +2368,11 @@ nats_marshalDuration(natsBuffer *out_buf, bool comma, const char *field_name, in
         buf[w] = '-';
     }
 
-    s = natsBuf_Append(out_buf, start, -1);
-    IFOK(s, natsBuf_Append(out_buf, field_name, -1));
-    IFOK(s, natsBuf_Append(out_buf, "\":\"", -1));
+    s = natsBuf_AppendString(out_buf, start);
+    IFOK(s, natsBuf_AppendString(out_buf, field_name));
+    IFOK(s, natsBuf_AppendString(out_buf, "\":\""));
     IFOK(s, natsBuf_Append(out_buf, buf + w, sizeof(buf) - w));
-    IFOK(s, natsBuf_Append(out_buf, "\"", -1));
+    IFOK(s, natsBuf_AppendString(out_buf, "\""));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -2439,15 +2439,15 @@ nats_marshalMetadata(natsBuffer *buf, bool comma, const char *fieldName, natsMet
     if (md.Count <= 0)
         return NATS_OK;
 
-    IFOK(s, natsBuf_Append(buf, start, -1));
-    IFOK(s, natsBuf_Append(buf, fieldName, -1));
-    IFOK(s, natsBuf_Append(buf, "\":{", 3));
+    IFOK(s, natsBuf_AppendString(buf, start));
+    IFOK(s, natsBuf_AppendString(buf, fieldName));
+    IFOK(s, natsBuf_Append(buf, (const uint8_t*)"\":{", 3));
     for (i = 0; (s == NATS_OK) && (i < md.Count); i++)
     {
         IFOK(s, natsBuf_AppendByte(buf, '"'));
-        IFOK(s, natsBuf_Append(buf, md.List[i * 2], -1));
-        IFOK(s, natsBuf_Append(buf, "\":\"", 3));
-        IFOK(s, natsBuf_Append(buf, md.List[i * 2 + 1], -1));
+        IFOK(s, natsBuf_AppendString(buf, md.List[i * 2]));
+        IFOK(s, natsBuf_Append(buf, (const uint8_t *)"\":\"", 3));
+        IFOK(s, natsBuf_AppendString(buf, md.List[i * 2 + 1]));
         IFOK(s, natsBuf_AppendByte(buf, '"'));
 
         if (i != md.Count - 1)
@@ -2581,7 +2581,7 @@ natsStatus nats_formatStringArray(char **out, const char **strings, int count)
     len++; // For the ']'
     len++; // For the '\0'
 
-    s = natsBuf_Init(&buf, len);
+    s = natsBuf_InitCalloc(&buf, len);
 
     natsBuf_AppendByte(&buf, '[');
     for (i = 0; (s == NATS_OK) && (i < count); i++)
@@ -2593,11 +2593,11 @@ natsStatus nats_formatStringArray(char **out, const char **strings, int count)
         IFOK(s, natsBuf_AppendByte(&buf, '"'));
         if (strings[i] == NULL)
         {
-            IFOK(s, natsBuf_Append(&buf, "(null)", -1));
+            IFOK(s, natsBuf_AppendString(&buf, "(null)"));
         }
         else
         {
-            IFOK(s, natsBuf_Append(&buf, strings[i], -1));
+            IFOK(s, natsBuf_AppendString(&buf, strings[i]));
         }
         IFOK(s, natsBuf_AppendByte(&buf, '"'));
     }
@@ -2607,10 +2607,10 @@ natsStatus nats_formatStringArray(char **out, const char **strings, int count)
     
     if (s != NATS_OK)
     {
-        natsBuf_Cleanup(&buf);
+        natsBuf_Destroy(&buf);
         return s;
     }
 
-    *out = natsBuf_Data(&buf);
+    *out = (char*)natsBuf_Data(&buf);
     return NATS_OK;
 }

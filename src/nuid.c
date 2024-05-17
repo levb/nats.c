@@ -197,7 +197,7 @@ _randomizePrefix(natsNUID *nuid)
 void
 natsNUID_free(void)
 {
-    natsMutex_Destroy(globalNUID.mu);
+    // natsMutex_Destroy(globalNUID.mu);
     globalNUID.mu = NULL;
 }
 
@@ -205,7 +205,7 @@ natsNUID_free(void)
 natsStatus
 natsNUID_init(void)
 {
-    natsStatus      s;
+    natsStatus      s = NATS_OK;
     unsigned int    seed = (unsigned int) nats_NowInNanoSeconds();
 
     memset(&globalNUID, 0, sizeof(natsLockedNUID));
@@ -213,7 +213,8 @@ natsNUID_init(void)
     srand(seed);
     _initCMWC(seed);
 
-    s = natsMutex_Create(&(globalNUID.mu));
+    // <>//<>
+    // s = natsMutex_Create(&(globalNUID.mu));
     if (s == NATS_OK)
         s = _resetSequential(&(globalNUID.nuid));
     if (s == NATS_OK)
@@ -272,11 +273,12 @@ natsNUID_Next(char *buffer, int bufferLen)
 {
     natsStatus s;
 
-    natsMutex_Lock(globalNUID.mu);
+    // <>//<>
+    // natsMutex_Lock(globalNUID.mu);
 
     s = _nextNUID(&(globalNUID.nuid), buffer, bufferLen);
 
-    natsMutex_Unlock(globalNUID.mu);
+    // natsMutex_Unlock(globalNUID.mu);
 
     return NATS_UPDATE_ERR_STACK(s);
 }

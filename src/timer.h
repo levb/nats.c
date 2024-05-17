@@ -16,7 +16,6 @@
 
 #include <stdint.h>
 
-//#include "natsp.h"
 #include "status.h"
 
 struct __natsTimer;
@@ -33,7 +32,6 @@ typedef struct __natsTimer
     struct __natsTimer  *prev;
     struct __natsTimer  *next;
 
-    natsMutex           *mu;
     int                 refs;
 
     natsTimerCb         cb;
