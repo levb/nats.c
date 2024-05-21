@@ -108,6 +108,8 @@ natsBuf_CreateCalloc(natsBuffer **newBuf, size_t capacity)
 natsStatus
 natsBuf_CreatePool(natsBuffer **newBuf, natsPool *pool, size_t capacity)
 {
+
+
     natsBuffer *buf = natsPool_Alloc(pool, sizeof(natsBuffer));
     if (buf == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);

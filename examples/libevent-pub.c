@@ -85,8 +85,6 @@ int main(int argc, char **argv)
     if (evLoop != NULL)
         event_base_free(evLoop);
 
-    // To silence reports of memory still in used with valgrind
-    nats_Close();
     libevent_global_shutdown();
 
     return 0;

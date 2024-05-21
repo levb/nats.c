@@ -54,7 +54,7 @@ void natsPool_UndoLast(natsPool *pool, void *mem)
 }
 
 void *
-nats_palloc(natsPool *pool, size_t size, bool takeAll)
+natsPool_Alloc(natsPool *pool, size_t size)
 {
     natsChunk *chunk = NULL;
     natsLarge *large = NULL;
@@ -62,7 +62,7 @@ nats_palloc(natsPool *pool, size_t size, bool takeAll)
 
     if (size > pool->small.newChunkSize)
     {
-        large = nats_palloc(pool, sizeof(natsLarge), false);
+        large = natsPool_Alloc(pool, sizeof(natsLarge));
         if (large == NULL)
             return NULL;
 
@@ -81,11 +81,7 @@ nats_palloc(natsPool *pool, size_t size, bool takeAll)
             return NULL;
 
         mem = chunk->data + chunk->len;
-        if (takeAll)
-            chunk->len = pool->small.newChunkSize;
-        else
-            chunk->len += size;
-
+        chunk->len += size;
         return mem;
     }
 }
@@ -114,7 +110,7 @@ natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity)
 
     if (capacity > buf->pool->small.newChunkSize)
     {
-        natsLarge *large = nats_palloc(buf->pool, sizeof(natsLarge), false);
+        natsLarge *large = natsPool_Alloc(buf->pool, sizeof(natsLarge));
         if (large == NULL)
             return nats_setDefaultError(NATS_NO_MEMORY);
 

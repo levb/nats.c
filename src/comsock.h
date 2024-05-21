@@ -102,9 +102,6 @@ void
 natsSock_Shutdown(natsSock fd);
 
 void
-natsSock_ClearDeadline(natsSockCtx *ctx);
-
-void
 natsSock_InitDeadline(natsSockCtx *ctx, int64_t timeout);
 
 natsStatus

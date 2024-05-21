@@ -263,12 +263,6 @@ _createConn(natsConnection *nc)
             s = ls;
     }
 
-    if (s != NATS_OK)
-    {
-        // reset the deadline
-        natsSock_ClearDeadline(&nc->sockCtx);
-    }
-
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -285,9 +279,6 @@ _processConnInit(natsConnection *nc)
     // Send the CONNECT and PING protocol, and wait for the PONG.
     if (s == NATS_OK)
         s = _sendConnect(nc);
-
-    // Clear our deadline, regardless of error
-    natsSock_ClearDeadline(&nc->sockCtx);
 
     // If there is no write deadline option, switch to blocking socket here...
     if ((s == NATS_OK) && (nc->opts->writeDeadline <= 0))

@@ -107,7 +107,6 @@ typedef natsStatus (*natsEvLoop_Detach)(
     void *userData);
 
 NATS_EXTERN natsStatus nats_Open(void);
-NATS_EXTERN void nats_Close(void);
 NATS_EXTERN const char *nats_GetVersion(void);
 NATS_EXTERN uint32_t nats_GetVersionNumber(void);
 

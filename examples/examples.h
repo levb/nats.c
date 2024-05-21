@@ -154,7 +154,6 @@ printUsageAndExit(const char *progName, const char *usage)
                 progName, usage);
 
     natsOptions_Destroy(opts);
-    nats_Close();
 
     exit(1);
 }
@@ -422,7 +421,6 @@ parseArgs(int argc, char **argv, const char *usage)
         nats_PrintLastErrorStack(stderr);
 
         natsOptions_Destroy(opts);
-        nats_Close();
         exit(1);
     }
 
