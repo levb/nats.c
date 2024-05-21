@@ -541,9 +541,7 @@ _readOp(natsConnection *nc, natsControl *control)
 
     buffer[0] = '\0';
 
-    printf("<>/<> !!!!!!! %d\n", s);
-    s = natsSock_ReadLine(&(nc->sockCtx), buffer, sizeof(buffer));
-    printf("<>/<> !!!!!!! %d\n", s);
+    s = natsSock_ReadLine(&(nc->sockCtx), buffer, sizeof(buffer) - 1);
     if (s == NATS_OK)
         s = nats_ParseControl(control, buffer);
 

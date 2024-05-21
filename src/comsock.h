@@ -15,6 +15,7 @@
 #define SOCK_H_
 
 #include "natsp.h"
+#include "natstime.h"
 
 #define WAIT_FOR_READ (0)
 #define WAIT_FOR_WRITE (1)
@@ -24,6 +25,13 @@ struct __natsSockCtx
 {
     natsSock fd;
     bool fdActive;
+
+    natsDeadline readDeadline;
+    natsDeadline writeDeadline;
+
+    // During Connect we don't use an external event loop (such as libuv), then
+    // set to true.
+    bool useEventLoop;
 
     int orderIP; // possible values: 0,4,6,46,64
 
