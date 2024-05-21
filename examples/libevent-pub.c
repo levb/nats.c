@@ -24,19 +24,8 @@ void onPublishOK(natsConnection *nc, void *closure)
 
 void onConnectOK(natsConnection *nc, void *closure)
 {
-    natsStatus s;
-
-    s = natsConnection_PublishString(nc, subj, "test", onPublishOK, onPublishError);
-    if (s == NATS_OK)
-        printf("Published test message\n");
-    if (s == NATS_OK)
-        natsConnection_Flush(nc);
-
-    if (s != NATS_OK)
-    {
-        printf("Error: %d - %s\n", s, natsStatus_GetText(s));
-    }
-    natsConnection_Close(nc);
+    printf("Published test message!!!!\n");
+    // natsConnection_Close(nc);
 }
 
 void onConnectError(natsConnection *nc, natsStatus err, void *closure)
@@ -79,7 +68,7 @@ int main(int argc, char **argv)
                                      natsLibevent_Detach);
 
     if (s == NATS_OK)
-        s = natsConnection_Connect(&conn, opts, onConnectOK, onConnectError);
+        s = natsConnection_Connect(&conn, opts);
 
     if (s != NATS_OK)
     {

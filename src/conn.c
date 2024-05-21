@@ -14,7 +14,6 @@
 #include "natsp.h"
 
 #include "mem.h"
-#include "comsock.h"
 #include "conn.h"
 #include "parser.h"
 #include "err.h"

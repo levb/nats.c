@@ -14,6 +14,8 @@
 #ifndef CONN_H_
 #define CONN_H_
 
+#include "comsock.h"
+
 #define _OK_OP_ "+OK"
 #define _ERR_OP_ "-ERR"
 #define _MSG_OP_ "MSG"

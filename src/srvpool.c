@@ -15,6 +15,11 @@
 
 #include "mem.h"
 #include "url.h"
+#include "hash.h"
+#include "srvpool.h"
+#include "err.h"
+#include "conn.h"
+#include "opts.h"
 
 static void
 _freeSrv(natsSrv *srv)

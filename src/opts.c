@@ -16,7 +16,6 @@
 #include <string.h>
 
 #include "mem.h"
-#include "comsock.h"
 #include "conn.h"
 #include "util.h"
 #include "opts.h"

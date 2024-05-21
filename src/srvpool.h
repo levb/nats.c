@@ -29,7 +29,7 @@ struct __natsSrv
 struct __natsSrvPool
 {
     natsSrv     **srvrs;
-    // natsStrHash *urls;
+    natsStrHash *urls;
     int         size;
     int         cap;
     bool        randomize;

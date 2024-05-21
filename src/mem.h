@@ -117,6 +117,17 @@ struct __natsBuffer_s
 #define NATS_STRDUP(s) strdup((s))
 #endif
 
+#define DUP_STRING(s, s1, s2)                           \
+    {                                                   \
+        (s1) = NATS_STRDUP(s2);                         \
+        if ((s1) == NULL)                               \
+            (s) = nats_setDefaultError(NATS_NO_MEMORY); \
+    }
+
+#define IF_OK_DUP_STRING(s, s1, s2)                  \
+    if (((s) == NATS_OK) && !nats_IsStringEmpty(s2)) \
+    DUP_STRING((s), (s1), (s2))
+
 //----------------------------------------------------------------
 // string functions.
 //
@@ -147,7 +158,7 @@ static inline uint8_t *nats_strrchr(const uint8_t *s, uint8_t find) { return (ui
 
 natsString *natsString_DupPool(natsPool *pool, const natsString *src);
 natsString *natsString_DupPoolStr(natsPool *pool, const char *src);
-#define natsString_DupStr(_s) strdup(_s)
+#define natsString_DupStr(_s) NATS_STRDUP(_s)
 
 #define nats_IsStringEmpty(_s) (((_s) == NULL) || (strlen(_s) == 0))
 

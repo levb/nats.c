@@ -12,8 +12,11 @@
 // limitations under the License.
 
 #include "natsp.h"
+
 #include "util.h"
 #include "mem.h"
+#include "url.h"
+#include "err.h"
 
 void
 natsUrl_Destroy(natsUrl *url)
