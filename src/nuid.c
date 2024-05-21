@@ -13,6 +13,9 @@
 
 #include "natsp.h"
 
+#include "nuid.h"
+#include "err.h"
+
 // From https://en.wikipedia.org/wiki/Multiply-with-carry
 
 // CMWC working parts
@@ -121,7 +124,6 @@ typedef struct natsNUID
 
 typedef struct natsLockedNUID
 {
-    natsMutex   *mu;
     natsNUID    nuid;
 
 } natsLockedNUID;
@@ -197,8 +199,6 @@ _randomizePrefix(natsNUID *nuid)
 void
 natsNUID_free(void)
 {
-    // natsMutex_Destroy(globalNUID.mu);
-    globalNUID.mu = NULL;
 }
 
 // Seed sequential random with math/random and current time and generate crypto prefix.

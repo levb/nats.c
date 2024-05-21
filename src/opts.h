@@ -14,7 +14,77 @@
 #ifndef OPTS_H_
 #define OPTS_H_
 
-#include "natsp.h"
+#define CHECK_OPTIONS(o, c)                   \
+    if (((o) == NULL) || ((c)))                        \
+        return nats_setDefaultError(NATS_INVALID_ARG);
+
+struct __natsOptions
+{
+    // This field must be the first (see natsOptions_clone, same if you add
+    // allocated fields such as strings).
+    char *url;
+    char **servers;
+    int serversCount;
+    bool noRandomize;
+    int64_t timeout;
+    char *name;
+    bool verbose;
+    bool pedantic;
+    bool allowReconnect;
+    bool secure;
+    int ioBufSize;
+    int maxReconnect;
+    int64_t reconnectWait;
+    int reconnectBufSize;
+    int64_t writeDeadline;
+
+    char *user;
+    char *password;
+    char *token;
+
+    bool ignoreDiscoveredServers;
+
+    int64_t pingInterval;
+    int maxPingsOut;
+    int maxPendingMsgs;
+    int64_t maxPendingBytes;
+
+    void *evLoop;
+    natsEvLoopCallbacks evCbs;
+
+    int orderIP; // possible values: 0,4,6,46,64
+
+    // forces the old method of Requests that utilize
+    // a new Inbox and a new Subscription for each request
+    bool useOldRequestStyle;
+
+    // If set to true, the Publish call will flush in place and
+    // not rely on the flusher.
+    bool sendAsap;
+
+    // If set to true, pending requests will fail with NATS_CONNECTION_DISCONNECTED
+    // when the library detects a disconnection.
+    bool failRequestsOnDisconnect;
+
+    // NoEcho configures whether the server will echo back messages
+    // that are sent on this connection if we also have matching subscriptions.
+    // Note this is supported on servers >= version 1.2. Proto 1 or greater.
+    bool noEcho;
+
+    // If set to true, in case of failed connect, tries again using
+    // reconnect options values.
+    bool retryOnFailedConnect;
+
+    // Reconnect jitter added to reconnect wait
+    int64_t reconnectJitter;
+    int64_t reconnectJitterTLS;
+
+    // Disable the "no responders" feature.
+    bool disableNoResponders;
+
+    // Custom message payload padding size
+    int payloadPaddingSize;
+};
 
 #define NATS_OPTS_DEFAULT_MAX_RECONNECT         (60)
 #define NATS_OPTS_DEFAULT_TIMEOUT               (2 * 1000)          // 2 seconds

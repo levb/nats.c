@@ -25,7 +25,7 @@ typedef struct __natsHashEntry
 
 } natsHashEntry;
 
-typedef struct __natsHash
+struct __natsHash
 {
     natsHashEntry   **bkts;
     int             numBkts;
@@ -33,7 +33,7 @@ typedef struct __natsHash
     int             used;
     bool            canResize;
 
-} natsHash;
+};
 
 typedef struct __natsHashIter
 {
@@ -55,7 +55,7 @@ typedef struct __natsStrHashEntry
 
 } natsStrHashEntry;
 
-typedef struct __natsStrHash
+struct __natsStrHash
 {
     natsStrHashEntry    **bkts;
     int                 numBkts;
@@ -63,7 +63,7 @@ typedef struct __natsStrHash
     int                 used;
     bool                canResize;
 
-} natsStrHash;
+};
 
 typedef struct __natsStrHashIter
 {

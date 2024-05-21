@@ -13,6 +13,8 @@
 
 #include "natsp.h"
 
+#include "natstime.h"
+
 #ifdef _WIN32
 #include <sys/timeb.h>
 #endif

@@ -11,33 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEMCHAIN_H_
-#define MEMCHAIN_H_
+#include "natsp.h"
 
 #include "mem.h"
-#include "status.h"
 #include "err.h"
 
-// Declarations.
-#ifdef NATS_NO_INLINE_CHAIN
-
-void natsChunk_Destroy(natsChunk *c);
-
-natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize);
-void natsChain_Destroy(natsChain *chain);
-
-#endif // NATS_NO_INLINE_CHAINS
-
-// Definitions.
-#if defined(NATS_MEM_C_) || !defined(NATS_NO_INLINE_CHAIN)
-
-#ifdef NATS_MEM_C_
-#define NATS_INLINE_CHAIN
-#else
-#define NATS_INLINE_CHAIN static inline
-#endif
-
-NATS_INLINE_CHAIN void natsChunk_Destroy(natsChunk *c)
+void natsChunk_Destroy(natsChunk *c)
 {
     if (c == NULL)
         return;
@@ -48,20 +27,20 @@ NATS_INLINE_CHAIN void natsChunk_Destroy(natsChunk *c)
     NATS_FREE(c);
 }
 
-NATS_INLINE_CHAIN natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize)
+natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize)
 {
     natsChain *chain = NATS_CALLOC(1, sizeof(natsChain));
     if (chain == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    chain->chunkSize = (chunkSize == 0 ? NATS_DEFAULT_CHUNK_SIZE : chunkSize);
+    chain->newChunkSize = (chunkSize == 0 ? NATS_DEFAULT_NEW_CHUNK_SIZE : chunkSize);
 
     *newChain = chain;
 
     return NATS_OK;
 }
 
-NATS_INLINE_CHAIN void natsChain_Destroy(natsChain *chain)
+void natsChain_Destroy(natsChain *chain)
 {
     natsChunk *chunk = chain->head;
     natsChunk *next;
@@ -75,18 +54,18 @@ NATS_INLINE_CHAIN void natsChain_Destroy(natsChain *chain)
     NATS_FREE(chain);
 }
 
-NATS_INLINE_CHAIN natsChunk*
-natsChain_AllocateChunk(natsChain *chain, size_t size)
+natsChunk *
+natsChain_Alloc(natsChain *chain, size_t size)
 {
     natsChunk *found = NULL;
     natsChunk *chunk = chain->head;
 
-    if (size > chain->chunkSize)
+    if (size > chain->newChunkSize)
         return NULL;
 
-    for(; chunk != NULL; chunk = chunk->next)
+    for (; chunk != NULL; chunk = chunk->next)
     {
-        if (chunk->len + size <= chain->chunkSize)
+        if (chunk->len + size <= chain->newChunkSize)
         {
             found = chunk;
             break;
@@ -99,7 +78,7 @@ natsChain_AllocateChunk(natsChain *chain, size_t size)
         if (found == NULL)
             return NULL;
 
-        found->data = NATS_CALLOC(1, chain->chunkSize);
+        found->data = NATS_CALLOC(1, chain->newChunkSize);
         if (found->data == NULL)
         {
             NATS_FREE(found);
@@ -114,6 +93,17 @@ natsChain_AllocateChunk(natsChain *chain, size_t size)
     return found;
 }
 
-#endif /* defined(NATS_MEM_C_) || !defined(NATS_NO_INLINE_CHAIN) */
+natsStatus
+natsChain_AddChunkRef(natsChain *chain, uint8_t *data, size_t len)
+{
+    natsChunk *chunk = NATS_CALLOC(1, sizeof(natsChunk));
+    if (chunk == NULL)
+        return nats_setDefaultError(NATS_NO_MEMORY);
 
-#endif /* MEMCHAIN_H_ */
+    chunk->data = data;
+    chunk->len  = len;
+    chunk->next = chain->head;
+    chain->head = chunk;
+
+    return NATS_OK;
+}

@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "natsp.h"
+
 #include "crypto.h"
 
 #ifdef NATS_USE_LIBSODIUM

@@ -13,21 +13,14 @@
 
 #include "natsp.h"
 
-// #include <stddef.h>
-// #include <stdio.h>
-// #include <string.h>
-// #include <inttypes.h>
-// #include <assert.h>
-// #include <stdarg.h>
+#include <stdarg.h>
 
-// #include "mem.h"
-// #include "timer.h"
 #include "util.h"
-// #include "asynccb.h"
-// #include "conn.h"
-// #include "sub.h"
-// #include "nkeys.h"
+#include "nuid.h"
+#include "hash.h"
 #include "crypto.h"
+
+#define MAX_FRAMES (50)
 
 typedef struct natsTLError
 {
@@ -141,40 +134,40 @@ nats_Open(void)
     return s;
 }
 
-natsStatus
-natsInbox_Create(natsInbox **newInbox)
-{
-    natsStatus s;
-    char *inbox = NULL;
-    const int size = NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 1;
+// natsStatus
+// natsInbox_Create(natsInbox **newInbox)
+// {
+//     natsStatus s;
+//     char *inbox = NULL;
+//     const int size = NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 1;
 
-    s = nats_Open();
-    if (s != NATS_OK)
-        return s;
+//     s = nats_Open();
+//     if (s != NATS_OK)
+//         return s;
 
-    inbox = NATS_MALLOC(size);
-    if (inbox == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
+//     inbox = NATS_MALLOC(size);
+//     if (inbox == NULL)
+//         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    memcpy(inbox, NATS_DEFAULT_INBOX_PRE, NATS_DEFAULT_INBOX_PRE_LEN);
-    s = natsNUID_Next(inbox + NATS_DEFAULT_INBOX_PRE_LEN, NUID_BUFFER_LEN + 1);
-    if (s == NATS_OK)
-    {
-        inbox[size - 1] = '\0';
-        *newInbox = (natsInbox *)inbox;
-    }
-    else
-        NATS_FREE(inbox);
-    return NATS_UPDATE_ERR_STACK(s);
-}
+//     memcpy(inbox, NATS_DEFAULT_INBOX_PRE, NATS_DEFAULT_INBOX_PRE_LEN);
+//     s = natsNUID_Next(inbox + NATS_DEFAULT_INBOX_PRE_LEN, NUID_BUFFER_LEN + 1);
+//     if (s == NATS_OK)
+//     {
+//         inbox[size - 1] = '\0';
+//         *newInbox = (natsInbox *)inbox;
+//     }
+//     else
+//         NATS_FREE(inbox);
+//     return NATS_UPDATE_ERR_STACK(s);
+// }
 
-void natsInbox_Destroy(natsInbox *inbox)
-{
-    if (inbox == NULL)
-        return;
+// void natsInbox_Destroy(natsInbox *inbox)
+// {
+//     if (inbox == NULL)
+//         return;
 
-    NATS_FREE(inbox);
-}
+//     NATS_FREE(inbox);
+// }
 
 const char *
 nats_GetVersion(void)

@@ -13,11 +13,13 @@
 
 #include "natsp.h"
 
+#include "mem.h"
+
 void
 nats_strlow(uint8_t *dst, uint8_t *src, size_t n)
 {
     while (n) {
-        *dst = ngx_tolower(*src);
+        *dst = nats_ToLower(*src);
         dst++;
         src++;
         n--;
@@ -65,18 +67,43 @@ nats_cpystrn(uint8_t *dst, uint8_t *src, size_t n)
 }
 
 
-uint8_t *
-natsString_DupPool(natsPool *pool, natsString *src)
+natsString*
+natsString_DupPool(natsPool *pool, const natsString *src)
 {
-    uint8_t  *dst;
-
-    dst = natsPool_Alloc(pool, src->len);
+    natsString *dst = natsPool_Alloc(pool, sizeof(natsString));
     if (dst == NULL) {
         return NULL;
     }
 
-    memcpy(dst, src->data, src->len);
+    dst->data = natsPool_Alloc(pool, src->len);
+    if (dst->data == NULL) {
+        return NULL;
+    }
+
+    memcpy(dst->data, src->data, src->len);
+    dst->len = src->len;
 
     return dst;
 }
 
+natsString *
+natsString_DupPoolStr(natsPool *pool, const char *src)
+{
+    int len = strlen(src);
+    natsString *dst = natsPool_Alloc(pool, sizeof(natsString));
+    if (dst == NULL)
+    {
+        return NULL;
+    }
+
+    dst->data = natsPool_Alloc(pool, len);
+    if (dst->data == NULL)
+    {
+        return NULL;
+    }
+
+    memcpy(dst->data, src, len);
+    dst->len = len;
+
+    return dst;
+}

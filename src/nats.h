@@ -31,25 +31,25 @@
  *  when building the shared library.
  */
 #if defined(_WIN32)
-  #include <winsock2.h>
-  #if defined(nats_EXPORTS)
-    #define NATS_EXTERN __declspec(dllexport)
-  #elif defined(nats_IMPORTS)
-    #define NATS_EXTERN __declspec(dllimport)
-  #else
-    #define NATS_EXTERN
-  #endif
-
-  typedef SOCKET      natsSock;
+#include <winsock2.h>
+#if defined(nats_EXPORTS)
+#define NATS_EXTERN __declspec(dllexport)
+#elif defined(nats_IMPORTS)
+#define NATS_EXTERN __declspec(dllimport)
 #else
-  #define NATS_EXTERN
-  typedef int         natsSock;
+#define NATS_EXTERN
+#endif
+
+typedef SOCKET natsSock;
+#else
+#define NATS_EXTERN
+typedef int natsSock;
 #endif
 
 #define NATS_DEFAULT_URL "nats://localhost:4222"
 
-typedef struct __natsConnection     natsConnection;
-typedef struct __natsOptions        natsOptions;
+typedef struct __natsConnection natsConnection;
+typedef struct __natsOptions natsOptions;
 
 /** \brief Attach this connection to the external event loop.
  *
@@ -65,10 +65,10 @@ typedef struct __natsOptions        natsOptions;
  * @param socket the socket to poll for read/write events.
  */
 typedef natsStatus (*natsEvLoop_Attach)(
-        void            **userData,
-        void            *loop,
-        natsConnection  *nc,
-        natsSock        socket);
+    void **userData,
+    void *loop,
+    natsConnection *nc,
+    natsSock socket);
 
 /** \brief Read event needs to be added or removed.
  *
@@ -80,8 +80,8 @@ typedef natsStatus (*natsEvLoop_Attach)(
  * @param add `true` if the event library should start polling, `false` otherwise.
  */
 typedef natsStatus (*natsEvLoop_ReadAddRemove)(
-        void            *userData,
-        bool            add);
+    void *userData,
+    bool add);
 
 /** \brief Write event needs to be added or removed.
  *
@@ -93,8 +93,8 @@ typedef natsStatus (*natsEvLoop_ReadAddRemove)(
  * @param add `true` if the event library should start polling, `false` otherwise.
  */
 typedef natsStatus (*natsEvLoop_WriteAddRemove)(
-        void            *userData,
-        bool            add);
+    void *userData,
+    bool add);
 
 /** \brief Detach from the event loop.
  *
@@ -104,7 +104,7 @@ typedef natsStatus (*natsEvLoop_WriteAddRemove)(
  * @param userData the pointer to an user object created in #natsEvLoop_Attach.
  */
 typedef natsStatus (*natsEvLoop_Detach)(
-        void            *userData);
+    void *userData);
 
 NATS_EXTERN natsStatus nats_Open(void);
 NATS_EXTERN void nats_Close(void);
@@ -116,14 +116,14 @@ NATS_EXTERN int64_t nats_NowInNanoSeconds(void);
 NATS_EXTERN void nats_Sleep(int64_t sleepTime);
 
 NATS_EXTERN void nats_PrintLastErrorStack(FILE *file);
-NATS_EXTERN const char* natsStatus_GetText(natsStatus s);
+NATS_EXTERN const char *natsStatus_GetText(natsStatus s);
 
 NATS_EXTERN natsStatus natsOptions_Create(natsOptions **newOpts);
 NATS_EXTERN natsStatus natsOptions_IPResolutionOrder(natsOptions *opts, int order);
-NATS_EXTERN natsStatus natsOptions_SetEventLoop(natsOptions *opts, void *loop, natsEvLoop_Attach          attachCb, natsEvLoop_ReadAddRemove   readCb, natsEvLoop_WriteAddRemove  writeCb, natsEvLoop_Detach          detachCb);
+NATS_EXTERN natsStatus natsOptions_SetEventLoop(natsOptions *opts, void *loop, natsEvLoop_Attach attachCb, natsEvLoop_ReadAddRemove readCb, natsEvLoop_WriteAddRemove writeCb, natsEvLoop_Detach detachCb);
 NATS_EXTERN natsStatus natsOptions_SetName(natsOptions *opts, const char *name);
 NATS_EXTERN natsStatus natsOptions_SetNoRandomize(natsOptions *opts, bool noRandomize);
-NATS_EXTERN natsStatus natsOptions_SetServers(natsOptions *opts, const char** servers, int serversCount);
+NATS_EXTERN natsStatus natsOptions_SetServers(natsOptions *opts, const char **servers, int serversCount);
 NATS_EXTERN natsStatus natsOptions_SetURL(natsOptions *opts, const char *url);
 NATS_EXTERN natsStatus natsOptions_SetVerbose(natsOptions *opts, bool verbose);
 NATS_EXTERN void natsOptions_Destroy(natsOptions *opts);
@@ -135,5 +135,9 @@ NATS_EXTERN void natsConnection_Close(natsConnection *nc);
 NATS_EXTERN void natsConnection_Destroy(natsConnection *nc);
 NATS_EXTERN void natsConnection_ProcessReadEvent(natsConnection *nc);
 NATS_EXTERN void natsConnection_ProcessWriteEvent(natsConnection *nc);
+
+NATS_EXTERN const char *nats_GetLastError(natsStatus *status);
+NATS_EXTERN natsStatus nats_GetLastErrorStack(char *buffer, size_t bufLen);
+NATS_EXTERN natsStatus natsOptions_SetSecure(natsOptions *opts, bool secure);
 
 #endif /* NATS_H_ */

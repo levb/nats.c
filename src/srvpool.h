@@ -14,11 +14,8 @@
 #ifndef SRVPOOL_H_
 #define SRVPOOL_H_
 
-#include "status.h"
-#include "hash.h"
-
 // Tracks individual backend servers.
-typedef struct __natsSrv
+struct __natsSrv
 {
     natsUrl     *url;
     bool        didConnect;
@@ -27,19 +24,19 @@ typedef struct __natsSrv
     char        *tlsName;
     int         lastAuthErrCode;
 
-} natsSrv;
+};
 
-typedef struct __natsSrvPool
+struct __natsSrvPool
 {
     natsSrv     **srvrs;
-    natsStrHash *urls;
+    // natsStrHash *urls;
     int         size;
     int         cap;
     bool        randomize;
     char        *user;
     char        *pwd;
 
-} natsSrvPool;
+};
 
 // This is defined in natsp.h, but natsp.h includes this file. Alternatively,
 // we would need to move the defs above in natsp.h.

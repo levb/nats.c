@@ -14,10 +14,6 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
-#include <stdint.h>
-
-#include "status.h"
-#include "mem.h"
 
 typedef enum
 {
@@ -69,7 +65,7 @@ typedef struct __natsMsgArg
 
 #define MAX_CONTROL_LINE_SIZE   (4096)
 
-typedef struct __natsParser
+struct __natsParser
 {
     natsOp      state;
     int         afterSpace;
@@ -82,7 +78,7 @@ typedef struct __natsParser
     natsBuffer  *msgBuf;
     uint8_t     scratch[MAX_CONTROL_LINE_SIZE];
 
-} natsParser;
+};
 
 // This is defined in natsp.h, natsp.h includes us. Alternatively, we can move
 // all the parser defines in natsp.h

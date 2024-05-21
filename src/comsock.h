@@ -16,6 +16,23 @@
 
 #include "natsp.h"
 
+#define WAIT_FOR_READ (0)
+#define WAIT_FOR_WRITE (1)
+#define WAIT_FOR_CONNECT (2)
+
+struct __natsSockCtx
+{
+    natsSock fd;
+    bool fdActive;
+
+    int orderIP; // possible values: 0,4,6,46,64
+
+    // By default, the list of IPs returned by the hostname resolution will
+    // be shuffled. This option, if `true`, will disable the shuffling.
+    bool noRandomize;
+
+};
+
 natsStatus
 natsSock_Init(natsSockCtx *ctx);
 
@@ -24,10 +41,10 @@ natsStatus
 natsSock_WaitReady(int waitMode, natsSockCtx *ctx);
 
 void
-natsSock_ShuffleIPs(natsSockCtx *ctx, struct addrinfo **tmp, int tmpSize, struct addrinfo **ipListHead, int count);
+natsSock_ShuffleIPs(natsSockCtx *ctx, natsPool *pool, struct addrinfo **ipListHead, int count);
 
 natsStatus
-natsSock_ConnectTcp(natsSockCtx *ctx, const char *host, int port);
+natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *host, int port);
 
 natsStatus
 natsSock_SetBlocking(natsSock fd, bool blocking);
@@ -91,6 +108,6 @@ void
 natsSock_InitDeadline(natsSockCtx *ctx, int64_t timeout);
 
 natsStatus
-natsSock_GetLocalIPAndPort(natsSockCtx *ctx, char **ip, int *port);
+natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, natsString **ip, int *port);
 
 #endif /* SOCK_H_ */

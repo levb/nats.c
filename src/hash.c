@@ -13,11 +13,10 @@
 
 #include "natsp.h"
 
-#include <string.h>
-
-#include "status.h"
+#include "err.h"
 #include "mem.h"
 #include "hash.h"
+
 
 #define _freeEntry(e)   { NATS_FREE(e); (e) = NULL; }
 

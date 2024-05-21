@@ -11,31 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEMPOOL_H_
-#define MEMPOOL_H_
+#include "natsp.h"
 
 #include "mem.h"
-#include "status.h"
 #include "err.h"
 
-// Declarations only
-#ifdef NATS_NO_INLINE_POOL
-
-natsStatus natsPool_Create(natsPool **newPool, size_t chunkSize);
-
-#endif /* NATS_NO_INLINE_POOL */
-
-// Definitions
-#if defined(NATS_MEM_C_) || !defined(NATS_NO_INLINE_POOL)
-
-#ifdef NATS_MEM_C_
-#define NATS_INLINE_POOL
-#else
-#define NATS_INLINE_POOL static inline
-#endif
-
-NATS_INLINE_POOL natsStatus
-natsPool_Create(natsPool **newPool, size_t chunkSize)
+natsStatus
+natsPool_Create(natsPool **newPool, size_t chunkSize, bool init)
 {
     natsPool *pool = NULL;
 
@@ -43,19 +25,42 @@ natsPool_Create(natsPool **newPool, size_t chunkSize)
     if (pool == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    pool->small.chunkSize = (chunkSize == 0 ? NATS_DEFAULT_CHUNK_SIZE : chunkSize);
+    pool->small.newChunkSize = (chunkSize == 0 ? NATS_DEFAULT_NEW_CHUNK_SIZE : chunkSize);
     *newPool = pool;
+
+    if (init)
+    {
+        // Ensure allocation of the first chunk, but ignore the result.
+        natsChain_Alloc(&(pool->small), 0);
+    }
+
     return NATS_OK;
 }
 
-NATS_INLINE_POOL void *
+void natsPool_UndoLast(natsPool *pool, void *mem)
+{
+    if (pool == NULL)
+        return;
+
+    if ((pool->large != NULL) && (pool->large->data == mem))
+    {
+        pool->large = pool->large->next;
+        NATS_FREE(mem);
+    }
+    else if ((pool->small.head != NULL) && ((uint8_t *)mem >= pool->small.head->data) && ((uint8_t *)mem < (pool->small.head->data + pool->small.newChunkSize)))
+    {
+        pool->small.head->len = (const uint8_t *)mem - (const uint8_t *)pool->small.head->data;
+    }
+}
+
+void *
 nats_palloc(natsPool *pool, size_t size, bool takeAll)
 {
     natsChunk *chunk = NULL;
     natsLarge *large = NULL;
     void *mem = NULL;
 
-    if (size > pool->small.chunkSize)
+    if (size > pool->small.newChunkSize)
     {
         large = nats_palloc(pool, sizeof(natsLarge), false);
         if (large == NULL)
@@ -71,13 +76,13 @@ nats_palloc(natsPool *pool, size_t size, bool takeAll)
     }
     else
     {
-        chunk = natsChain_AllocateChunk(&(pool->small), size);
+        chunk = natsChain_Alloc(&(pool->small), size);
         if (chunk == NULL)
             return NULL;
 
         mem = chunk->data + chunk->len;
         if (takeAll)
-            chunk->len = pool->small.chunkSize;
+            chunk->len = pool->small.newChunkSize;
         else
             chunk->len += size;
 
@@ -85,13 +90,7 @@ nats_palloc(natsPool *pool, size_t size, bool takeAll)
     }
 }
 
-NATS_INLINE_POOL void *
-natsPool_Alloc(natsPool *pool, size_t size)
-{
-    return nats_palloc(pool, size, false);
-}
-
-NATS_INLINE_POOL natsStatus
+natsStatus
 natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity)
 {
     natsStatus s = NATS_OK;
@@ -106,14 +105,14 @@ natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity)
         return NATS_OK;
     }
 
-   // Can not expand in place, need to move.
-   if (buf->small != NULL)
-   {
+    // Can not expand in place, need to move.
+    if (buf->small != NULL)
+    {
         // The space of this buffer is always the entire "end of the chunk", return it to the pool.
         buf->small->len -= buf->cap;
-   } 
+    }
 
-    if (capacity > buf->pool->small.chunkSize)
+    if (capacity > buf->pool->small.newChunkSize)
     {
         natsLarge *large = nats_palloc(buf->pool, sizeof(natsLarge), false);
         if (large == NULL)
@@ -128,7 +127,7 @@ natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity)
     }
     else
     {
-        natsChunk *chunk = natsChain_AllocateChunk(&(buf->pool->small), capacity);
+        natsChunk *chunk = natsChain_Alloc(&(buf->pool->small), capacity);
         if (chunk == NULL)
             return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -138,6 +137,18 @@ natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity)
     return s;
 }
 
-#endif /* defined(NATS_MEM_C_) || !defined(NATS_NO_INLINE_POOL) */
+void natsPool_Destroy(natsPool *pool)
+{
+    natsLarge *l;
+    if (pool == NULL)
+        return;
 
-#endif /* MEMPOOL_H_ */
+    for (l = pool->large; l != NULL; l = l->next)
+    {
+        NATS_FREE(l->data);
+    }
+
+    natsChain_Destroy(&(pool->small));
+
+    NATS_FREE(pool);
+}

@@ -13,15 +13,10 @@
 
 #include "natsp.h"
 
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <assert.h>
-#include <time.h>
-
-#include "status.h"
-#include "comsock.h"
+#include "err.h"
 #include "mem.h"
+#include "comsock.h"
+#include "hash.h"
 #include "util.h"
 
 natsStatus
@@ -79,28 +74,20 @@ natsSock_SetCommonTcpOptions(natsSock fd)
 }
 
 void
-natsSock_ShuffleIPs(natsSockCtx *ctx, struct addrinfo **tmp, int tmpSize, struct addrinfo **ipListHead, int count)
+natsSock_ShuffleIPs(natsSockCtx *ctx, natsPool *pool, struct addrinfo **ipListHead, int count)
 {
     struct addrinfo **ips   = NULL;
     struct addrinfo *p      = NULL;
-    bool            doFree  = false;
     int             i, j;
 
     if (ctx->noRandomize || (ipListHead == NULL) || (*ipListHead == NULL) || count <= 1)
         return;
 
-    if (count > tmpSize)
-    {
-        ips = (struct addrinfo**) NATS_CALLOC(count, sizeof(struct addrinfo*));
-        // Let's not fail the caller, simply don't shuffle.
-        if (ips == NULL)
-            return;
-        doFree = true;
-    }
-    else
-    {
-        ips = tmp;
-    }
+    ips = (struct addrinfo**) natsPool_Alloc(pool, count * sizeof(struct addrinfo*));
+    // Let's not fail the caller, simply don't shuffle.
+    if (ips == NULL)
+        return;
+
     p = *ipListHead;
     // Put them in a array
     for (i=0; i<count; i++)
@@ -127,15 +114,13 @@ natsSock_ShuffleIPs(natsSockCtx *ctx, struct addrinfo **tmp, int tmpSize, struct
     // Update the list head with the first in the array.
     *ipListHead = ips[0];
 
-    // If we allocated the array, free it.
-    if (doFree)
-        NATS_FREE(ips);
+    natsPool_UndoLast(pool, ips);
 }
 
 #define MAX_HOST_NAME   (256)
 
 natsStatus
-natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
+natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int port)
 {
     natsStatus      s    = NATS_OK;
     int             res;
@@ -148,7 +133,6 @@ natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
     struct addrinfo *servInfos[2] = {NULL, NULL};
     int             numServInfo   = 0;
     int             numIPs        = 0;
-    struct addrinfo *tmpStorage[64];
 
     if (phost == NULL)
         return nats_setError(NATS_ADDRESS_MISSING, "%s", "No host specified");
@@ -201,7 +185,7 @@ natsSock_ConnectTcp(natsSockCtx *ctx, const char *phost, int port)
             count++;
             numIPs++;
         }
-        natsSock_ShuffleIPs(ctx, tmpStorage, sizeof(tmpStorage), &(servInfos[numServInfo]), count);
+        natsSock_ShuffleIPs(ctx, pool, &(servInfos[numServInfo]), count);
         numServInfo++;
     }
     // If we got a getaddrinfo() and there is no servInfos to try to connect to
@@ -567,7 +551,7 @@ natsSock_WriteFully(natsSockCtx *ctx, const char *data, int len)
 }
 
 natsStatus
-natsSock_GetLocalIPAndPort(natsSockCtx *ctx, char **ip, int *port)
+natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, natsString **ip, int *port)
 {
     struct sockaddr_storage addr;
     natsSockLen             addrLen = (natsSockLen) sizeof(addr);
@@ -605,7 +589,7 @@ natsSock_GetLocalIPAndPort(natsSockCtx *ctx, char **ip, int *port)
     if (inet_ntop(fam, laddr, localIP, sizeof(localIP)) == NULL)
         return nats_setError(NATS_SYS_ERROR, "inet_ntop error: %d", NATS_SOCK_GET_ERROR);
 
-    if ((*ip = NATS_STRDUP(localIP)) == NULL)
+    if ((*ip = natsString_DupPoolStr(pool, localIP)) == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
     return NATS_OK;

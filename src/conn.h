@@ -14,7 +14,162 @@
 #ifndef CONN_H_
 #define CONN_H_
 
-#include "natsp.h"
+#define _OK_OP_ "+OK"
+#define _ERR_OP_ "-ERR"
+#define _MSG_OP_ "MSG"
+#define _PING_OP_ "PING"
+#define _PONG_OP_ "PONG"
+#define _INFO_OP_ "INFO"
+
+#define _HPUB_P_ "HPUB "
+
+#define _PING_PROTO_ "PING\r\n"
+#define _PONG_PROTO_ "PONG\r\n"
+#define _SUB_PROTO_ "SUB %s %s %" PRId64 "\r\n"
+#define _UNSUB_PROTO_ "UNSUB %" PRId64 " %d\r\n"
+#define _UNSUB_NO_MAX_PROTO_ "UNSUB %" PRId64 " \r\n"
+
+#define STALE_CONNECTION "Stale Connection"
+#define PERMISSIONS_ERR "Permissions Violation"
+#define AUTHORIZATION_ERR "Authorization Violation"
+#define AUTHENTICATION_EXPIRED_ERR "User Authentication Expired"
+
+#define _CRLF_LEN_ (2)
+#define _SPC_LEN_ (1)
+#define _HPUB_P_LEN_ (5)
+#define _PING_OP_LEN_ (4)
+#define _PONG_OP_LEN_ (4)
+#define _PING_PROTO_LEN_ (6)
+#define _PONG_PROTO_LEN_ (6)
+#define _OK_OP_LEN_ (3)
+#define _ERR_OP_LEN_ (4)
+
+#define NATS_DEFAULT_INBOX_PRE "_INBOX."
+#define NATS_DEFAULT_INBOX_PRE_LEN (7)
+
+#define NATS_MAX_REQ_ID_LEN (19) // to display 2^63-1 number
+
+#define ERR_CODE_AUTH_EXPIRED (1)
+#define ERR_CODE_AUTH_VIOLATION (2)
+
+// This is temporary until we remove original connection status enum
+// values without NATS_CONN_STATUS_ prefix
+#if defined(NATS_CONN_STATUS_NO_PREFIX)
+#define NATS_CONN_STATUS_DISCONNECTED DISCONNECTED
+#define NATS_CONN_STATUS_CONNECTING CONNECTING
+#define NATS_CONN_STATUS_CONNECTED CONNECTED
+#define NATS_CONN_STATUS_CLOSED CLOSED
+#define NATS_CONN_STATUS_RECONNECTING RECONNECTING
+#define NATS_CONN_STATUS_DRAINING_SUBS DRAINING_SUBS
+#define NATS_CONN_STATUS_DRAINING_PUBS DRAINING_PUBS
+#endif
+
+typedef struct
+{
+    natsEvLoop_Attach attach;
+    natsEvLoop_ReadAddRemove read;
+    natsEvLoop_WriteAddRemove write;
+    natsEvLoop_Detach detach;
+
+} natsEvLoopCallbacks;
+
+struct __natsPong
+{
+    int64_t id;
+
+    struct __natsPong *prev;
+    struct __natsPong *next;
+
+};
+
+struct __natsPongList
+{
+    natsPong *head;
+    natsPong *tail;
+
+    int64_t incoming;
+    int64_t outgoingPings;
+
+    natsPong cached;
+
+    // natsCondition       *cond;
+
+};
+
+struct __natsControl
+{
+    char *op;
+    char *args;
+
+};
+
+struct __natsServerInfo
+{
+    char *id;
+    char *host;
+    int port;
+    char *version;
+    bool authRequired;
+    bool tlsRequired;
+    bool tlsAvailable;
+    int64_t maxPayload;
+    char **connectURLs;
+    int connectURLsCount;
+    int proto;
+    uint64_t CID;
+    char *nonce;
+    char *clientIP;
+    bool lameDuckMode;
+    bool headers;
+
+};
+
+struct __natsConnection
+{
+    natsOptions *opts;
+    natsSrv *cur;
+
+    int refs;
+
+    natsSockCtx sockCtx;
+
+    natsSrvPool *srvPool;
+
+    natsPool *pool;
+    natsBuffer *scratch;
+
+    // This is the buffer used to accumulate data to write to the socket.
+    natsChain *out;
+    natsChain *in;
+
+    natsServerInfo info;
+
+    int64_t ssid;
+
+    natsConnStatus status;
+    natsStatus err;
+    char errStr[256];
+
+    natsParser *ps;
+
+    natsPongList pongs;
+
+    struct
+    {
+        bool attached;
+        bool writeAdded;
+        void *buffer;
+        void *data;
+    } el;
+
+    // Server version
+    struct
+    {
+        int ma;
+        int mi;
+        int up;
+    } srvVersion;
+};
 
 #define RESP_INFO_POOL_MAX_SIZE (10)
 

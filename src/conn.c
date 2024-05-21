@@ -13,15 +13,15 @@
 
 #include "natsp.h"
 
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <ctype.h>
-
-#include "natsp.h"
-#include "conn.h"
+#include "mem.h"
 #include "comsock.h"
+#include "conn.h"
+#include "parser.h"
+#include "err.h"
+#include "url.h"
+#include "srvpool.h"
+#include "opts.h"
+#include "util.h"
 
 // CLIENT_PROTO_ZERO is the original client protocol from 2009.
 // http://nats.io/documentation/internals/nats-protocol/
@@ -57,9 +57,103 @@ static natsStatus _createConn(natsConnection *nc);
 static natsStatus _processConnInit(natsConnection *nc);
 static void _close(natsConnection *nc, natsConnStatus status, bool fromPublicClose, bool doCBs);
 static natsStatus _processExpectedInfo(natsConnection *nc);
+static natsStatus _sendConnect(natsConnection *nc);
+static void _clearSSL(natsConnection *nc);
+static natsStatus _evStopPolling(natsConnection *nc);
+static natsStatus _readOp(natsConnection *nc, natsControl *control);
+static natsStatus _processInfo(natsConnection *nc, char *info, int len);
+static natsStatus _checkForSecure(natsConnection *nc);
+static natsStatus _connectProto(natsConnection *nc, char **proto);
+static natsStatus _readProto(natsConnection *nc, natsBuffer **proto);
+static bool _processOpError(natsConnection *nc, natsStatus s, bool initialConnect);
 
-static void _clearServerInfo(natsServerInfo *si);
+    static void _clearServerInfo(natsServerInfo *si);
 static void _freeConn(natsConnection *nc);
+
+#define natsConn_bufferWriteStr(_nc, _s) natsConn_bufferWrite((_nc), (_s), strlen(_s));
+
+void natsConnection_ProcessReadEvent(natsConnection *nc)
+{
+    natsStatus s = NATS_OK;
+    int n = 0;
+    char *buffer;
+    int size;
+
+    if (!(nc->el.attached) || (nc->sockCtx.fd == NATS_SOCK_INVALID))
+    {
+        return;
+    }
+
+    if (nc->ps == NULL)
+    {
+        s = natsParser_Create(&(nc->ps));
+        if (s != NATS_OK)
+        {
+            (void)NATS_UPDATE_ERR_STACK(s);
+            return;
+        }
+    }
+
+    _retain(nc);
+
+    buffer = nc->el.buffer;
+    size = nc->opts->ioBufSize;
+
+    // Do not try to read again here on success. If more than one connection
+    // is attached to the same loop, and there is a constant stream of data
+    // coming for the first connection, this would starve the second connection.
+    // So return and we will be called back later by the event loop.
+    s = natsSock_Read(&(nc->sockCtx), buffer, size, &n);
+    // if (s == NATS_OK)
+    //     s = natsParser_Parse(nc->ps, nc, buffer, n);
+
+    if (s != NATS_OK)
+        _processOpError(nc, s, false);
+
+    // natsConn_release(nc);
+}
+
+void natsConnection_ProcessWriteEvent(natsConnection *nc)
+{
+    natsStatus s = NATS_OK;
+    int n = 0;
+    // int len;
+
+    if (nc->sockCtx.fd == NATS_SOCK_INVALID)
+        return;
+
+    // natsChain *out = nc->out;
+
+    // buf = natsBuf_Data(nc->bw);
+    // len = natsBuf_Len(nc->bw);
+
+    s = natsSock_Write(&(nc->sockCtx), "<>/<> TEST", 10, &n);
+    if (s == NATS_OK)
+    {
+        // if (n == len)
+        // {
+        //     // We sent all the data, reset buffer and remove WRITE event.
+        //     natsBuf_Reset(nc->bw);
+
+        //     s = nc->opts->evCbs.write(nc->el.data, NATS_EVENT_ACTION_REMOVE);
+        //     if (s == NATS_OK)
+        //         nc->el.writeAdded = false;
+        //     else
+        //         nats_setError(s, "Error processing write request: %d - %s",
+        //                       s, natsStatus_GetText(s));
+        // }
+        // else
+        // {
+        //     // We sent some part of the buffer. Move the remaining at the beginning.
+        //     natsBuf_Consume(nc->bw, n);
+        // }
+    }
+
+    if (s != NATS_OK)
+        _processOpError(nc, s, false);
+
+    (void)NATS_UPDATE_ERR_STACK(s);
+}
 
 // Main connect function. Will connect to the server
 static natsStatus
@@ -154,7 +248,7 @@ _createConn(natsConnection *nc)
     // Set ctx.noRandomize based on public NoRandomize option.
     nc->sockCtx.noRandomize = nc->opts->noRandomize;
 
-    s = natsSock_ConnectTcp(&(nc->sockCtx), nc->cur->url->host, nc->cur->url->port);
+    s = natsSock_ConnectTcp(&(nc->sockCtx), nc->pool, nc->cur->url->host, nc->cur->url->port);
     if (s == NATS_OK)
         nc->sockCtx.fdActive = true;
 
@@ -200,12 +294,6 @@ _processConnInit(natsConnection *nc)
     if ((s == NATS_OK) && (nc->opts->writeDeadline <= 0))
         s = natsSock_SetBlocking(nc->sockCtx.fd, true);
 
-    // Start the readLoop and flusher threads
-    if (s == NATS_OK)
-        s = _spinUpSocketWatchers(nc);
-
-    if ((s == NATS_OK) && (nc->opts->evLoop != NULL))
-    {
         s = natsSock_SetBlocking(nc->sockCtx.fd, false);
 
         // If we are reconnecting, buffer will have already been allocated
@@ -217,10 +305,6 @@ _processConnInit(natsConnection *nc)
         }
         if (s == NATS_OK)
         {
-            // Set this first in case the event loop triggers the first READ
-            // event just after this call returns.
-            nc->sockCtx.useEventLoop = true;
-
             s = nc->opts->evCbs.attach(&(nc->el.data),
                                        nc->opts->evLoop,
                                        nc,
@@ -231,14 +315,11 @@ _processConnInit(natsConnection *nc)
             }
             else
             {
-                nc->sockCtx.useEventLoop = false;
-
                 nats_setError(s,
                               "Error attaching to the event loop: %d - %s",
                               s, natsStatus_GetText(s));
             }
         }
-    }
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -286,7 +367,7 @@ _processExpectedInfo(natsConnection *nc)
     natsControl control;
     natsStatus s;
 
-    _initControlContent(&control);
+    // _initControlContent(&control);
 
     s = _readOp(nc, &control);
     if (s != NATS_OK)
@@ -304,8 +385,6 @@ _processExpectedInfo(natsConnection *nc)
     if (s == NATS_OK)
         s = _checkForSecure(nc);
 
-    _clearControlContent(&control);
-
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -313,96 +392,92 @@ static natsStatus
 _sendConnect(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
-    char *cProto = NULL;
-    natsBuffer *proto = NULL;
+    // char *cProto = NULL;
+    // natsBuffer *proto = NULL;
 
-    // Create the CONNECT protocol
-    s = _connectProto(nc, &cProto);
+    // // Create the CONNECT protocol
+    // s = _connectProto(nc, &cProto);
 
-    // Add it to the buffer
-    if (s == NATS_OK)
-        s = natsConn_bufferWriteString(nc, cProto);
+    // // Add it to the buffer
+    // if (s == NATS_OK)
+    //     s = natsConn_bufferWriteStr(nc, cProto);
 
-    // Add the PING protocol to the buffer
-    if (s == NATS_OK)
-        s = natsConn_bufferWrite(nc, _PING_OP_, _PING_OP_LEN_);
-    if (s == NATS_OK)
-        s = natsConn_bufferWrite(nc, _CRLF_, _CRLF_LEN_);
+    // // Add the PING protocol to the buffer
+    // if (s == NATS_OK)
+    //     s = natsConn_bufferWrite(nc, _PING_OP_, _PING_OP_LEN_);
+    // if (s == NATS_OK)
+    //     s = natsConn_bufferWrite(nc, _CRLF_, _CRLF_LEN_);
 
-    // Flush the buffer
-    if (s == NATS_OK)
-        s = natsConn_bufferFlush(nc);
+    // // Flush the buffer
+    // if (s == NATS_OK)
+    //     s = natsConn_bufferFlush(nc);
 
-    // Reset here..
-    if (rup)
-        nc->usePending = true;
+    // // Now read the response from the server.
+    // if (s == NATS_OK)
+    //     s = _readProto(nc, &proto);
 
-    // Now read the response from the server.
-    if (s == NATS_OK)
-        s = _readProto(nc, &proto);
+    // // If Verbose is set, we expect +OK first.
+    // if ((s == NATS_OK) && nc->opts->verbose)
+    // {
+    //     // Check protocol is as expected
+    //     if (strncmp(natsBuf_Data(proto), _OK_OP_, _OK_OP_LEN_) != 0)
+    //     {
+    //         s = nats_setError(NATS_PROTOCOL_ERROR,
+    //                           "Expected '%s', got '%s'",
+    //                           _OK_OP_, natsBuf_Data(proto));
+    //     }
+    //     natsBuf_Destroy(proto);
+    //     proto = NULL;
 
-    // If Verbose is set, we expect +OK first.
-    if ((s == NATS_OK) && nc->opts->verbose)
-    {
-        // Check protocol is as expected
-        if (strncmp(natsBuf_Data(proto), _OK_OP_, _OK_OP_LEN_) != 0)
-        {
-            s = nats_setError(NATS_PROTOCOL_ERROR,
-                              "Expected '%s', got '%s'",
-                              _OK_OP_, natsBuf_Data(proto));
-        }
-        natsBuf_Destroy(proto);
-        proto = NULL;
+    //     // Read the rest now...
+    //     if (s == NATS_OK)
+    //         s = _readProto(nc, &proto);
+    // }
 
-        // Read the rest now...
-        if (s == NATS_OK)
-            s = _readProto(nc, &proto);
-    }
+    // // We except the PONG protocol
+    // if ((s == NATS_OK) && (strncmp(natsBuf_Data(proto), _PONG_OP_, _PONG_OP_LEN_) != 0))
+    // {
+    //     // But it could be something else, like -ERR
 
-    // We except the PONG protocol
-    if ((s == NATS_OK) && (strncmp(natsBuf_Data(proto), _PONG_OP_, _PONG_OP_LEN_) != 0))
-    {
-        // But it could be something else, like -ERR
+    //     if (strncmp(natsBuf_Data(proto), _ERR_OP_, _ERR_OP_LEN_) == 0)
+    //     {
+    //         char buffer[256];
+    //         int authErrCode = 0;
 
-        if (strncmp(natsBuf_Data(proto), _ERR_OP_, _ERR_OP_LEN_) == 0)
-        {
-            char buffer[256];
-            int authErrCode = 0;
+    //         buffer[0] = '\0';
+    //         snprintf_truncate(buffer, sizeof(buffer), "%s", natsBuf_Data(proto));
 
-            buffer[0] = '\0';
-            snprintf_truncate(buffer, sizeof(buffer), "%s", natsBuf_Data(proto));
+    //         // Remove -ERR, trim spaces and quotes.
+    //         nats_NormalizeErr(buffer);
 
-            // Remove -ERR, trim spaces and quotes.
-            nats_NormalizeErr(buffer);
+    //         // Look for auth errors.
+    //         if ((authErrCode = _checkAuthError(buffer)) != 0)
+    //         {
+    //             // This sets nc->err to NATS_CONNECTION_AUTH_FAILED
+    //             // copy content of buffer into nc->errStr.
+    //             _processAuthError(nc, authErrCode, buffer);
+    //             s = nc->err;
+    //         }
+    //         else
+    //             s = NATS_ERR;
 
-            // Look for auth errors.
-            if ((authErrCode = _checkAuthError(buffer)) != 0)
-            {
-                // This sets nc->err to NATS_CONNECTION_AUTH_FAILED
-                // copy content of buffer into nc->errStr.
-                _processAuthError(nc, authErrCode, buffer);
-                s = nc->err;
-            }
-            else
-                s = NATS_ERR;
+    //         // Update stack
+    //         s = nats_setError(s, "%s", buffer);
+    //     }
+    //     else
+    //     {
+    //         s = nats_setError(NATS_PROTOCOL_ERROR,
+    //                           "Expected '%s', got '%s'",
+    //                           _PONG_OP_, natsBuf_Data(proto));
+    //     }
+    // }
+    // // Destroy proto (ok if proto is NULL).
+    // natsBuf_Destroy(proto);
 
-            // Update stack
-            s = nats_setError(s, "%s", buffer);
-        }
-        else
-        {
-            s = nats_setError(NATS_PROTOCOL_ERROR,
-                              "Expected '%s', got '%s'",
-                              _PONG_OP_, natsBuf_Data(proto));
-        }
-    }
-    // Destroy proto (ok if proto is NULL).
-    natsBuf_Destroy(proto);
+    // if (s == NATS_OK)
+    //     nc->status = NATS_CONN_STATUS_CONNECTED;
 
-    if (s == NATS_OK)
-        nc->status = NATS_CONN_STATUS_CONNECTED;
-
-    NATS_FREE(cProto);
+    // NATS_FREE(cProto);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -411,34 +486,14 @@ natsStatus
 natsConn_bufferFlush(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
-    int bufLen = natsBuf_Len(nc->bw);
-
-    if (bufLen == 0)
+    if (nc->el.writeAdded)
         return NATS_OK;
 
-    if (nc->usePending)
-    {
-        s = natsBuf_Append(nc->pending, natsBuf_Data(nc->bw), bufLen);
-    }
-    else if (nc->sockCtx.useEventLoop)
-    {
-        if (!(nc->el.writeAdded))
-        {
-            nc->el.writeAdded = true;
-            s = nc->opts->evCbs.write(nc->el.data, NATS_EVENT_ACTION_ADD);
-            if (s != NATS_OK)
-                nats_setError(s, "Error processing write request: %d - %s",
-                              s, natsStatus_GetText(s));
-        }
-
-        return NATS_UPDATE_ERR_STACK(s);
-    }
-    else
-    {
-        s = natsSock_WriteFully(&(nc->sockCtx), natsBuf_Data(nc->bw), bufLen);
-    }
-
-    natsBuf_Reset(nc->bw);
+    nc->el.writeAdded = true;
+    s = nc->opts->evCbs.write(nc->el.data, NATS_EVENT_ACTION_ADD);
+    if (s != NATS_OK)
+        nats_setError(s, "Error processing write request: %d - %s",
+                      s, natsStatus_GetText(s));
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -446,32 +501,26 @@ natsConn_bufferFlush(natsConnection *nc)
 natsStatus
 natsConn_bufferWrite(natsConnection *nc, const char *buffer, int len)
 {
-    natsStatus s = NATS_OK;
-    int offset = 0;
-    int avail = 0;
+    return natsConn_bufferFlush(nc);
 
-    if (len <= 0)
-        return NATS_OK;
+    // natsStatus s = NATS_OK;
+    // int offset = 0;
+    // int avail = 0;
 
-        s = natsBuf_Append(nc->bw, buffer, len);
-        if ((s == NATS_OK) && (natsBuf_Len(nc->bw) >= nc->opts->ioBufSize) && !(nc->el.writeAdded))
-        {
-            nc->el.writeAdded = true;
-            s = nc->opts->evCbs.write(nc->el.data, NATS_EVENT_ACTION_ADD);
-            if (s != NATS_OK)
-                nats_setError(s, "Error processing write request: %d - %s",
-                              s, natsStatus_GetText(s));
-        }
+    // if (len <= 0)
+    //     return NATS_OK;
 
-        return NATS_UPDATE_ERR_STACK(s);
-}
+    //     s = natsBuf_Append(nc->bw, buffer, len);
+    //     if ((s == NATS_OK) && (natsBuf_Len(nc->bw) >= nc->opts->ioBufSize) && !(nc->el.writeAdded))
+    //     {
+    //         nc->el.writeAdded = true;
+    //         s = nc->opts->evCbs.write(nc->el.data, NATS_EVENT_ACTION_ADD);
+    //         if (s != NATS_OK)
+    //             nats_setError(s, "Error processing write request: %d - %s",
+    //                           s, natsStatus_GetText(s));
+    //     }
 
-natsStatus
-natsConn_bufferWriteString(natsConnection *nc, const char *string)
-{
-    natsStatus s = natsConn_bufferWrite(nc, string, (int)strlen(string));
-
-    return NATS_UPDATE_ERR_STACK(s);
+    //     return NATS_UPDATE_ERR_STACK(s);
 }
 
 static bool
@@ -483,7 +532,7 @@ _isConnecting(natsConnection *nc)
 static bool
 _isConnected(natsConnection *nc)
 {
-    return ((nc->status == NATS_CONN_STATUS_CONNECTED) || natsConn_isDraining(nc));
+    return ((nc->status == NATS_CONN_STATUS_CONNECTED)); //  || natsConn_isDraining(nc));
 }
 
 bool natsConn_isClosed(natsConnection *nc)
@@ -522,9 +571,7 @@ _unpackSrvVersion(natsConnection *nc)
 bool natsConn_srvVersionAtLeast(natsConnection *nc, int major, int minor, int update)
 {
     bool ok;
-    natsConn_Lock(nc);
     ok = (((nc->srvVersion.ma > major) || ((nc->srvVersion.ma == major) && (nc->srvVersion.mi > minor)) || ((nc->srvVersion.ma == major) && (nc->srvVersion.mi == minor) && (nc->srvVersion.up >= update))) ? true : false);
-    natsConn_Unlock(nc);
     return ok;
 }
 
@@ -638,54 +685,54 @@ _checkForSecure(natsConnection *nc)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-static char *
-_escape(char *origin)
-{
-    char escChar[] = {'\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\'};
-    char escRepl[] = {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\'};
-    int l = (int)strlen(origin);
-    int ec = 0;
-    char *dest = NULL;
-    char *ptr = NULL;
-    int i;
-    int j;
+// static char *
+// _escape(char *origin)
+// {
+//     char escChar[] = {'\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\'};
+//     char escRepl[] = {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\'};
+//     int l = (int)strlen(origin);
+//     int ec = 0;
+//     char *dest = NULL;
+//     char *ptr = NULL;
+//     int i;
+//     int j;
 
-    for (i = 0; i < l; i++)
-    {
-        for (j = 0; j < 8; j++)
-        {
-            if (origin[i] == escChar[j])
-            {
-                ec++;
-                break;
-            }
-        }
-    }
-    if (ec == 0)
-        return origin;
+//     for (i = 0; i < l; i++)
+//     {
+//         for (j = 0; j < 8; j++)
+//         {
+//             if (origin[i] == escChar[j])
+//             {
+//                 ec++;
+//                 break;
+//             }
+//         }
+//     }
+//     if (ec == 0)
+//         return origin;
 
-    dest = NATS_MALLOC(l + ec + 1);
-    if (dest == NULL)
-        return NULL;
+//     dest = NATS_MALLOC(l + ec + 1);
+//     if (dest == NULL)
+//         return NULL;
 
-    ptr = dest;
-    for (i = 0; i < l; i++)
-    {
-        for (j = 0; j < 8; j++)
-        {
-            if (origin[i] == escChar[j])
-            {
-                *ptr++ = '\\';
-                *ptr++ = escRepl[j];
-                break;
-            }
-        }
-        if (j == 8)
-            *ptr++ = origin[i];
-    }
-    *ptr = '\0';
-    return dest;
-}
+//     ptr = dest;
+//     for (i = 0; i < l; i++)
+//     {
+//         for (j = 0; j < 8; j++)
+//         {
+//             if (origin[i] == escChar[j])
+//             {
+//                 *ptr++ = '\\';
+//                 *ptr++ = escRepl[j];
+//                 break;
+//             }
+//         }
+//         if (j == 8)
+//             *ptr++ = origin[i];
+//     }
+//     *ptr = '\0';
+//     return dest;
+// }
 
 static natsStatus
 _connectProto(natsConnection *nc, char **proto)
@@ -700,8 +747,8 @@ _connectProto(natsConnection *nc, char **proto)
     char *ujwt = NULL;
     char *nkey = NULL;
     int res;
-    unsigned char *sigRaw = NULL;
-    int sigRawLen = 0;
+    // unsigned char *sigRaw = NULL;
+    // int sigRawLen = 0;
 
     // Check if NoEcho is set and we have a server that supports it.
     if (opts->noEcho && (nc->info.proto < 1))
@@ -722,7 +769,7 @@ _connectProto(natsConnection *nc, char **proto)
         user = opts->user;
         pwd = opts->password;
         token = opts->token;
-        nkey = opts->nkey;
+        // nkey = opts->nkey;
 
         // Options take precedence for an implicit URL. If above is still
         // empty, we will check if we have saved a user from an explicit
@@ -740,79 +787,79 @@ _connectProto(natsConnection *nc, char **proto)
         }
     }
 
-    if (opts->userJWTHandler != NULL)
-    {
-        char *errTxt = NULL;
-        bool userCb = opts->userJWTHandler != natsConn_userCreds;
+    // if (opts->userJWTHandler != NULL)
+    // {
+    //     char *errTxt = NULL;
+    //     bool userCb = opts->userJWTHandler != natsConn_userCreds;
 
-        // If callback is not the internal one, we need to release connection lock.
-        if (userCb)
-            natsConn_Unlock(nc);
+    //     // If callback is not the internal one, we need to release connection lock.
+    //     if (userCb)
+    //         natsConn_Unlock(nc);
 
-        s = opts->userJWTHandler(&ujwt, &errTxt, (void *)opts->userJWTClosure);
+    //     s = opts->userJWTHandler(&ujwt, &errTxt, (void *)opts->userJWTClosure);
 
-        if (userCb)
-        {
-            // natsConn_Lock(nc);
-            if (natsConn_isClosed(nc) && (s == NATS_OK))
-                s = NATS_CONNECTION_CLOSED;
-        }
-        if ((s != NATS_OK) && (errTxt != NULL))
-        {
-            s = nats_setError(s, "%s", errTxt);
-            NATS_FREE(errTxt);
-        }
-        if ((s == NATS_OK) && !nats_IsStringEmpty(nkey))
-            s = nats_setError(NATS_ILLEGAL_STATE, "%s", "user JWT callback and NKey cannot be both specified");
+    //     if (userCb)
+    //     {
+    //         // natsConn_Lock(nc);
+    //         if (natsConn_isClosed(nc) && (s == NATS_OK))
+    //             s = NATS_CONNECTION_CLOSED;
+    //     }
+    //     if ((s != NATS_OK) && (errTxt != NULL))
+    //     {
+    //         s = nats_setError(s, "%s", errTxt);
+    //         NATS_FREE(errTxt);
+    //     }
+    //     if ((s == NATS_OK) && !nats_IsStringEmpty(nkey))
+    //         s = nats_setError(NATS_ILLEGAL_STATE, "%s", "user JWT callback and NKey cannot be both specified");
 
-        if ((s == NATS_OK) && (ujwt != NULL))
-        {
-            char *tmp = _escape(ujwt);
-            if (tmp == NULL)
-            {
-                s = nats_setDefaultError(NATS_NO_MEMORY);
-            }
-            else if (tmp != ujwt)
-            {
-                NATS_FREE(ujwt);
-                ujwt = tmp;
-            }
-        }
-    }
+    //     if ((s == NATS_OK) && (ujwt != NULL))
+    //     {
+    //         char *tmp = _escape(ujwt);
+    //         if (tmp == NULL)
+    //         {
+    //             s = nats_setDefaultError(NATS_NO_MEMORY);
+    //         }
+    //         else if (tmp != ujwt)
+    //         {
+    //             NATS_FREE(ujwt);
+    //             ujwt = tmp;
+    //         }
+    //     }
+    // }
 
-    if ((s == NATS_OK) && (!nats_IsStringEmpty(ujwt) || !nats_IsStringEmpty(nkey)))
-    {
-        char *errTxt = NULL;
-        bool userCb = opts->sigHandler != natsConn_signatureHandler;
+    // if ((s == NATS_OK) && (!nats_IsStringEmpty(ujwt) || !nats_IsStringEmpty(nkey)))
+    // {
+    //     char *errTxt = NULL;
+    //     bool userCb = opts->sigHandler != natsConn_signatureHandler;
 
-        if (userCb)
-            // natsConn_Unlock(nc);
+    //     if (userCb)
+    //         // natsConn_Unlock(nc);
 
-            s = opts->sigHandler(&errTxt, &sigRaw, &sigRawLen, nc->info.nonce, opts->sigClosure);
+    //         s = opts->sigHandler(&errTxt, &sigRaw, &sigRawLen, nc->info.nonce, opts->sigClosure);
 
-        if (userCb)
-        {
-            // natsConn_Lock(nc);
-            if (natsConn_isClosed(nc) && (s == NATS_OK))
-                s = NATS_CONNECTION_CLOSED;
-        }
-        if ((s != NATS_OK) && (errTxt != NULL))
-        {
-            s = nats_setError(s, "%s", errTxt);
-            NATS_FREE(errTxt);
-        }
-        if (s == NATS_OK)
-            s = nats_Base64RawURL_EncodeString((const unsigned char *)sigRaw, sigRawLen, &sig);
-    }
+    //     if (userCb)
+    //     {
+    //         // natsConn_Lock(nc);
+    //         if (natsConn_isClosed(nc) && (s == NATS_OK))
+    //             s = NATS_CONNECTION_CLOSED;
+    //     }
+    //     if ((s != NATS_OK) && (errTxt != NULL))
+    //     {
+    //         s = nats_setError(s, "%s", errTxt);
+    //         NATS_FREE(errTxt);
+    //     }
+    //     if (s == NATS_OK)
+    //         s = nats_Base64RawURL_EncodeString((const unsigned char *)sigRaw, sigRawLen, &sig);
+    // }
 
-    if ((s == NATS_OK) && (opts->tokenCb != NULL))
-    {
-        if (token != NULL)
-            s = nats_setError(NATS_ILLEGAL_STATE, "%s", "Token and token handler options cannot be both set");
+    // if ((s == NATS_OK) && (opts->tokenCb != NULL))
+    // {
+    //     if (token != NULL)
+    //         s = nats_setError(NATS_ILLEGAL_STATE, "%s", "Token and token handler options cannot be both set");
 
-        if (s == NATS_OK)
-            token = opts->tokenCb(opts->tokenCbClosure);
-    }
+    //     if (s == NATS_OK)
+    //         token = opts->tokenCb(opts->tokenCbClosure);
+    // }
 
     if ((s == NATS_OK) && (opts->name != NULL))
         name = opts->name;
@@ -859,9 +906,9 @@ _connectProto(natsConnection *nc, char **proto)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
 
-    NATS_FREE(ujwt);
-    NATS_FREE(sigRaw);
-    NATS_FREE(sig);
+    // NATS_FREE(ujwt);
+    // NATS_FREE(sigRaw);
+    // NATS_FREE(sig);
 
     return s;
 }
@@ -870,21 +917,21 @@ natsStatus
 natsConn_sendUnsubProto(natsConnection *nc, int64_t subId, int max)
 {
     natsStatus s = NATS_OK;
-    char *proto = NULL;
-    int res = 0;
+    // char *proto = NULL;
+    // int res = 0;
 
-    if (max > 0)
-        res = nats_asprintf(&proto, _UNSUB_PROTO_, subId, max);
-    else
-        res = nats_asprintf(&proto, _UNSUB_NO_MAX_PROTO_, subId);
+    // if (max > 0)
+    //     res = nats_asprintf(&proto, _UNSUB_PROTO_, subId, max);
+    // else
+    //     res = nats_asprintf(&proto, _UNSUB_NO_MAX_PROTO_, subId);
 
-    if (res < 0)
-        s = nats_setDefaultError(NATS_NO_MEMORY);
-    else
-    {
-        s = natsConn_bufferWriteString(nc, proto);
-        NATS_FREE(proto);
-    }
+    // if (res < 0)
+    //     s = nats_setDefaultError(NATS_NO_MEMORY);
+    // else
+    // {
+    //     s = natsConn_bufferWriteStr(nc, proto);
+    //     NATS_FREE(proto);
+    // }
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -893,18 +940,18 @@ natsStatus
 natsConn_sendSubProto(natsConnection *nc, const char *subject, const char *queue, int64_t sid)
 {
     natsStatus s = NATS_OK;
-    char *proto = NULL;
-    int res = 0;
+    // char *proto = NULL;
+    // int res = 0;
 
-    res = nats_asprintf(&proto, _SUB_PROTO_, subject, (queue == NULL ? "" : queue), sid);
-    if (res < 0)
-        s = nats_setDefaultError(NATS_NO_MEMORY);
-    else
-    {
-        s = natsConn_bufferWriteString(nc, proto);
-        NATS_FREE(proto);
-        proto = NULL;
-    }
+    // res = nats_asprintf(&proto, _SUB_PROTO_, subject, (queue == NULL ? "" : queue), sid);
+    // if (res < 0)
+    //     s = nats_setDefaultError(NATS_NO_MEMORY);
+    // else
+    // {
+    //     s = natsConn_bufferWriteStr(nc, proto);
+    //     NATS_FREE(proto);
+    //     proto = NULL;
+    // }
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -913,20 +960,20 @@ _flushReconnectPendingItems(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
 
-    if (nc->pending == NULL)
-        return NATS_OK;
+    // if (nc->pending == NULL)
+    //     return NATS_OK;
 
-    if (natsBuf_Len(nc->pending) > 0)
-    {
-        // Flush pending buffer
-        s = natsConn_bufferWrite(nc, natsBuf_Data(nc->pending),
-                                 natsBuf_Len(nc->pending));
+    // if (natsBuf_Len(nc->pending) > 0)
+    // {
+    //     // Flush pending buffer
+    //     s = natsConn_bufferWrite(nc, natsBuf_Data(nc->pending),
+    //                              natsBuf_Len(nc->pending));
 
-        // Regardless of outcome, we must clear the pending buffer
-        // here to avoid duplicates (if the flush were to fail
-        // with some messages/partial messages being sent).
-        natsBuf_Reset(nc->pending);
-    }
+    //     // Regardless of outcome, we must clear the pending buffer
+    //     // here to avoid duplicates (if the flush were to fail
+    //     // with some messages/partial messages being sent).
+    //     natsBuf_Reset(nc->pending);
+    // }
 
     return s;
 }
@@ -952,96 +999,98 @@ _removePongFromList(natsConnection *nc, natsPong *pong)
 natsStatus
 natsConn_initInbox(natsConnection *nc, char *buf, int bufSize, char **newInbox, bool *allocated)
 {
-    int needed = nc->inboxPfxLen + NUID_BUFFER_LEN + 1;
-    char *inbox = buf;
-    bool created = false;
-    natsStatus s;
+    // int needed = nc->inboxPfxLen + NUID_BUFFER_LEN + 1;
+    // char *inbox = buf;
+    // bool created = false;
+    // natsStatus s;
 
-    if (needed > bufSize)
-    {
-        inbox = NATS_MALLOC(needed);
-        if (inbox == NULL)
-            return nats_setDefaultError(NATS_NO_MEMORY);
-        created = true;
-    }
-    memcpy(inbox, nc->inboxPfx, nc->inboxPfxLen);
-    // This will add the terminal '\0';
-    s = natsNUID_Next(inbox + nc->inboxPfxLen, NUID_BUFFER_LEN + 1);
-    if (s == NATS_OK)
-    {
-        *newInbox = inbox;
-        if (allocated != NULL)
-            *allocated = created;
-    }
-    else if (created)
-        NATS_FREE(inbox);
+    // if (needed > bufSize)
+    // {
+    //     inbox = NATS_MALLOC(needed);
+    //     if (inbox == NULL)
+    //         return nats_setDefaultError(NATS_NO_MEMORY);
+    //     created = true;
+    // }
+    // memcpy(inbox, nc->inboxPfx, nc->inboxPfxLen);
+    // // This will add the terminal '\0';
+    // s = natsNUID_Next(inbox + nc->inboxPfxLen, NUID_BUFFER_LEN + 1);
+    // if (s == NATS_OK)
+    // {
+    //     *newInbox = inbox;
+    //     if (allocated != NULL)
+    //         *allocated = created;
+    // }
+    // else if (created)
+    //     NATS_FREE(inbox);
 
-    return s;
+    // return s;
+
+    return NATS_OK;
 }
 
-natsStatus
-natsConn_newInbox(natsConnection *nc, natsInbox **newInbox)
-{
-    natsStatus s;
-    int inboxLen = nc->inboxPfxLen + NUID_BUFFER_LEN + 1;
-    char *inbox = NATS_MALLOC(inboxLen);
+// natsStatus
+// natsConn_newInbox(natsConnection *nc, natsInbox **newInbox)
+// {
+//     natsStatus s;
+//     int inboxLen = nc->inboxPfxLen + NUID_BUFFER_LEN + 1;
+//     char *inbox = NATS_MALLOC(inboxLen);
 
-    if (inbox == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
+//     if (inbox == NULL)
+//         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    s = natsConn_initInbox(nc, inbox, inboxLen, (char **)newInbox, NULL);
-    if (s != NATS_OK)
-        NATS_FREE(inbox);
-    return s;
-}
+//     s = natsConn_initInbox(nc, inbox, inboxLen, (char **)newInbox, NULL);
+//     if (s != NATS_OK)
+//         NATS_FREE(inbox);
+//     return s;
+// }
 
 static void
 _clearSSL(natsConnection *nc)
 {
-    if (nc->sockCtx.ssl == NULL)
-        return;
+    // if (nc->sockCtx.ssl == NULL)
+    //     return;
 
-    SSL_free(nc->sockCtx.ssl);
-    nc->sockCtx.ssl = NULL;
+    // SSL_free(nc->sockCtx.ssl);
+    // nc->sockCtx.ssl = NULL;
 }
 
 // reads a protocol one byte at a time.
 static natsStatus
 _readProto(natsConnection *nc, natsBuffer **proto)
 {
-    natsStatus s = NATS_OK;
-    char protoEnd = '\n';
-    natsBuffer *buf = NULL;
-    char oneChar[1] = {'\0'};
+    // natsStatus s = NATS_OK;
+    // char protoEnd = '\n';
+    // natsBuffer *buf = NULL;
+    // char oneChar[1] = {'\0'};
 
-    s = natsBuf_Create(&buf, 10);
-    if (s != NATS_OK)
-        return NATS_UPDATE_ERR_STACK(s);
+    // s = natsBuf_Create(&buf, 10);
+    // if (s != NATS_OK)
+    //     return NATS_UPDATE_ERR_STACK(s);
 
-    for (;;)
-    {
-        s = natsSock_Read(&(nc->sockCtx), oneChar, 1, NULL);
-        if (s != NATS_OK)
-        {
-            natsBuf_Destroy(buf);
-            return NATS_UPDATE_ERR_STACK(s);
-        }
-        s = natsBuf_AppendByte(buf, oneChar[0]);
-        if (s != NATS_OK)
-        {
-            natsBuf_Destroy(buf);
-            return NATS_UPDATE_ERR_STACK(s);
-        }
-        if (oneChar[0] == protoEnd)
-            break;
-    }
-    s = natsBuf_AppendByte(buf, '\0');
-    if (s != NATS_OK)
-    {
-        natsBuf_Destroy(buf);
-        return NATS_UPDATE_ERR_STACK(s);
-    }
-    *proto = buf;
+    // for (;;)
+    // {
+    //     s = natsSock_Read(&(nc->sockCtx), oneChar, 1, NULL);
+    //     if (s != NATS_OK)
+    //     {
+    //         natsBuf_Destroy(buf);
+    //         return NATS_UPDATE_ERR_STACK(s);
+    //     }
+    //     s = natsBuf_AppendByte(buf, oneChar[0]);
+    //     if (s != NATS_OK)
+    //     {
+    //         natsBuf_Destroy(buf);
+    //         return NATS_UPDATE_ERR_STACK(s);
+    //     }
+    //     if (oneChar[0] == protoEnd)
+    //         break;
+    // }
+    // s = natsBuf_AppendByte(buf, '\0');
+    // if (s != NATS_OK)
+    // {
+    //     natsBuf_Destroy(buf);
+    //     return NATS_UPDATE_ERR_STACK(s);
+    // }
+    // *proto = buf;
     return NATS_OK;
 }
 
@@ -1050,7 +1099,6 @@ _evStopPolling(natsConnection *nc)
 {
     natsStatus s;
 
-    nc->sockCtx.useEventLoop = false;
     nc->el.writeAdded = false;
     s = nc->opts->evCbs.read(nc->el.data, NATS_EVENT_ACTION_REMOVE);
     if (s == NATS_OK)
@@ -1152,125 +1200,125 @@ _processOpError(natsConnection *nc, natsStatus s, bool initialConnect)
     return false;
 }
 
-static void
-_readLoop(void *arg)
-{
-    natsStatus s = NATS_OK;
-    char *buffer;
-    int n;
-    int bufSize;
+// static void
+// _readLoop(void *arg)
+// {
+//     natsStatus s = NATS_OK;
+//     char *buffer;
+//     int n;
+//     int bufSize;
 
-    natsConnection *nc = (natsConnection *)arg;
+//     natsConnection *nc = (natsConnection *)arg;
 
-    bufSize = nc->opts->ioBufSize;
-    buffer = NATS_MALLOC(bufSize);
-    if (buffer == NULL)
-        s = nats_setDefaultError(NATS_NO_MEMORY);
+//     bufSize = nc->opts->ioBufSize;
+//     buffer = NATS_MALLOC(bufSize);
+//     if (buffer == NULL)
+//         s = nats_setDefaultError(NATS_NO_MEMORY);
 
-    if (nc->sockCtx.ssl != NULL)
-        nats_sslRegisterThreadForCleanup();
+//     if (nc->sockCtx.ssl != NULL)
+//         nats_sslRegisterThreadForCleanup();
 
-    natsDeadline_Clear(&(nc->sockCtx.readDeadline));
+//     natsDeadline_Clear(&(nc->sockCtx.readDeadline));
 
-    if (nc->ps == NULL)
-        s = natsParser_Create(&(nc->ps));
+//     if (nc->ps == NULL)
+//         s = natsParser_Create(&(nc->ps));
 
-    while ((s == NATS_OK) && !natsConn_isClosed(nc) && !natsConn_isReconnecting(nc))
-    {
-        n = 0;
+//     while ((s == NATS_OK) && !natsConn_isClosed(nc) && !natsConn_isReconnecting(nc))
+//     {
+//         n = 0;
 
-        s = natsSock_Read(&(nc->sockCtx), buffer, bufSize, &n);
-        if ((s == NATS_IO_ERROR) && (NATS_SOCK_GET_ERROR == NATS_SOCK_WOULD_BLOCK))
-            s = NATS_OK;
-        if ((s == NATS_OK) && (n > 0))
-            s = natsParser_Parse(nc->ps, nc, buffer, n);
+//         s = natsSock_Read(&(nc->sockCtx), buffer, bufSize, &n);
+//         if ((s == NATS_IO_ERROR) && (NATS_SOCK_GET_ERROR == NATS_SOCK_WOULD_BLOCK))
+//             s = NATS_OK;
+//         if ((s == NATS_OK) && (n > 0))
+//             s = natsParser_Parse(nc->ps, nc, buffer, n);
 
-        if (s != NATS_OK)
-            _processOpError(nc, s, false);
-    }
+//         if (s != NATS_OK)
+//             _processOpError(nc, s, false);
+//     }
 
-    NATS_FREE(buffer);
+//     NATS_FREE(buffer);
 
-    natsSock_Close(nc->sockCtx.fd);
-    nc->sockCtx.fd = NATS_SOCK_INVALID;
-    nc->sockCtx.fdActive = false;
+//     natsSock_Close(nc->sockCtx.fd);
+//     nc->sockCtx.fd = NATS_SOCK_INVALID;
+//     nc->sockCtx.fdActive = false;
 
-    // We need to cleanup some things if the connection was SSL.
-    _clearSSL(nc);
+//     // We need to cleanup some things if the connection was SSL.
+//     _clearSSL(nc);
 
-    natsParser_Destroy(nc->ps);
-    nc->ps = NULL;
+//     natsParser_Destroy(nc->ps);
+//     nc->ps = NULL;
 
-    // This unlocks and releases the connection to compensate for the retain
-    // when this thread was created.
-    natsConn_release(nc);
-}
+//     // This unlocks and releases the connection to compensate for the retain
+//     // when this thread was created.
+//     natsConn_release(nc);
+// }
 
 static void
 _sendPing(natsConnection *nc, natsPong *pong)
 {
-    natsStatus s = NATS_OK;
+    // natsStatus s = NATS_OK;
 
-    SET_WRITE_DEADLINE(nc);
-    s = natsConn_bufferWrite(nc, _PING_PROTO_, _PING_PROTO_LEN_);
-    if (s == NATS_OK)
-    {
-        // Flush the buffer in place.
-        s = natsConn_bufferFlush(nc);
-    }
-    if (s == NATS_OK)
-    {
-        // Now that we know the PING was sent properly, update
-        // the number of PING sent.
-        nc->pongs.outgoingPings++;
+    // SET_WRITE_DEADLINE(nc);
+    // s = natsConn_bufferWrite(nc, _PING_PROTO_, _PING_PROTO_LEN_);
+    // if (s == NATS_OK)
+    // {
+    //     // Flush the buffer in place.
+    //     s = natsConn_bufferFlush(nc);
+    // }
+    // if (s == NATS_OK)
+    // {
+    //     // Now that we know the PING was sent properly, update
+    //     // the number of PING sent.
+    //     nc->pongs.outgoingPings++;
 
-        if (pong != NULL)
-        {
-            pong->id = nc->pongs.outgoingPings;
+    //     if (pong != NULL)
+    //     {
+    //         pong->id = nc->pongs.outgoingPings;
 
-            // Add this pong to the list.
-            pong->next = NULL;
-            pong->prev = nc->pongs.tail;
+    //         // Add this pong to the list.
+    //         pong->next = NULL;
+    //         pong->prev = nc->pongs.tail;
 
-            if (nc->pongs.tail != NULL)
-                nc->pongs.tail->next = pong;
+    //         if (nc->pongs.tail != NULL)
+    //             nc->pongs.tail->next = pong;
 
-            nc->pongs.tail = pong;
+    //         nc->pongs.tail = pong;
 
-            if (nc->pongs.head == NULL)
-                nc->pongs.head = pong;
-        }
-    }
+    //         if (nc->pongs.head == NULL)
+    //             nc->pongs.head = pong;
+    //     }
+    // }
 }
 
-static void
-_processPingTimer(natsTimer *timer, void *arg)
-{
-    natsConnection *nc = (natsConnection *)arg;
+// static void
+// _processPingTimer(natsTimer *timer, void *arg)
+// {
+//     natsConnection *nc = (natsConnection *)arg;
 
-    if (nc->status != NATS_CONN_STATUS_CONNECTED)
-    {
-        return;
-    }
+//     if (nc->status != NATS_CONN_STATUS_CONNECTED)
+//     {
+//         return;
+//     }
 
-    // If we have more PINGs out than PONGs in, consider
-    // the connection stale.
-    if (++(nc->pout) > nc->opts->maxPingsOut)
-    {
-        _processOpError(nc, NATS_STALE_CONNECTION, false);
-        return;
-    }
+//     // If we have more PINGs out than PONGs in, consider
+//     // the connection stale.
+//     if (++(nc->pout) > nc->opts->maxPingsOut)
+//     {
+//         _processOpError(nc, NATS_STALE_CONNECTION, false);
+//         return;
+//     }
 
-    _sendPing(nc, NULL);
-}
+//     _sendPing(nc, NULL);
+// }
 
-static void
-_pingStopppedCb(natsTimer *timer, void *closure)
-{
-    natsConnection *nc = (natsConnection *)closure;
+// static void
+// _pingStopppedCb(natsTimer *timer, void *closure)
+// {
+//     natsConnection *nc = (natsConnection *)closure;
 
-    natsConn_release(nc);
-}
+//     natsConn_release(nc);
+// }
 
 static natsStatus
 _spinUpSocketWatchers(natsConnection *nc)
@@ -1375,28 +1423,28 @@ void natsConn_processErr(natsConnection *nc, char *buf, int bufLen)
 
 void natsConn_processPing(natsConnection *nc)
 {
-    SET_WRITE_DEADLINE(nc);
-    if (natsConn_bufferWrite(nc, _PONG_PROTO_, _PONG_PROTO_LEN_) == NATS_OK)
-        natsConn_flushOrKickFlusher(nc);
+    // SET_WRITE_DEADLINE(nc);
+    // if (natsConn_bufferWrite(nc, _PONG_PROTO_, _PONG_PROTO_LEN_) == NATS_OK)
+    //     natsConn_flushOrKickFlusher(nc);
 }
 
 void natsConn_processPong(natsConnection *nc)
 {
-    natsPong *pong = NULL;
+    // natsPong *pong = NULL;
 
-    nc->pongs.incoming++;
+    // nc->pongs.incoming++;
 
-    // Check if the first pong's id in the list matches the incoming Id.
-    if (((pong = nc->pongs.head) != NULL) && (pong->id == nc->pongs.incoming))
-    {
-        // Remove the pong from the list
-        _removePongFromList(nc, pong);
+    // // Check if the first pong's id in the list matches the incoming Id.
+    // if (((pong = nc->pongs.head) != NULL) && (pong->id == nc->pongs.incoming))
+    // {
+    //     // Remove the pong from the list
+    //     _removePongFromList(nc, pong);
 
-        // Release the Flush[Timeout] call
-        pong->id = 0;
-    }
+    //     // Release the Flush[Timeout] call
+    //     pong->id = 0;
+    // }
 
-    nc->pout = 0;
+    // nc->pout = 0;
 }
 
 static natsStatus
@@ -1438,25 +1486,15 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
     nc->sockCtx.fd = NATS_SOCK_INVALID;
     nc->opts = options;
 
+    IFOK(s, natsPool_Create(&(nc->pool), 0, false));
+
     nc->errStr[0] = '\0';
 
     IFOK(s, _setupServerPool(nc));
     // IFOK(s, natsHash_Create(&(nc->subs), 8));
     IFOK(s, natsSock_Init(&nc->sockCtx));
-    IFOK(s, natsPool_Create(&(nc->pool), 0));
-    IFOK(s, natsBuf_CreatePalloc(&(nc->scratch), nc->pool, DEFAULT_SCRATCH_SIZE));
+    IFOK(s, natsBuf_CreatePool(&(nc->scratch), nc->pool, DEFAULT_SCRATCH_SIZE));
     IFOK(s, natsBuf_Append(nc->scratch, (const uint8_t *)_HPUB_P_, _HPUB_P_LEN_));
-
-    if (s == NATS_OK)
-    {
-        if (nc->opts->inboxPfx != NULL)
-            nc->inboxPfx = (const char *)nc->opts->inboxPfx;
-        else
-            nc->inboxPfx = NATS_DEFAULT_INBOX_PRE;
-
-        nc->inboxPfxLen = (int)strlen(nc->inboxPfx);
-        nc->reqIdOffset = nc->inboxPfxLen + NUID_BUFFER_LEN + 1;
-    }
 
     if (s == NATS_OK)
         *newConn = nc;
@@ -1499,59 +1537,59 @@ natsConnection_Connect(natsConnection **newConn, natsOptions *options)
 static natsStatus
 _processUrlString(natsOptions *opts, const char *urls)
 {
-    int count = 0;
+    // int count = 0;
     natsStatus s = NATS_OK;
-    char **serverUrls = NULL;
-    char *urlsCopy = NULL;
-    char *commaPos = NULL;
-    char *ptr = NULL;
+    // char **serverUrls = NULL;
+    // char *urlsCopy = NULL;
+    // char *commaPos = NULL;
+    // char *ptr = NULL;
 
-    if (urls != NULL)
-    {
-        ptr = (char *)urls;
-        while ((ptr = strchr(ptr, ',')) != NULL)
-        {
-            ptr++;
-            count++;
-        }
-    }
-    if (count == 0)
-        return natsOptions_SetURL(opts, urls);
+    // if (urls != NULL)
+    // {
+    //     ptr = (char *)urls;
+    //     while ((ptr = strchr(ptr, ',')) != NULL)
+    //     {
+    //         ptr++;
+    //         count++;
+    //     }
+    // }
+    // if (count == 0)
+    //     return natsOptions_SetURL(opts, urls);
 
-    serverUrls = (char **)NATS_CALLOC(count + 1, sizeof(char *));
-    if (serverUrls == NULL)
-        s = NATS_NO_MEMORY;
-    if (s == NATS_OK)
-    {
-        urlsCopy = NATS_STRDUP(urls);
-        if (urlsCopy == NULL)
-        {
-            NATS_FREE(serverUrls);
-            return NATS_NO_MEMORY;
-        }
-    }
+    // serverUrls = (char **)NATS_CALLOC(count + 1, sizeof(char *));
+    // if (serverUrls == NULL)
+    //     s = NATS_NO_MEMORY;
+    // if (s == NATS_OK)
+    // {
+    //     urlsCopy = NATS_STRDUP(urls);
+    //     if (urlsCopy == NULL)
+    //     {
+    //         NATS_FREE(serverUrls);
+    //         return NATS_NO_MEMORY;
+    //     }
+    // }
 
-    count = 0;
-    ptr = urlsCopy;
+    // count = 0;
+    // ptr = urlsCopy;
 
-    do
-    {
-        serverUrls[count++] = ptr;
+    // do
+    // {
+    //     serverUrls[count++] = ptr;
 
-        commaPos = strchr(ptr, ',');
-        if (commaPos != NULL)
-        {
-            ptr = (char *)(commaPos + 1);
-            *(commaPos) = '\0';
-        }
+    //     commaPos = strchr(ptr, ',');
+    //     if (commaPos != NULL)
+    //     {
+    //         ptr = (char *)(commaPos + 1);
+    //         *(commaPos) = '\0';
+    //     }
 
-    } while (commaPos != NULL);
+    // } while (commaPos != NULL);
 
-    if (s == NATS_OK)
-        s = natsOptions_SetServers(opts, (const char **)serverUrls, count);
+    // if (s == NATS_OK)
+    //     s = natsOptions_SetServers(opts, (const char **)serverUrls, count);
 
-    NATS_FREE(urlsCopy);
-    NATS_FREE(serverUrls);
+    // NATS_FREE(urlsCopy);
+    // NATS_FREE(serverUrls);
 
     return s;
 }
@@ -1588,11 +1626,11 @@ natsConnection_ConnectTo(natsConnection **newConn, const char *url)
 static void
 _destroyPong(natsConnection *nc, natsPong *pong)
 {
-    // If this pong is the cached one, do not free
-    if (pong == &(nc->pongs.cached))
-        memset(pong, 0, sizeof(natsPong));
-    else
-        NATS_FREE(pong);
+    // // If this pong is the cached one, do not free
+    // if (pong == &(nc->pongs.cached))
+    //     memset(pong, 0, sizeof(natsPong));
+    // else
+    //     NATS_FREE(pong);
 }
 
 void natsConnection_Close(natsConnection *nc)
@@ -1619,164 +1657,6 @@ void natsConnection_Destroy(natsConnection *nc)
     nats_doNotUpdateErrStack(false);
 
     natsConn_release(nc);
-}
-
-void natsConnection_ProcessReadEvent(natsConnection *nc)
-{
-    natsStatus s = NATS_OK;
-    int n = 0;
-    char *buffer;
-    int size;
-
-    if (!(nc->el.attached) || (nc->sockCtx.fd == NATS_SOCK_INVALID))
-    {
-        return;
-    }
-
-    if (nc->ps == NULL)
-    {
-        s = natsParser_Create(&(nc->ps));
-        if (s != NATS_OK)
-        {
-            (void)NATS_UPDATE_ERR_STACK(s);
-            return;
-        }
-    }
-
-    _retain(nc);
-
-    buffer = nc->el.buffer;
-    size = nc->opts->ioBufSize;
-
-    // Do not try to read again here on success. If more than one connection
-    // is attached to the same loop, and there is a constant stream of data
-    // coming for the first connection, this would starve the second connection.
-    // So return and we will be called back later by the event loop.
-    s = natsSock_Read(&(nc->sockCtx), buffer, size, &n);
-    if (s == NATS_OK)
-        s = natsParser_Parse(nc->ps, nc, buffer, n);
-
-    if (s != NATS_OK)
-        _processOpError(nc, s, false);
-
-    natsConn_release(nc);
-}
-
-void natsConnection_ProcessWriteEvent(natsConnection *nc)
-{
-    natsStatus s = NATS_OK;
-    int n = 0;
-    char *buf;
-    int len;
-
-    if (!(nc->el.attached) || (nc->sockCtx.fd == NATS_SOCK_INVALID))
-    {
-        return;
-    }
-
-    buf = natsBuf_Data(nc->bw);
-    len = natsBuf_Len(nc->bw);
-
-    s = natsSock_Write(&(nc->sockCtx), buf, len, &n);
-    if (s == NATS_OK)
-    {
-        if (n == len)
-        {
-            // We sent all the data, reset buffer and remove WRITE event.
-            natsBuf_Reset(nc->bw);
-
-            s = nc->opts->evCbs.write(nc->el.data, NATS_EVENT_ACTION_REMOVE);
-            if (s == NATS_OK)
-                nc->el.writeAdded = false;
-            else
-                nats_setError(s, "Error processing write request: %d - %s",
-                              s, natsStatus_GetText(s));
-        }
-        else
-        {
-            // We sent some part of the buffer. Move the remaining at the beginning.
-            natsBuf_Consume(nc->bw, n);
-        }
-    }
-
-    if (s != NATS_OK)
-        _processOpError(nc, s, false);
-
-    (void)NATS_UPDATE_ERR_STACK(s);
-}
-
-static natsStatus
-_getJwtOrSeed(char **val, const char *fn, bool seed, int item)
-{
-    natsStatus s = NATS_OK;
-    natsBuffer *buf = NULL;
-
-    s = nats_ReadFile(&buf, 1024, fn);
-    if (s != NATS_OK)
-        return NATS_UPDATE_ERR_STACK(s);
-
-    s = nats_GetJWTOrSeed(val, (const char *)natsBuf_Data(buf), item);
-    if (s == NATS_NOT_FOUND)
-    {
-        s = NATS_OK;
-        if (!seed)
-        {
-            *val = NATS_STRDUP(natsBuf_Data(buf));
-            if (*val == NULL)
-                s = nats_setDefaultError(NATS_NO_MEMORY);
-        }
-        else
-        {
-            // Look for "SU..."
-            char *nt = NULL;
-            char *pch = nats_strtok(natsBuf_Data(buf), "\n", &nt);
-
-            while (pch != NULL)
-            {
-                char *ptr = pch;
-
-                while (((*ptr == ' ') || (*ptr == '\t')) && (*ptr != '\0'))
-                    ptr++;
-
-                if ((*ptr != '\0') && (*ptr == 'S') && (*(ptr + 1) == 'U'))
-                {
-                    *val = NATS_STRDUP(ptr);
-                    if (*val == NULL)
-                        s = nats_setDefaultError(NATS_NO_MEMORY);
-                    break;
-                }
-
-                pch = nats_strtok(NULL, "\n", &nt);
-            }
-            if ((s == NATS_OK) && (*val == NULL))
-                s = nats_setError(NATS_ERR, "no nkey user seed found in '%s'", fn);
-        }
-    }
-    if (buf != NULL)
-    {
-        memset(natsBuf_Data(buf), 0, natsBuf_Capacity(buf));
-        natsBuf_Destroy(buf);
-        buf = NULL;
-    }
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-natsStatus
-natsConn_userCreds(char **userJWT, char **customErrTxt, void *closure)
-{
-    natsStatus s = NATS_OK;
-    userCreds *uc = (userCreds *)closure;
-
-    if (uc->jwtAndSeedContent != NULL)
-        s = nats_GetJWTOrSeed(userJWT, uc->jwtAndSeedContent, 0);
-    else
-        s = _getJwtOrSeed(userJWT, uc->userOrChainedFile, false, 0);
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-void natsConn_defaultErrHandler(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure)
-{
 }
 
 static void
