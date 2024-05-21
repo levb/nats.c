@@ -115,7 +115,6 @@ natsBuf_CreatePool(natsBuffer **newBuf, natsPool *pool, size_t capacity)
         capacity = NATS_DEFAULT_BUFFER_SIZE;
     buf->pool = pool;
     buf->len = 0;
-    buf->cap = capacity;
 
     natsStatus s = natsBuf_Expand(buf, capacity);
     if (s != NATS_OK)

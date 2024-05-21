@@ -180,10 +180,12 @@ _connect(natsConnection *nc)
         for (i = 0; i < natsSrvPool_GetSize(srvPool); i++)
         {
             nc->cur = natsSrvPool_GetSrv(srvPool, i);
+            printf("<>/<> connecting to %s\n", nc->cur->url->fullUrl);
 
             s = _createConn(nc);
             if (s == NATS_OK)
             {
+                printf("<>/<> proceeding to process connection init\n");
                 s = _processConnInit(nc);
 
                 if (s == NATS_OK)
@@ -256,8 +258,9 @@ _createConn(natsConnection *nc)
     if ((s == NATS_OK) || nc->opts->retryOnFailedConnect)
     {
         natsStatus ls = NATS_OK;
+        printf("<>/<> TCP connected to %s\n", nc->cur->url->fullUrl);
 
-        natsChain_Destroy(nc->out);
+        // natsChain_Destroy(nc->out); <>/<>
         ls = natsChain_Create(&(nc->out), 0);
         if (s == NATS_OK)
             s = ls;
@@ -538,7 +541,9 @@ _readOp(natsConnection *nc, natsControl *control)
 
     buffer[0] = '\0';
 
+    printf("<>/<> !!!!!!! %d\n", s);
     s = natsSock_ReadLine(&(nc->sockCtx), buffer, sizeof(buffer));
+    printf("<>/<> !!!!!!! %d\n", s);
     if (s == NATS_OK)
         s = nats_ParseControl(control, buffer);
 
@@ -1487,7 +1492,10 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
     IFOK(s, natsBuf_Append(nc->scratch, (const uint8_t *)_HPUB_P_, _HPUB_P_LEN_));
 
     if (s == NATS_OK)
+    {
+        printf("<>/<> natsConn_create: created natsConnection: %p\n", nc);
         *newConn = nc;
+    }
     else
         natsConn_release(nc);
 
