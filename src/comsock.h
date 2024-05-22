@@ -71,7 +71,7 @@ natsSock_IsConnected(natsSock fd);
 // next line(s) (or partials) in a single call. In this case, the caller needs
 // to repeat the call with the same buffer to "read" the next line.
 natsStatus
-natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize);
+natsSock_ReadLine(natsSockCtx *ctx, uint8_t *buffer, size_t maxBufferSize);
 
 // Reads up to 'maxBufferSize' bytes from the socket and put them in 'buffer'.
 // If the socket is blocking, wait until some data is available or the socket
@@ -81,7 +81,7 @@ natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize);
 // If an external event loop is used, it is possible that this function
 // returns NATS_OK with 'n' == 0.
 natsStatus
-natsSock_Read(natsSockCtx *ctx, char *buffer, size_t maxBufferSize, int *n);
+natsSock_Read(natsSockCtx *ctx, uint8_t *buffer, size_t maxBufferSize, int *n);
 
 // Writes up to 'len' bytes to the socket. If the socket is blocking,
 // wait for some data to be sent. If the socket is non-blocking, wait up
@@ -89,13 +89,13 @@ natsSock_Read(natsSockCtx *ctx, char *buffer, size_t maxBufferSize, int *n);
 // If an external event loop is used, it is possible that this function
 // returns NATS_OK with 'n' == 0.
 natsStatus
-natsSock_Write(natsSockCtx *ctx, const char *data, int len, int *n);
+natsSock_Write(natsSockCtx *ctx, const uint8_t *data, size_t len, int *n);
 
 // Writes 'len' bytes to the socket. Does not return until all bytes
 // have been written, unless the socket is closed or an error occurs
 // (including write timeout).
 natsStatus
-natsSock_WriteFully(natsSockCtx *ctx, const char *data, int len);
+natsSock_WriteFully(natsSockCtx *ctx, const uint8_t *data, size_t len);
 
 natsStatus
 natsSock_Flush(natsSock fd);

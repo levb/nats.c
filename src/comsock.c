@@ -302,12 +302,12 @@ natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int por
 }
 
 natsStatus
-natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize)
+natsSock_ReadLine(natsSockCtx *ctx, uint8_t *buffer, size_t maxBufferSize)
 {
     natsStatus  s           = NATS_OK;
     int         readBytes   = 0;
     size_t      totalBytes  = 0;
-    char        *p          = buffer;
+    uint8_t     *p          = buffer;
     char        *eol;
 
     // By contract, the caller needs to set buffer[0] to '\0' before the first
@@ -324,8 +324,8 @@ natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize)
         // The start of the next line will be the length of the line at the
         // start of the buffer + 2, which is the number of characters
         // representing CRLF.
-        nextStart = strlen(buffer) + 2;
-        nextLine  = (char*) (buffer + nextStart);
+        nextStart = strlen((char*)buffer) + 2;
+        nextLine  = (char*) (buffer) + nextStart;
 
         // There is some data...
         if (*nextLine != '\0')
@@ -339,7 +339,7 @@ natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize)
 
             // Now, if the string contains a CRLF, we don't even need to read
             // from the socket. Update the buffer and return.
-            if ((eol = strstr(buffer, _CRLF_)) != NULL)
+            if ((eol = strstr((char*)buffer, _CRLF_)) != NULL)
             {
                 // Replace the '\r' with '\0' to NULL terminate the string.
                 *eol = '\0';
@@ -350,7 +350,7 @@ natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize)
 
             // This is a partial, we need to read more data until we get to
             // the end of the line (\r\n).
-            p = (char*) (p + len);
+            p = p + len;
             totalBytes += len;
         }
         else
@@ -371,7 +371,7 @@ natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize)
         // We need to append a NULL character after what we have received.
         *(p + readBytes) = '\0';
 
-        if ((eol = strstr(p, _CRLF_)) != NULL)
+        if ((eol = strstr((char*)p, _CRLF_)) != NULL)
         {
             *eol = '\0';
             return NATS_OK;
@@ -383,7 +383,7 @@ natsSock_ReadLine(natsSockCtx *ctx, char *buffer, size_t maxBufferSize)
 }
 
 natsStatus
-natsSock_Read(natsSockCtx *ctx, char *buffer, size_t maxBufferSize, int *n)
+natsSock_Read(natsSockCtx *ctx, uint8_t *buffer, size_t maxBufferSize, int *n)
 {
     natsStatus s = NATS_OK;
     int readBytes = 0;
@@ -465,7 +465,7 @@ natsSock_Read(natsSockCtx *ctx, char *buffer, size_t maxBufferSize, int *n)
 }
 
 natsStatus
-natsSock_Write(natsSockCtx *ctx, const char *data, int len, int *n)
+natsSock_Write(natsSockCtx *ctx, const uint8_t *data, size_t len, int *n)
 {
     natsStatus s = NATS_OK;
     int bytes = 0;
@@ -550,7 +550,7 @@ natsSock_Write(natsSockCtx *ctx, const char *data, int len, int *n)
 }
 
 natsStatus
-natsSock_WriteFully(natsSockCtx *ctx, const char *data, int len)
+natsSock_WriteFully(natsSockCtx *ctx, const uint8_t *data, size_t len)
 {
     natsStatus  s     = NATS_OK;
     int         n     = 0;

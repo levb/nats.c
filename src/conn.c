@@ -21,6 +21,7 @@
 #include "srvpool.h"
 #include "opts.h"
 #include "util.h"
+#include "json.h"
 
 // CLIENT_PROTO_ZERO is the original client protocol from 2009.
 // http://nats.io/documentation/internals/nats-protocol/
@@ -75,8 +76,8 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
     int n = 0;
-    char *buffer;
-    int size;
+    uint8_t *buffer;
+    size_t size;
 
     if (!(nc->el.attached) || (nc->sockCtx.fd == NATS_SOCK_INVALID))
     {
@@ -126,7 +127,7 @@ void natsConnection_ProcessWriteEvent(natsConnection *nc)
     // buf = natsBuf_Data(nc->bw);
     // len = natsBuf_Len(nc->bw);
 
-    s = natsSock_Write(&(nc->sockCtx), "<>/<> TEST", 10, &n);
+    s = natsSock_Write(&(nc->sockCtx), (uint8_t*)"<>/<> TEST", 10, &n);
     if (s == NATS_OK)
     {
         // if (n == len)
@@ -381,6 +382,18 @@ _processExpectedInfo(natsConnection *nc)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
+#define snprintf_truncate(d, szd, f, ...)                     \
+    if (snprintf((d), (szd), (f), __VA_ARGS__) >= (int)(szd)) \
+    {                                                         \
+        int offset = (int)(szd) - 2;                          \
+        if (offset > 0)                                       \
+            (d)[offset--] = '.';                              \
+        if (offset > 0)                                       \
+            (d)[offset--] = '.';                              \
+        if (offset > 0)                                       \
+            (d)[offset--] = '.';                              \
+    }
+
 static natsStatus
 _sendConnect(natsConnection *nc)
 {
@@ -537,13 +550,13 @@ static natsStatus
 _readOp(natsConnection *nc, natsControl *control)
 {
     natsStatus s = NATS_OK;
-    char buffer[MAX_INFO_MESSAGE_SIZE];
+    uint8_t buffer[MAX_INFO_MESSAGE_SIZE];
 
     buffer[0] = '\0';
 
     s = natsSock_ReadLine(&(nc->sockCtx), buffer, sizeof(buffer) - 1);
     if (s == NATS_OK)
-        s = nats_ParseControl(control, buffer);
+        s = nats_ParseControl(control, (const char *)buffer);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
