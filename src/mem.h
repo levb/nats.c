@@ -53,30 +53,47 @@ struct __natsString_s
     uint8_t *data;
 };
 
+//----------------------------------------------------------------
+//  Chain structure:
+//
+//   1st chunk              2nd chunk
+// +---------------+  +-->+---------------+
+// | natsChain_s   |  |   | natsChunk_s   |--> ...
+// +---------------+  |   +---------------+
+// | natsChunk_s   |--|   | used          |
+// +---------------+      | memory        |
+// | used          |      | (chunk len)   |
+// | memory        |      +---------------+
+// | (chunk len)   |      | free          |
+// +---------------+      | memory        |
+// |   free        |      |               |
+// |   memory      |      |               |
+// |               |      |               |
+// +---------------+      +---------------+
 struct __natsChunk_s
 {
-    struct __natsChunk_s *next;
-    uint8_t *data;
+    struct __natsChunk_s *prev;
     size_t len;
+    uint8_t mem[];
 };
 
 struct __natsChain_s
 {
-    natsChunk *head;
-
+    natsChunk *current;
     // When new chunks are added
-    size_t newChunkSize;
+    size_t chunkSize;
+    uint8_t mem[];
 };
 
 struct __natsLarge_s
 {
-    struct __natsLarge_s *next;
+    struct __natsLarge_s *prev;
     uint8_t *data;
 };
 
 struct __natsPool_s
 {
-    natsChain small;
+    natsChain *small;
     natsLarge *large;
 };
 
@@ -157,27 +174,27 @@ static inline uint8_t *nats_strrchr(const uint8_t *s, uint8_t find) { return (ui
 #define nats_ToUpper(c) (uint8_t)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
 natsString *natsString_DupPool(natsPool *pool, const natsString *src);
-natsString *natsString_DupPoolStr(natsPool *pool, const char *src);
-#define natsString_DupStr(_s) NATS_STRDUP(_s)
+char *nats_StrdupPool(natsPool *pool, const char *src);
 
 #define nats_IsStringEmpty(_s) (((_s) == NULL) || (strlen(_s) == 0))
 
 //----------------------------------------------------------------
 // natsChain functions.
 
-natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize);
-void natsChain_Destroy(natsChain *chain);
-natsChunk *natsChain_Alloc(natsChain *chain, size_t size);
-natsStatus natsChain_AddChunkRef(natsChain *chain, uint8_t *data, size_t len);
+#define _first_chunk(_chain) ((natsChunk *)((uint8_t *)(_chain) + sizeof(natsChain)));
+#define _chunk_cap(_chain) ((_chain)->chunkSize - sizeof(natsChunk))
+#define _chunk_remaining_cap(_chain) ((_chain)->chunkSize - sizeof(natsChunk) - chunk->len)
+#define _chunk_mem_ptr(_chunk) ((uint8_t *)(_chunk) + sizeof(natsChunk) + chunk->len)
 
-void natsChunk_Destroy(natsChunk *c);
+natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize);
+natsStatus natsChain_Destroy(natsChain *chain);
+natsStatus natsChain_AllocChunk(natsChunk **newChunk, natsChain *chain, size_t size);
 
 //----------------------------------------------------------------
 // natsPool functions.
 
-natsStatus natsPool_Create(natsPool **newPool, size_t chunkSize, bool init);
+natsStatus natsPool_Create(natsPool **newPool);
 void *natsPool_Alloc(natsPool *pool, size_t size);
-void natsPool_UndoLast(natsPool *pool, void *mem);
 void natsPool_Destroy(natsPool *pool);
 
 //----------------------------------------------------------------

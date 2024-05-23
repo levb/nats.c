@@ -113,6 +113,6 @@ void
 natsSock_InitDeadline(natsSockCtx *ctx, int64_t timeout);
 
 natsStatus
-natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, natsString **ip, int *port);
+natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, const char **ip, int *port);
 
 #endif /* SOCK_H_ */

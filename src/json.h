@@ -47,6 +47,7 @@ typedef struct
 {
     char        *str;
     natsStrHash *fields;
+    natsPool *pool;
 } nats_JSON;
 
 typedef struct
@@ -70,7 +71,7 @@ typedef struct
 typedef natsStatus (*jsonRangeCB)(void *userInfo, const char *fieldName, nats_JSONField *f);
 
 natsStatus
-nats_JSONParse(nats_JSON **json, const char *str, int strLen);
+nats_JSONParse(nats_JSON **json, natsPool *pool, const char *str, int strLen);
 
 natsStatus
 nats_JSONGetField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
@@ -113,9 +114,6 @@ nats_JSONGetTime(nats_JSON *json, const char *fieldName, int64_t *timeUTC);
 
 natsStatus
 nats_JSONGetArrayField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
-
-natsStatus
-nats_JSONArrayAsStrings(nats_JSONArray *arr, char ***array, int *arraySize);
 
 natsStatus
 nats_JSONGetArrayStr(nats_JSON *json, const char *fieldName, char ***array, int *arraySize);

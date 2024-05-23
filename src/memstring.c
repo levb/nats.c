@@ -86,24 +86,14 @@ natsString_DupPool(natsPool *pool, const natsString *src)
     return dst;
 }
 
-natsString *
-natsString_DupPoolStr(natsPool *pool, const char *src)
+char*
+nats_StrdupPool(natsPool *pool, const char *src)
 {
     int len = strlen(src);
-    natsString *dst = natsPool_Alloc(pool, sizeof(natsString));
+    char *dst = natsPool_Alloc(pool, len + 1);
     if (dst == NULL)
-    {
         return NULL;
-    }
 
-    dst->data = natsPool_Alloc(pool, len);
-    if (dst->data == NULL)
-    {
-        return NULL;
-    }
-
-    memcpy(dst->data, src, len);
-    dst->len = len;
-
+    memcpy(dst, src, len + 1);
     return dst;
 }

@@ -600,7 +600,7 @@ _processInfo(natsConnection *nc, char *info, int len)
 
     _clearServerInfo(&(nc->info));
 
-    s = nats_JSONParse(&json, info, len);
+    s = nats_JSONParse(&json, nc->connectPool, info, len);
     if (s != NATS_OK)
         return NATS_UPDATE_ERR_STACK(s);
 
@@ -1492,7 +1492,8 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
     nc->sockCtx.fd = NATS_SOCK_INVALID;
     nc->opts = options;
 
-    IFOK(s, natsPool_Create(&(nc->pool), 0, false));
+    IFOK(s, natsPool_Create(&(nc->pool)));
+    IFOK(s, natsPool_Create(&(nc->connectPool)));
 
     nc->errStr[0] = '\0';
 
@@ -1504,7 +1505,7 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
 
     if (s == NATS_OK)
     {
-        printf("<>/<> natsConn_create: created natsConnection: %p\n", nc);
+        printf("<>/<> natsConn_create: created natsConnection: %p\n", (void*)nc);
         *newConn = nc;
     }
     else

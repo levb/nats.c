@@ -29,9 +29,8 @@ int jsonMaxNested = JSON_MAX_NEXTED;
 #define JSON_MAX_NUM_SIZE   ((int) sizeof(long double))
 
 // Forward declarations due to recursive calls
-static natsStatus _jsonParse(nats_JSON **newJSON, natsPool *Poolint *parsedLen, const char *jsonStr, int jsonLen, int nested);
-static natsStatus _jsonParseValue(char **str, nats_JSONField *field, int nested);
-static void       _jsonFreeArray(nats_JSONArray *arr, bool freeObj);
+static natsStatus _jsonParse(nats_JSON **newJSON, natsPool *Pool, int *parsedLen, const char *jsonStr, int jsonLen, int nested);
+static natsStatus _jsonParseValue(char **str, natsPool *pool, nats_JSONField *field, int nested);
 
 #define JSON_GET_AS(jt, t) \
 natsStatus      s      = NATS_OK;                       \
@@ -56,53 +55,52 @@ else if (s == NATS_OK)                                  \
 }                                                       \
 return NATS_UPDATE_ERR_STACK(s);
 
-#define JSON_ARRAY_AS(t) \
+#define JSON_ARRAY_AS(_p, _t) \
 int i;                                              \
-t* values = (t*) NATS_CALLOC(arr->size, sizeof(t)); \
+_t* values = (_t*) natsPool_Alloc((_p), arr->size * sizeof(_t)); \
 if (values == NULL)                                 \
     return nats_setDefaultError(NATS_NO_MEMORY);    \
 for (i=0; i<arr->size; i++)                         \
-    values[i] = ((t*) arr->values)[i];              \
+    values[i] = ((_t*) arr->values)[i];              \
 *array     = values;                                \
 *arraySize = arr->size;                             \
 return NATS_OK;
 
-#define JSON_ARRAY_AS_NUM(t) \
+#define JSON_ARRAY_AS_NUM(_p, _t) \
 int i;                                                          \
-t* values = (t*) NATS_CALLOC(arr->size, sizeof(t));             \
+_t* values = (_t*) natsPool_Alloc((_p), arr->size * sizeof(_t));             \
 if (values == NULL)                                             \
     return nats_setDefaultError(NATS_NO_MEMORY);                \
 for (i=0; i<arr->size; i++)                                     \
 {                                                               \
     void *ptr = NULL;                                           \
     ptr = (void*) ((char*)(arr->values)+(i*JSON_MAX_NUM_SIZE)); \
-    values[i] = *(t*) ptr;                                      \
+    values[i] = *(_t*) ptr;                                      \
 }                                                               \
 *array     = values;                                            \
 *arraySize = arr->size;                                         \
 return NATS_OK;
 
-#define JSON_GET_ARRAY(t, f) \
-natsStatus      s      = NATS_OK;                           \
-nats_JSONField  *field = NULL;                              \
-s = nats_JSONGetArrayField(json, fieldName, (t), &field);   \
-if ((s == NATS_OK) && (field == NULL))                      \
-{                                                           \
-    *array      = NULL;                                     \
-    *arraySize  = 0;                                        \
-    return NATS_OK;                                         \
-}                                                           \
-else if (s == NATS_OK)                                      \
-    s = (f)(field->value.varr, array, arraySize);           \
-return NATS_UPDATE_ERR_STACK(s);
-
+#define JSON_GET_ARRAY(_t, _f)                                      \
+    natsStatus s = NATS_OK;                                       \
+    nats_JSONField *field = NULL;                                 \
+    s = nats_JSONGetArrayField(json, fieldName, (_t), &field);     \
+    if ((s == NATS_OK) && (field == NULL))                        \
+    {                                                             \
+        *array = NULL;                                            \
+        *arraySize = 0;                                           \
+        return NATS_OK;                                           \
+    }                                                             \
+    else if (s == NATS_OK)                                        \
+        s = (_f)(json->pool, field->value.varr, array, arraySize); \
+    return NATS_UPDATE_ERR_STACK(s);
 
 static natsStatus
-_jsonCreateField(nats_JSONField **newField, char *fieldName)
+_jsonCreateField(nats_JSONField **newField, natsPool *pool, char *fieldName)
 {
     nats_JSONField *field = NULL;
 
-    field = (nats_JSONField*) NATS_CALLOC(1, sizeof(nats_JSONField));
+    field = (nats_JSONField*) natsPool_Alloc(pool, sizeof(nats_JSONField));
     if (field == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -112,45 +110,6 @@ _jsonCreateField(nats_JSONField **newField, char *fieldName)
     *newField = field;
 
     return NATS_OK;
-}
-
-static void
-_jsonFreeArray(nats_JSONArray *arr, bool freeObj)
-{
-    if (arr == NULL)
-        return;
-
-    if ((arr->typ == TYPE_OBJECT) || (arr->typ == TYPE_ARRAY))
-    {
-        int i;
-
-        for (i=0; i<arr->size; i++)
-        {
-            if (arr->typ == TYPE_OBJECT)
-            {
-                nats_JSON *fjson = ((nats_JSON**)arr->values)[i];
-                nats_JSONDestroy(fjson);
-            }
-            else
-            {
-                nats_JSONArray *farr = ((nats_JSONArray**)arr->values)[i];
-                _jsonFreeArray(farr, true);
-            }
-        }
-    }
-    NATS_FREE(arr->values);
-    if (freeObj)
-        NATS_FREE(arr);
-}
-
-static void
-_jsonFreeField(nats_JSONField *field)
-{
-    if (field->typ == TYPE_ARRAY)
-        _jsonFreeArray(field->value.varr, true);
-    else if (field->typ == TYPE_OBJECT)
-        nats_JSONDestroy(field->value.vobj);
-    NATS_FREE(field);
 }
 
 static char*
@@ -407,7 +366,7 @@ _jsonGetBool(char **ptr, bool *val)
 }
 
 static natsStatus
-_jsonGetArray(char **ptr, nats_JSONArray **newArray, int nested)
+_jsonGetArray(char **ptr, natsPool *pool, nats_JSONArray **newArray, int nested)
 {
     natsStatus      s       = NATS_OK;
     char            *p      = *ptr;
@@ -436,7 +395,7 @@ _jsonGetArray(char **ptr, nats_JSONArray **newArray, int nested)
         // Initialize the field before parsing.
         memset(&field, 0, sizeof(nats_JSONField));
 
-        s = _jsonParseValue(&p, &field, nested);
+        s = _jsonParseValue(&p, pool, &field, nested);
         if (s == NATS_OK)
         {
             if (typ == TYPE_NOT_SET)
@@ -561,8 +520,6 @@ _jsonGetArray(char **ptr, nats_JSONArray **newArray, int nested)
             *ptr = (char*) (p + 1);
         }
     }
-    if (s != NATS_OK)
-        _jsonFreeArray(&array, false);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -576,7 +533,7 @@ _jsonGetArray(char **ptr, nats_JSONArray **newArray, int nested)
 #define JSON_STATE_END          (6)
 
 static natsStatus
-_jsonParseValue(char **str, nats_JSONField *field, int nested)
+_jsonParseValue(char **str, natsPool *pool, nats_JSONField *field, int nested)
 {
     natsStatus  s    = NATS_OK;
     char        *ptr = *str;
@@ -602,7 +559,7 @@ _jsonParseValue(char **str, nats_JSONField *field, int nested)
     {
         ptr += 1;
         field->typ = TYPE_ARRAY;
-        s = _jsonGetArray(&ptr, &field->value.varr, nested+1);
+        s = _jsonGetArray(&ptr, pool, &field->value.varr, nested+1);
     }
     else if (*ptr == '{')
     {
@@ -611,7 +568,7 @@ _jsonParseValue(char **str, nats_JSONField *field, int nested)
 
         ptr += 1;
         field->typ = TYPE_OBJECT;
-        s = _jsonParse(&object, &objLen, ptr, -1, nested+1);
+        s = _jsonParse(&object, pool, &objLen, ptr, -1, nested+1);
         if (s == NATS_OK)
         {
             field->value.vobj = object;
@@ -650,6 +607,9 @@ _jsonParse(nats_JSON **newJSON, natsPool *pool, int *parsedLen, const char *json
     if (parsedLen != NULL)
         *parsedLen = 0;
 
+    if (pool == NULL)
+        return nats_setDefaultError(NATS_INVALID_ARG);
+
     if (nested >= jsonMaxNested)
         return nats_setError(NATS_ERR, "json reached maximum nested objects of %d", jsonMaxNested);
 
@@ -661,11 +621,12 @@ _jsonParse(nats_JSON **newJSON, natsPool *pool, int *parsedLen, const char *json
         jsonLen = (int) strlen(jsonStr);
     }
 
-    json = NATS_CALLOC(1, sizeof(nats_JSON));
+    json = natsPool_Alloc(pool, sizeof(nats_JSON));
     if (json == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
+    json->pool = pool;
 
-    s = natsStrHash_Create(&(json->fields), 4);
+    s = natsStrHash_Create(&(json->fields), json->pool, 4);
     if (s == NATS_OK)
     {
         json->str = NATS_MALLOC(jsonLen + 1);
@@ -679,18 +640,13 @@ _jsonParse(nats_JSON **newJSON, natsPool *pool, int *parsedLen, const char *json
         }
     }
     if (s != NATS_OK)
-    {
-        nats_JSONDestroy(json);
         return NATS_UPDATE_ERR_STACK(s);
-    }
 
     ptr = json->str;
     copyStr = NATS_STRDUP(ptr);
     if (copyStr == NULL)
-    {
-        nats_JSONDestroy(json);
         return nats_setDefaultError(NATS_NO_MEMORY);
-    }
+
     state = (nested == 0 ? JSON_STATE_START : JSON_STATE_NO_FIELD_YET);
 
     while ((s == NATS_OK) && (*ptr != '\0') && !breakLoop)
@@ -740,7 +696,7 @@ _jsonParse(nats_JSON **newJSON, natsPool *pool, int *parsedLen, const char *json
                 s = _jsonGetStr(&ptr, &fieldName);
                 if (s != NATS_OK)
                     break;
-                s = _jsonCreateField(&field, fieldName);
+                s = _jsonCreateField(&field, pool, fieldName);
                 if (s != NATS_OK)
                 {
                     NATS_UPDATE_ERR_STACK(s);
@@ -774,7 +730,7 @@ _jsonParse(nats_JSON **newJSON, natsPool *pool, int *parsedLen, const char *json
             }
             case JSON_STATE_VALUE:
             {
-                s = _jsonParseValue(&ptr, field, nested);
+                s = _jsonParseValue(&ptr, pool, field, nested);
                 if (s == NATS_OK)
                     state = JSON_STATE_NEXT_FIELD;
                 break;
@@ -830,9 +786,9 @@ _jsonParse(nats_JSON **newJSON, natsPool *pool, int *parsedLen, const char *json
 }
 
 natsStatus
-nats_JSONParse(nats_JSON **newJSON, const char *jsonStr, int jsonLen)
+nats_JSONParse(nats_JSON **newJSON, natsPool *pool, const char *jsonStr, int jsonLen)
 {
-    natsStatus s = _jsonParse(newJSON, NULL, jsonStr, jsonLen, 0);
+    natsStatus s = _jsonParse(newJSON, pool, NULL, jsonStr, jsonLen, 0);
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -1051,13 +1007,13 @@ nats_JSONGetArrayField(nats_JSON *json, const char *fieldName, int fieldType, na
     return NATS_OK;
 }
 
-natsStatus
-nats_JSONArrayAsStrings(nats_JSONArray *arr, char ***array, int *arraySize)
+static natsStatus
+_jsonArrayAsStrings(natsPool *pool, nats_JSONArray *arr, char ***array, int *arraySize)
 {
     natsStatus  s = NATS_OK;
     int         i;
 
-    char **values = NATS_CALLOC(arr->size, arr->eltSize);
+    char **values = natsPool_Alloc(pool, arr->size * arr->eltSize);
     if (values == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -1090,91 +1046,91 @@ nats_JSONArrayAsStrings(nats_JSONArray *arr, char ***array, int *arraySize)
 natsStatus
 nats_JSONGetArrayStr(nats_JSON *json, const char *fieldName, char ***array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_STR, nats_JSONArrayAsStrings);
+    JSON_GET_ARRAY(TYPE_STR, _jsonArrayAsStrings);
 }
 
-natsStatus
-nats_JSONArrayAsBools(nats_JSONArray *arr, bool **array, int *arraySize)
+static natsStatus
+_jsonArrayAsBools(natsPool *pool, nats_JSONArray *arr, bool **array, int *arraySize)
 {
-    JSON_ARRAY_AS(bool);
+    JSON_ARRAY_AS(pool, bool);
 }
 
 natsStatus
 nats_JSONGetArrayBool(nats_JSON *json, const char *fieldName, bool **array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_BOOL, nats_JSONArrayAsBools);
+    JSON_GET_ARRAY(TYPE_BOOL, _jsonArrayAsBools);
 }
 
-natsStatus
-nats_JSONArrayAsDoubles(nats_JSONArray *arr, long double **array, int *arraySize)
+static natsStatus
+_jsonArrayAsDoubles(natsPool *pool, nats_JSONArray *arr, long double **array, int *arraySize)
 {
-    JSON_ARRAY_AS_NUM(long double);
+    JSON_ARRAY_AS_NUM(pool, long double);
 }
 
 natsStatus
 nats_JSONGetArrayDouble(nats_JSON *json, const char *fieldName, long double **array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_NUM, nats_JSONArrayAsDoubles);
+    JSON_GET_ARRAY(TYPE_NUM, _jsonArrayAsDoubles);
 }
 
-natsStatus
-nats_JSONArrayAsInts(nats_JSONArray *arr, int **array, int *arraySize)
+static natsStatus
+_jsonArrayAsInts(natsPool *pool, nats_JSONArray *arr, int **array, int *arraySize)
 {
-    JSON_ARRAY_AS_NUM(int);
+    JSON_ARRAY_AS_NUM(pool, int);
 }
 
 natsStatus
 nats_JSONGetArrayInt(nats_JSON *json, const char *fieldName, int **array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_NUM, nats_JSONArrayAsInts);
+    JSON_GET_ARRAY(TYPE_NUM, _jsonArrayAsInts);
 }
 
-natsStatus
-nats_JSONArrayAsLongs(nats_JSONArray *arr, int64_t **array, int *arraySize)
+static natsStatus
+_jsonArrayAsLongs(natsPool *pool, nats_JSONArray *arr, int64_t **array, int *arraySize)
 {
-    JSON_ARRAY_AS_NUM(int64_t);
+    JSON_ARRAY_AS_NUM(pool, int64_t);
 }
 
 natsStatus
 nats_JSONGetArrayLong(nats_JSON *json, const char *fieldName, int64_t **array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_NUM, nats_JSONArrayAsLongs);
+    JSON_GET_ARRAY(TYPE_NUM, _jsonArrayAsLongs);
 }
 
-natsStatus
-nats_JSONArrayAsULongs(nats_JSONArray *arr, uint64_t **array, int *arraySize)
+static natsStatus
+_jsonArrayAsULongs(natsPool *pool, nats_JSONArray *arr, uint64_t **array, int *arraySize)
 {
-    JSON_ARRAY_AS_NUM(uint64_t);
+    JSON_ARRAY_AS_NUM(pool, uint64_t);
 }
 
 natsStatus
 nats_JSONGetArrayULong(nats_JSON *json, const char *fieldName, uint64_t **array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_NUM, nats_JSONArrayAsULongs);
+    JSON_GET_ARRAY(TYPE_NUM, _jsonArrayAsULongs);
 }
 
-natsStatus
-nats_JSONArrayAsObjects(nats_JSONArray *arr, nats_JSON ***array, int *arraySize)
+static natsStatus
+_jsonArrayAsObjects(natsPool *pool, nats_JSONArray *arr, nats_JSON ***array, int *arraySize)
 {
-    JSON_ARRAY_AS(nats_JSON*);
+    JSON_ARRAY_AS(pool, nats_JSON*);
 }
 
 natsStatus
 nats_JSONGetArrayObject(nats_JSON *json, const char *fieldName, nats_JSON ***array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_OBJECT, nats_JSONArrayAsObjects);
+    JSON_GET_ARRAY(TYPE_OBJECT, _jsonArrayAsObjects);
 }
 
-natsStatus
-nats_JSONArrayAsArrays(nats_JSONArray *arr, nats_JSONArray ***array, int *arraySize)
+static natsStatus
+_jsonArrayAsArrays(natsPool *pool, nats_JSONArray *arr, nats_JSONArray ***array, int *arraySize)
 {
-    JSON_ARRAY_AS(nats_JSONArray*);
+    JSON_ARRAY_AS(pool, nats_JSONArray*);
 }
 
 natsStatus
 nats_JSONGetArrayArray(nats_JSON *json, const char *fieldName, nats_JSONArray ***array, int *arraySize)
 {
-    JSON_GET_ARRAY(TYPE_ARRAY, nats_JSONArrayAsArrays);
+    JSON_GET_ARRAY(TYPE_ARRAY, _jsonArrayAsArrays);
 }
 
 natsStatus
@@ -1206,21 +1162,6 @@ nats_JSONRange(nats_JSON *json, int expectedType, int expectedNumType, jsonRange
 void
 nats_JSONDestroy(nats_JSON *json)
 {
-    natsStrHashIter iter;
-    void            *field = NULL;
-
-    if (json == NULL)
-        return;
-
-    natsStrHashIter_Init(&iter, json->fields);
-    while (natsStrHashIter_Next(&iter, NULL, &field))
-    {
-        natsStrHashIter_RemoveCurrent(&iter);
-        _jsonFreeField((nats_JSONField*) field);
-    }
-    natsStrHash_Destroy(json->fields);
-    NATS_FREE(json->str);
-    NATS_FREE(json);
 }
 
 natsStatus
@@ -1454,131 +1395,110 @@ nats_marshalDuration(natsBuffer *out_buf, bool comma, const char *field_name, in
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-// natsStatus
-// nats_marshalMetadata(natsBuffer *buf, bool comma, const char *fieldName, natsMetadata md)
-// {
-//     natsStatus s = NATS_OK;
-//     int i;
-//     const char *start = (comma ? ",\"" : "\"");
+natsStatus
+nats_marshalMetadata(natsBuffer *buf, bool comma, const char *fieldName, natsMetadata md)
+{
+    natsStatus s = NATS_OK;
+    int i;
+    const char *start = (comma ? ",\"" : "\"");
 
-//     if (md.Count <= 0)
-//         return NATS_OK;
+    if (md.Count <= 0)
+        return NATS_OK;
 
-//     IFOK(s, natsBuf_AppendString(buf, start));
-//     IFOK(s, natsBuf_AppendString(buf, fieldName));
-//     IFOK(s, natsBuf_Append(buf, (const uint8_t*)"\":{", 3));
-//     for (i = 0; (s == NATS_OK) && (i < md.Count); i++)
-//     {
-//         IFOK(s, natsBuf_AppendByte(buf, '"'));
-//         IFOK(s, natsBuf_AppendString(buf, md.List[i * 2]));
-//         IFOK(s, natsBuf_Append(buf, (const uint8_t *)"\":\"", 3));
-//         IFOK(s, natsBuf_AppendString(buf, md.List[i * 2 + 1]));
-//         IFOK(s, natsBuf_AppendByte(buf, '"'));
+    IFOK(s, natsBuf_AppendString(buf, start));
+    IFOK(s, natsBuf_AppendString(buf, fieldName));
+    IFOK(s, natsBuf_Append(buf, (const uint8_t*)"\":{", 3));
+    for (i = 0; (s == NATS_OK) && (i < md.Count); i++)
+    {
+        IFOK(s, natsBuf_AppendByte(buf, '"'));
+        IFOK(s, natsBuf_AppendString(buf, md.List[i * 2]));
+        IFOK(s, natsBuf_Append(buf, (const uint8_t *)"\":\"", 3));
+        IFOK(s, natsBuf_AppendString(buf, md.List[i * 2 + 1]));
+        IFOK(s, natsBuf_AppendByte(buf, '"'));
 
-//         if (i != md.Count - 1)
-//             IFOK(s, natsBuf_AppendByte(buf, ','));
-//     }
-//     IFOK(s, natsBuf_AppendByte(buf, '}'));
-//     return NATS_OK;
-// }
+        if (i != md.Count - 1)
+            IFOK(s, natsBuf_AppendByte(buf, ','));
+    }
+    IFOK(s, natsBuf_AppendByte(buf, '}'));
+    return NATS_OK;
+}
 
-// static natsStatus
-// _addMD(void *closure, const char *fieldName, nats_JSONField *f)
-// {
-//     natsMetadata *md = (natsMetadata *)closure;
+static natsStatus
+_addMD(void *closure, const char *fieldName, nats_JSONField *f)
+{
+    natsMetadata *md = (natsMetadata *)closure;
 
-//     char *name = NATS_STRDUP(fieldName);
-//     char *value = NATS_STRDUP(f->value.vstr);
-//     if ((name == NULL) || (value == NULL))
-//     {
-//         NATS_FREE(name);
-//         NATS_FREE(value);
-//         return nats_setDefaultError(NATS_NO_MEMORY);
-//     }
+    char *name = NATS_STRDUP(fieldName);
+    char *value = NATS_STRDUP(f->value.vstr);
+    if ((name == NULL) || (value == NULL))
+    {
+        NATS_FREE(name);
+        NATS_FREE(value);
+        return nats_setDefaultError(NATS_NO_MEMORY);
+    }
 
-//     md->List[md->Count * 2] = name;
-//     md->List[md->Count * 2 + 1] = value;
-//     md->Count++;
-//     return NATS_OK;
-// }
+    md->List[md->Count * 2] = name;
+    md->List[md->Count * 2 + 1] = value;
+    md->Count++;
+    return NATS_OK;
+}
 
-// natsStatus
-// nats_unmarshalMetadata(nats_JSON *json, const char *fieldName, natsMetadata *md)
-// {
-//     natsStatus s = NATS_OK;
-//     nats_JSON *mdJSON = NULL;
-//     int n;
+natsStatus
+nats_unmarshalMetadata(nats_JSON *json, natsPool *pool, const char *fieldName, natsMetadata *md)
+{
+    natsStatus s = NATS_OK;
+    nats_JSON *mdJSON = NULL;
+    int n;
 
-//     md->List = NULL;
-//     md->Count = 0;
-//     if (json == NULL)
-//         return NATS_OK;
+    md->List = NULL;
+    md->Count = 0;
+    if (json == NULL)
+        return NATS_OK;
 
-//     s = nats_JSONGetObject(json, fieldName, &mdJSON);
-//     if ((s != NATS_OK) || (mdJSON == NULL))
-//         return NATS_OK;
+    s = nats_JSONGetObject(json, fieldName, &mdJSON);
+    if ((s != NATS_OK) || (mdJSON == NULL))
+        return NATS_OK;
 
-//     n = natsStrHash_Count(mdJSON->fields);
-//     md->List = NATS_CALLOC(n * 2, sizeof(char *));
-//     if (md->List == NULL)
-//         s = nats_setDefaultError(NATS_NO_MEMORY);
-//     IFOK(s, nats_JSONRange(mdJSON, TYPE_STR, 0, _addMD, md));
+    n = natsStrHash_Count(mdJSON->fields);
+    md->List = NATS_CALLOC(n * 2, sizeof(char *));
+    if (md->List == NULL)
+        s = nats_setDefaultError(NATS_NO_MEMORY);
+    IFOK(s, nats_JSONRange(mdJSON, TYPE_STR, 0, _addMD, md));
 
-//     return s;
-// }
+    return s;
+}
 
-// natsStatus
-// nats_cloneMetadata(natsMetadata *clone, natsMetadata md)
-// {
-//     natsStatus s = NATS_OK;
-//     int i = 0;
-//     int n;
-//     char **list = NULL;
+natsStatus
+nats_cloneMetadata(natsPool *pool, natsMetadata *clone, natsMetadata md)
+{
+    natsStatus s = NATS_OK;
+    int i = 0;
+    int n;
+    char **list = NULL;
 
-//     clone->Count = 0;
-//     clone->List = NULL;
-//     if (md.Count == 0)
-//         return NATS_OK;
+    clone->Count = 0;
+    clone->List = NULL;
+    if (md.Count == 0)
+        return NATS_OK;
 
-//     n = md.Count * 2;
-//     list = NATS_CALLOC(n, sizeof(char *));
-//     if (list == NULL)
-//         s = nats_setDefaultError(NATS_NO_MEMORY);
+    n = md.Count * 2;
+    list = natsPool_Alloc(pool, n * sizeof(char *));
+    if (list == NULL)
+        s = nats_setDefaultError(NATS_NO_MEMORY);
 
-//     for (i = 0; (s == NATS_OK) && (i < n); i++)
-//     {
-//         list[i] = NATS_STRDUP(md.List[i]);
-//         if (list[i] == NULL)
-//             s = nats_setDefaultError(NATS_NO_MEMORY);
-//     }
+    for (i = 0; (s == NATS_OK) && (i < n); i++)
+    {
+        list[i] = nats_StrdupPool(pool, md.List[i]);
+        if (list[i] == NULL)
+            s = nats_setDefaultError(NATS_NO_MEMORY);
+    }
 
-//     if (s == NATS_OK)
-//     {
-//         clone->List = (const char **)list;
-//         clone->Count = md.Count;
-//     }
-//     else
-//     {
-//         for (n = i, i = 0; i < n; i++)
-//             NATS_FREE(list[i]);
-//         NATS_FREE(list);
-//     }
-//     return s;
-// }
+    if (s == NATS_OK)
+    {
+        clone->List = (const char **)list;
+        clone->Count = md.Count;
+    }
 
-// void
-// nats_freeMetadata(natsMetadata *md)
-// {
-//     if (md == NULL)
-//         return;
-
-//     for (int i = 0; i < md->Count * 2; i++)
-//     {
-//         NATS_FREE((char *)md->List[i]);
-//     }
-//     NATS_FREE((char*) md->List);
-//     md->List = NULL;
-//     md->Count = 0;
-// }
-
+    return s;
+}
 

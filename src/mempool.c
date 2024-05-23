@@ -17,120 +17,157 @@
 #include "err.h"
 
 natsStatus
-natsPool_Create(natsPool **newPool, size_t chunkSize, bool init)
+natsPool_Create(natsPool **newPool)
 {
+    natsStatus s = NATS_OK;
     natsPool *pool = NULL;
+    natsChain *chain = NULL;
+    natsChunk *chunk = NULL;
 
-    pool = NATS_CALLOC(1, sizeof(natsPool));
-    if (pool == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
+    if (newPool == NULL)
+        return nats_setDefaultError(NATS_INVALID_ARG);
 
-    pool->small.newChunkSize = (chunkSize == 0 ? NATS_DEFAULT_NEW_CHUNK_SIZE : chunkSize);
+    s = natsChain_Create(&chain, NATS_DEFAULT_NEW_CHUNK_SIZE);
+    IFOK(s, natsChain_AllocChunk(&chunk, chain, sizeof(natsPool)));
+
+    if (s != NATS_OK)
+        return s;
+
+    pool = (natsPool *)_chunk_mem_ptr(chunk);
+    chunk->len += sizeof(natsPool);
+    pool->small = chain;
     *newPool = pool;
-
-    if (init)
-    {
-        // Ensure allocation of the first chunk, but ignore the result.
-        natsChain_Alloc(&(pool->small), 0);
-    }
 
     return NATS_OK;
 }
 
-void natsPool_UndoLast(natsPool *pool, void *mem)
-{
-    if (pool == NULL)
-        return;
+// natsStatus natsPool_UndoLast(natsPool *pool, void *mem)
+// {
+//     if (pool == NULL)
+//         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    if ((pool->large != NULL) && (pool->large->data == mem))
-    {
-        pool->large = pool->large->next;
-        NATS_FREE(mem);
-    }
-    else if ((pool->small.head != NULL) && ((uint8_t *)mem >= pool->small.head->data) && ((uint8_t *)mem < (pool->small.head->data + pool->small.newChunkSize)))
-    {
-        pool->small.head->len = (const uint8_t *)mem - (const uint8_t *)pool->small.head->data;
-    }
+//     if ((pool->large != NULL) && (pool->large->data == mem))
+//     {
+//         pool->large = pool->large->prev;
+//         NATS_FREE(mem);
+//     }
+//     else if (pool->small->current != NULL)
+//     {
+//         uint8_t *start = _chunk_mem_ptr(pool->small->current);
+//         uint8_t *end = start + pool->small->current->len;
+//         if (((uint8_t *)mem >= start) && ((uint8_t *)mem < end))
+//         {
+//             pool->small->current->len = (uint8_t *)mem - start;
+//         }
+//     }
+
+//     return NATS_OK;
+// }
+
+static inline void *
+_allocLarge(natsPool *pool, size_t size)
+{
+    natsLarge *large = NULL;
+
+    large = natsPool_Alloc(pool, sizeof(natsLarge));
+    if (large == NULL)
+        return NULL;
+
+    large->data = NATS_CALLOC(1, size);
+    if (large->data == NULL)
+        return NULL;
+    large->prev = pool->large;
+    pool->large = large;
+
+    return large->data;
 }
 
-void *
-natsPool_Alloc(natsPool *pool, size_t size)
+static inline void *
+_allocSmall(natsPool *pool, size_t size)
 {
     natsChunk *chunk = NULL;
-    natsLarge *large = NULL;
     void *mem = NULL;
 
-    if (size > pool->small.newChunkSize)
-    {
-        large = natsPool_Alloc(pool, sizeof(natsLarge));
-        if (large == NULL)
-            return NULL;
+    natsChain_AllocChunk(&chunk, pool->small, size);
+    if (chunk == NULL)
+        return NULL;
 
-        large->data = NATS_CALLOC(1, size);
-        if (large->data == NULL)
-            return NULL;
-        large->next = pool->large;
-        pool->large = large;
+    mem = _chunk_mem_ptr(chunk);
+    chunk->len += size;
+    return mem;
+}
 
-        return large->data;
-    }
+void * natsPool_Alloc( natsPool *pool, size_t size)
+{
+    if (size > _chunk_cap(pool->small))
+        return _allocLarge(pool, size);
     else
-    {
-        chunk = natsChain_Alloc(&(pool->small), size);
-        if (chunk == NULL)
-            return NULL;
-
-        mem = chunk->data + chunk->len;
-        chunk->len += size;
-        return mem;
-    }
+        return _allocSmall(pool, size);
 }
 
 natsStatus
 natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity)
 {
-    natsStatus s = NATS_OK;
-
+    uint8_t *mem = NULL;
     if ((buf == NULL) || (capacity < buf->len) || (buf->pool == NULL))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    if (capacity <= buf->cap)
+    size_t prevCap = buf->cap;
+
+    if (capacity <= prevCap)
     {
         // Expand in place
         buf->cap = capacity;
         return NATS_OK;
     }
-
     // Can not expand in place, need to move.
-    if (buf->small != NULL)
+
+    // If the buffer was allocated in a "large" chunk, use realloc(), it's most efficient.
+    if (buf->large != NULL)
     {
-        // The space of this buffer is always the entire "end of the chunk", return it to the pool.
-        buf->small->len -= buf->cap;
+        void *newData = NATS_REALLOC(buf->large->data, capacity);
+        if (newData == NULL)
+            return nats_setDefaultError(NATS_NO_MEMORY);
+
+        buf->data = newData;
+        buf->cap = capacity;
+        return NATS_OK;
     }
 
-    if (capacity > buf->pool->small.newChunkSize)
+    // Allocate new memory, move the contents.
+    if (capacity > _chunk_cap(buf->pool->small))
     {
-        natsLarge *large = natsPool_Alloc(buf->pool, sizeof(natsLarge));
-        if (large == NULL)
-            return nats_setDefaultError(NATS_NO_MEMORY);
-
-        large->data = NATS_CALLOC(1, capacity);
-        if (large->data == NULL)
-            return nats_setDefaultError(NATS_NO_MEMORY);
-        large->next = buf->large;
-        buf->large = large;
-        buf->data = large->data;
+        // We don't fit in a chunk, allocate a large.
+        mem = _allocLarge(buf->pool, capacity);
     }
     else
     {
-        natsChunk *chunk = natsChain_Alloc(&(buf->pool->small), capacity);
+        // We fit in a chunk.
+        natsChunk *chunk = NULL;
+        natsChain_AllocChunk(&chunk, buf->pool->small, capacity);
         if (chunk == NULL)
             return nats_setDefaultError(NATS_NO_MEMORY);
 
-        buf->data = chunk->data;
+        // If the buffer was allocated at the end of a "small" chunk like we
+        // just did, return the space to the pool/chunk.
+        if (buf->small != NULL)
+        {
+            buf->small->len -= buf->cap;
+        }
+
+        // take up whatever capacity remains in the chunk so we can expand in
+        // place later.
+        buf->cap = _chunk_cap(buf->pool->small);
         buf->small = chunk;
+        mem = _chunk_mem_ptr(chunk);
     }
-    return s;
+    if (mem == NULL)
+        return nats_setDefaultError(NATS_NO_MEMORY);
+
+    memcpy(mem, buf->data, buf->len);
+    buf->data = mem;
+
+    return NATS_OK;
 }
 
 void natsPool_Destroy(natsPool *pool)
@@ -139,12 +176,12 @@ void natsPool_Destroy(natsPool *pool)
     if (pool == NULL)
         return;
 
-    for (l = pool->large; l != NULL; l = l->next)
+    for (l = pool->large; l != NULL; l = l->prev)
     {
         NATS_FREE(l->data);
     }
 
-    natsChain_Destroy(&(pool->small));
+    natsChain_Destroy(pool->small);
 
-    NATS_FREE(pool);
+    // The pool itself is allocated in the chain so no need to free it.
 }

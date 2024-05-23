@@ -16,94 +16,98 @@
 #include "mem.h"
 #include "err.h"
 
-void natsChunk_Destroy(natsChunk *c)
-{
-    if (c == NULL)
-        return;
-
-    if (c->data != NULL)
-        NATS_FREE(c->data);
-
-    NATS_FREE(c);
-}
-
 natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize)
 {
-    natsChain *chain = NATS_CALLOC(1, sizeof(natsChain));
-    if (chain == NULL)
+    if (chunkSize == 0)
+        chunkSize = NATS_DEFAULT_NEW_CHUNK_SIZE;
+
+    size_t headSize = sizeof(natsChain) + sizeof(natsChunk);
+    if (chunkSize < headSize)
+        return nats_setDefaultError(NATS_INVALID_ARG);
+
+    uint8_t *mem = NATS_CALLOC(1, chunkSize);
+    if (mem == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    chain->newChunkSize = (chunkSize == 0 ? NATS_DEFAULT_NEW_CHUNK_SIZE : chunkSize);
+    natsChain *chain = (natsChain *)mem;
+    natsChunk *chunk = (natsChunk *)(mem + sizeof(natsChain));
+    chunk->len = sizeof(natsChunk);
+
+    chain->chunkSize = chunkSize;
+    chain->current = chunk;
 
     *newChain = chain;
-
     return NATS_OK;
 }
 
-void natsChain_Destroy(natsChain *chain)
+natsStatus natsChain_Destroy(natsChain *chain)
 {
-    natsChunk *chunk = chain->head;
-    natsChunk *next;
+    if (chain == NULL)
+        return NATS_OK;
 
-    while (chunk != NULL)
+    natsChunk *chunk = chain->current;
+
+    // The first chunk is part of the chain's initial allocation and has its 'prev' set to NULL, so do not free it
+    while (chunk != NULL && chunk->prev != NULL)
     {
-        next = chunk->next;
-        natsChunk_Destroy(chunk);
-        chunk = next;
+        natsChunk *prev = chunk->prev;
+        NATS_FREE(chunk);
+        chunk = prev;
     }
     NATS_FREE(chain);
+    return NATS_OK;
 }
 
-natsChunk *
-natsChain_Alloc(natsChain *chain, size_t size)
+natsStatus
+natsChain_AllocChunk(natsChunk **newChunk, natsChain *chain, size_t size)
 {
-    natsChunk *found = NULL;
-    natsChunk *chunk = chain->head;
+    natsChunk *use = NULL;
+    natsChunk *chunk = _first_chunk(chain);
 
-    if (size > chain->newChunkSize)
-        return NULL;
+    if (size > (chain->chunkSize - sizeof(natsChunk)))
+        return NATS_INVALID_ARG;
 
-    for (; chunk != NULL; chunk = chunk->next)
+    for (; chunk != NULL; chunk = chunk->prev)
     {
-        if (chunk->len + size <= chain->newChunkSize)
+        if (chunk->len + size <= chain->chunkSize)
         {
-            found = chunk;
+            use = chunk;
             break;
         }
     }
 
-    if (found == NULL)
+    printf("<>/<> found %p\n", (void*)use);
+    uint8_t *mem = _chunk_mem_ptr(use);
+    if (use == NULL)
     {
-        found = NATS_CALLOC(1, sizeof(natsChunk));
-        if (found == NULL)
-            return NULL;
+        mem = NATS_CALLOC(1, chain->chunkSize);
+        if (mem == NULL)
+            return nats_setDefaultError(NATS_NO_MEMORY);
 
-        found->data = NATS_CALLOC(1, chain->newChunkSize);
-        if (found->data == NULL)
-        {
-            NATS_FREE(found);
-            return NULL;
-        }
+        use = (natsChunk *)mem;
+        use->len = sizeof(natsChunk);
+        mem += sizeof(natsChunk);
 
-        found->len = 0;
-        found->next = chain->head;
-        chain->head = found;
+        use->prev = chain->current;
+        chain->current = use;
     }
 
-    return found;
-}
-
-natsStatus
-natsChain_AddChunkRef(natsChain *chain, uint8_t *data, size_t len)
-{
-    natsChunk *chunk = NATS_CALLOC(1, sizeof(natsChunk));
-    if (chunk == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
-
-    chunk->data = data;
-    chunk->len  = len;
-    chunk->next = chain->head;
-    chain->head = chunk;
-
+    if (newChunk != NULL)
+        *newChunk = use;
     return NATS_OK;
 }
+
+// natsStatus
+// natsChain_AddChunkRef(natsChain *chain, uint8_t *data, size_t len)
+// {
+//     natsChunk *chunk = NATS_CALLOC(1, sizeof(natsChunk));
+//     if (chunk == NULL)
+//         return nats_setDefaultError(NATS_NO_MEMORY);
+
+//     chunk->data = data;
+//     chunk->len = len;
+//     chunk->next = chain->head;
+//     chain->head = chunk;
+
+//     return NATS_OK;
+// }

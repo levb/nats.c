@@ -124,7 +124,7 @@ nats_Open(void)
     if (s == NATS_OK)
         s = natsNUID_init();
     if (s == NATS_OK)
-        s = natsHash_Create(&gLib.all_services_to_callback, 8);
+        s = natsHash_Create(&gLib.all_services_to_callback, NULL, 8);
     if (s == NATS_OK)
         gLib.initialized = true;
 

@@ -27,6 +27,8 @@ typedef struct __natsHashEntry
 
 struct __natsHash
 {
+    natsPool        *pool;
+    bool            ownPool;
     natsHashEntry   **bkts;
     int             numBkts;
     int             mask;
@@ -57,6 +59,8 @@ typedef struct __natsStrHashEntry
 
 struct __natsStrHash
 {
+    natsPool            *pool;
+    bool                ownPool;
     natsStrHashEntry    **bkts;
     int                 numBkts;
     int                 mask;
@@ -82,7 +86,7 @@ typedef struct __natsStrHashIter
 // Hash with in64_t as the key
 //
 natsStatus
-natsHash_Create(natsHash **newHash, int initialSize);
+natsHash_Create(natsHash **newHash, natsPool *pool, int initialSize);
 
 natsStatus
 natsHash_Set(natsHash *hash, int64_t key, void *data, void **oldData);
@@ -92,9 +96,6 @@ natsHash_Get(natsHash *hash, int64_t key);
 
 void*
 natsHash_Remove(natsHash *hash, int64_t key);
-
-natsStatus
-natsHash_RemoveSingle(natsHash *hash, int64_t *key, void **data);
 
 void
 natsHash_Destroy(natsHash *hash);
@@ -118,7 +119,7 @@ natsHashIter_Done(natsHashIter *iter);
 // Hash with char* as the key
 //
 natsStatus
-natsStrHash_Create(natsStrHash **newHash, int initialSize);
+natsStrHash_Create(natsStrHash **newHash, natsPool *pool, int initialSize);
 
 uint32_t
 natsStrHash_Hash(const char *data, int dataLen);

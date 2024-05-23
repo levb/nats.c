@@ -48,6 +48,21 @@ typedef int natsSock;
 
 #define NATS_DEFAULT_URL "nats://localhost:4222"
 
+/** \brief A type to represent user-provided metadata, a list of k=v pairs.
+ *
+ * Used in JetStream, microservice configuration.
+ */
+
+typedef struct natsMetadata
+{
+    // User-provided metadata for the stream, encoded as an array of {"key",
+    // "value",...} C strings
+    const char **List;
+
+    // Number of key/value pairs in Metadata, 1/2 of the length of the array.
+    int Count;
+} natsMetadata;
+
 typedef struct __natsConnection natsConnection;
 typedef struct __natsOptions natsOptions;
 

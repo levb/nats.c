@@ -80,6 +80,8 @@ natsSock_ShuffleIPs(natsSockCtx *ctx, natsPool *pool, struct addrinfo **ipListHe
     struct addrinfo *p      = NULL;
     int             i, j;
 
+    printf("<>/<> natsSock_ShuffleIPs: pool %p\n", (void*)pool);
+
     if (ctx->noRandomize || (ipListHead == NULL) || (*ipListHead == NULL) || count <= 1)
         return;
 
@@ -113,8 +115,6 @@ natsSock_ShuffleIPs(natsSockCtx *ctx, natsPool *pool, struct addrinfo **ipListHe
     }
     // Update the list head with the first in the array.
     *ipListHead = ips[0];
-
-    natsPool_UndoLast(pool, ips);
 }
 
 #define MAX_HOST_NAME   (256)
@@ -599,7 +599,7 @@ natsSock_InitDeadline(natsSockCtx *ctx, int64_t timeout)
 }
 
 natsStatus
-natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, natsString **ip, int *port)
+natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, const char **ip, int *port)
 {
     struct sockaddr_storage addr;
     natsSockLen             addrLen = (natsSockLen) sizeof(addr);
@@ -637,7 +637,7 @@ natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, natsString **ip, in
     if (inet_ntop(fam, laddr, localIP, sizeof(localIP)) == NULL)
         return nats_setError(NATS_SYS_ERROR, "inet_ntop error: %d", NATS_SOCK_GET_ERROR);
 
-    if ((*ip = natsString_DupPoolStr(pool, localIP)) == NULL)
+    if ((*ip = nats_StrdupPool(pool, localIP)) == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
     return NATS_OK;

@@ -139,7 +139,7 @@ natsStatus
 nats_JSONGetArrayField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
 
 natsStatus
-nats_JSONArrayAsStrings(nats_JSONArray *arr, char ***array, int *arraySize);
+nats_JSONArrayAsStrings(natsPool *pool, nats_JSONArray *arr, char ***array, int *arraySize);
 
 natsStatus
 nats_JSONGetArrayStr(nats_JSON *json, const char *fieldName, char ***array, int *arraySize);

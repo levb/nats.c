@@ -18,8 +18,6 @@
 #include "hash.h"
 
 
-#define _freeEntry(e)   { NATS_FREE(e); (e) = NULL; }
-
 #define _OFF32  (2166136261)
 #define _YP32   (709607)
 
@@ -32,12 +30,21 @@ static int _DDWSZ  = _WSZ << 2; // 16
 static int _MAX_BKT_SIZE = (1 << 30) - 1;
 
 natsStatus
-natsHash_Create(natsHash **newHash, int initialSize)
+natsHash_Create(natsHash **newHash, natsPool *pool, int initialSize)
 {
-    natsHash    *hash = NULL;
+    natsStatus  s       = NATS_OK;
+    natsHash    *hash   = NULL;
+    bool        ownPool = false;
 
     if (initialSize <= 0)
         return nats_setDefaultError(NATS_INVALID_ARG);
+
+    if (pool == NULL)
+    {
+        if (s = natsPool_Create(&pool), s != NATS_OK)
+            return NATS_UPDATE_ERR_STACK(s);
+        ownPool = true;
+    }
 
     if ((initialSize & (initialSize - 1)) != 0)
     {
@@ -51,20 +58,22 @@ natsHash_Create(natsHash **newHash, int initialSize)
         initialSize++;
     }
 
-    hash = (natsHash*) NATS_CALLOC(1, sizeof(natsHash));
+    hash = (natsHash*) natsPool_Alloc(pool, sizeof(natsHash));
     if (hash == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
     hash->mask      = (initialSize - 1);
     hash->numBkts   = initialSize;
     hash->canResize = true;
-    hash->bkts      = (natsHashEntry**) NATS_CALLOC(initialSize, sizeof(natsHashEntry*));
+    hash->bkts      = (natsHashEntry**) natsPool_Alloc(pool, initialSize * sizeof(natsHashEntry*));
     if (hash->bkts == NULL)
     {
         NATS_FREE(hash);
         return nats_setDefaultError(NATS_NO_MEMORY);
     }
 
+    hash->pool = pool;
+    hash->ownPool = ownPool;
     *newHash = hash;
 
     return NATS_OK;
@@ -80,7 +89,7 @@ _resize(natsHash *hash, int newSize)
     int             k;
     int             newIndex;
 
-    bkts = (natsHashEntry**) NATS_CALLOC(newSize, sizeof(natsHashEntry*));
+    bkts = (natsHashEntry**) natsPool_Alloc(hash->pool, newSize * sizeof(natsHashEntry*));
     if (bkts == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -98,7 +107,7 @@ _resize(natsHash *hash, int newSize)
         }
     }
 
-    NATS_FREE(hash->bkts);
+    // Old buckets stay in the pool until the pool is destroyed.
     hash->bkts = bkts;
     hash->mask = newMask;
     hash->numBkts = newSize;
@@ -227,9 +236,7 @@ natsHash_Remove(natsHash *hash, int64_t key)
             // Success
             entryRemoved = *e;
             dataRemoved  = entryRemoved->data;
-
             *e = entryRemoved->next;
-            _freeEntry(entryRemoved);
 
             hash->used--;
 
@@ -245,62 +252,13 @@ natsHash_Remove(natsHash *hash, int64_t key)
     return dataRemoved;
 }
 
-natsStatus
-natsHash_RemoveSingle(natsHash *hash, int64_t *key, void **data)
+void natsHash_Destroy(natsHash *hash)
 {
-    natsHashEntry   *e = NULL;
-    int             i;
-
-    if (hash->used != 1)
-        return nats_setDefaultError(NATS_ERR);
-
-    for (i=0; i<hash->numBkts; i++)
-    {
-        e = hash->bkts[i];
-        if (e != NULL)
-        {
-            if (key != NULL)
-                *key = e->key;
-            if (data != NULL)
-                *data = e->data;
-            _freeEntry(e);
-
-            hash->used--;
-            hash->bkts[i] = NULL;
-
-            // Check for resizing
-            _maybeShrink(hash);
-
-            break;
-        }
-    }
-    return NATS_OK;
-}
-
-void
-natsHash_Destroy(natsHash *hash)
-{
-    natsHashEntry   *e, *ne;
-    int             i;
-
     if (hash == NULL)
         return;
 
-    for (i = 0; i < hash->numBkts; i++)
-    {
-        e = hash->bkts[i];
-        while (e != NULL)
-        {
-            ne = e->next;
-
-            _freeEntry(e);
-
-            e = ne;
-        }
-    }
-
-    NATS_FREE(hash->bkts);
-    NATS_FREE(hash);
+    if ((hash->ownPool) && (hash->pool != NULL))
+        natsPool_Destroy(hash->pool);
 }
 
 void
@@ -420,12 +378,22 @@ natsStrHash_Hash(const char *data, int dataLen)
 }
 
 natsStatus
-natsStrHash_Create(natsStrHash **newHash, int initialSize)
+natsStrHash_Create(natsStrHash **newHash, natsPool *pool, int initialSize)
 {
-    natsStrHash *hash = NULL;
+    natsStatus  s       = NATS_OK;
+    natsStrHash *hash   = NULL;
+    bool        ownPool = false;
+
 
     if (initialSize <= 0)
         return nats_setDefaultError(NATS_INVALID_ARG);
+
+    if (pool == NULL)
+    {
+        if (s = natsPool_Create(&pool), s != NATS_OK)
+            return NATS_UPDATE_ERR_STACK(s);
+        ownPool = true;
+    }
 
     if ((initialSize & (initialSize - 1)) != 0)
     {
@@ -439,19 +407,18 @@ natsStrHash_Create(natsStrHash **newHash, int initialSize)
         initialSize++;
     }
 
-    hash = (natsStrHash*) NATS_CALLOC(1, sizeof(natsStrHash));
+    hash = (natsStrHash*) natsPool_Alloc(pool, sizeof(natsStrHash));
     if (hash == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
+    hash->pool      = pool;
+    hash->ownPool   = ownPool;
 
     hash->mask      = (initialSize - 1);
     hash->numBkts   = initialSize;
     hash->canResize = true;
-    hash->bkts      = (natsStrHashEntry**) NATS_CALLOC(initialSize, sizeof(natsStrHashEntry*));
+    hash->bkts      = (natsStrHashEntry**) natsPool_Alloc(pool, initialSize * sizeof(natsStrHashEntry*));
     if (hash->bkts == NULL)
-    {
-        NATS_FREE(hash);
         return nats_setDefaultError(NATS_NO_MEMORY);
-    }
 
     *newHash = hash;
 
@@ -468,7 +435,7 @@ _resizeStr(natsStrHash *hash, int newSize)
     int                 k;
     int                 newIndex;
 
-    bkts = (natsStrHashEntry**) NATS_CALLOC(newSize, sizeof(natsStrHashEntry*));
+    bkts = (natsStrHashEntry**) natsPool_Alloc(hash->pool, newSize * sizeof(natsStrHashEntry*));
     if (bkts == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -740,27 +707,11 @@ natsStrHash_RemoveSingle(natsStrHash *hash, char **key, void **data)
 void
 natsStrHash_Destroy(natsStrHash *hash)
 {
-    natsStrHashEntry    *e, *ne;
-    int                 i;
-
     if (hash == NULL)
         return;
 
-    for (i = 0; i < hash->numBkts; i++)
-    {
-        e = hash->bkts[i];
-        while (e != NULL)
-        {
-            ne = e->next;
-
-            _freeStrEntry(e);
-
-            e = ne;
-        }
-    }
-
-    NATS_FREE(hash->bkts);
-    NATS_FREE(hash);
+    if ((hash->ownPool) && (hash->pool != NULL))
+        natsPool_Destroy(hash->pool);
 }
 
 void

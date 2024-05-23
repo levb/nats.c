@@ -241,7 +241,7 @@ natsSrvPool_addNewURLs(natsSrvPool *pool, const natsUrl *curUrl, char **urls, in
     *added = false;
 
     // Transform what we got to a map for easy lookups
-    s = natsStrHash_Create(&tmp, urlCount);
+    s = natsStrHash_Create(&tmp, NULL, urlCount);
     if (s != NATS_OK)
         return  NATS_UPDATE_ERR_STACK(s);
 
@@ -384,7 +384,7 @@ natsSrvPool_Create(natsSrvPool **newPool, natsOptions *opts)
     pool->randomize = !opts->noRandomize;
 
     // Map that helps find out if an URL is already known.
-    s = natsStrHash_Create(&(pool->urls), poolSize);
+    s = natsStrHash_Create(&(pool->urls), NULL, poolSize);
 
     // Add URLs from Options' Servers
     for (i=0; (s == NATS_OK) && (i < opts->serversCount); i++)

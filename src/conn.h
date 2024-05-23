@@ -137,7 +137,13 @@ struct __natsConnection
 
     natsSrvPool *srvPool;
 
+    // pool exists (and grows) for the lifetime of connection.
     natsPool *pool;
+
+    // connectPool is used to process (Re-)Connect handshake, and is freed once
+    // the connection is established.
+    natsPool *connectPool;
+
     natsBuffer *scratch;
 
     // This is the buffer used to accumulate data to write to the socket.
