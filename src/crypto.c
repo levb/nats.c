@@ -500,7 +500,7 @@ natsCrypto_Sign(const unsigned char *seed,
     char          *sm = NULL;
     unsigned char sk[NATS_CRYPTO_SECRET_BYTES];
 
-    sm = NATS_MALLOC(inputLen + NATS_CRYPTO_SIGN_BYTES);
+    sm = natsHeap_RawAlloc(inputLen + NATS_CRYPTO_SIGN_BYTES);
     if (sm == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -509,7 +509,7 @@ natsCrypto_Sign(const unsigned char *seed,
     memcpy(signature, sm, NATS_CRYPTO_SIGN_BYTES);
     secure_memzero((void*) sm, NATS_CRYPTO_SIGN_BYTES);
     secure_memzero((void*) sk, sizeof(sk));
-    NATS_FREE(sm);
+    natsHeap_Free(sm);
     return NATS_OK;
 }
 

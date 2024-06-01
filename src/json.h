@@ -45,7 +45,6 @@ typedef struct
 
 typedef struct
 {
-    char        *str;
     natsStrHash *fields;
     natsPool *pool;
 } nats_JSON;
@@ -68,10 +67,16 @@ typedef struct
 
 } nats_JSONField;
 
-typedef natsStatus (*jsonRangeCB)(void *userInfo, const char *fieldName, nats_JSONField *f);
+typedef struct _natsJSONParser_s natsJSONParser;
 
 natsStatus
-nats_JSONParse(nats_JSON **json, natsPool *pool, const char *str, int strLen);
+natsJSONParser_Create(natsJSONParser **parser, natsPool *pool);
+
+// Should be called repeatedly until newJSON is initialized. If there are no
+// errors, artial parsing returns NATS_OK, jsonObj set to NULL, and consumes the
+// entire buf. 
+natsStatus
+natsJSONParser_Parse(nats_JSON **jsonObj, natsJSONParser *parser, natsString *buf, size_t *consumed);
 
 natsStatus
 nats_JSONGetField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
@@ -119,6 +124,9 @@ natsStatus
 nats_JSONGetArrayStr(nats_JSON *json, const char *fieldName, char ***array, int *arraySize);
 
 natsStatus
+nats_JSONGetArrayStrPtr(nats_JSON *json, const char *fieldName, const char ***array, int *arraySize);
+
+natsStatus
 nats_JSONArrayAsBools(nats_JSONArray *arr, bool **array, int *arraySize);
 
 natsStatus
@@ -159,6 +167,8 @@ nats_JSONArrayAsArrays(nats_JSONArray *arr, nats_JSONArray ***array, int *arrayS
 
 natsStatus
 nats_JSONGetArrayArray(nats_JSON *json, const char *fieldName, nats_JSONArray ***array, int *arraySize);
+
+typedef natsStatus (*jsonRangeCB)(void *userInfo, const char *fieldName, nats_JSONField *f);
 
 natsStatus
 nats_JSONRange(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo);

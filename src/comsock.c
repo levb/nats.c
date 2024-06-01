@@ -637,7 +637,7 @@ natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, const char **ip, in
     if (inet_ntop(fam, laddr, localIP, sizeof(localIP)) == NULL)
         return nats_setError(NATS_SYS_ERROR, "inet_ntop error: %d", NATS_SOCK_GET_ERROR);
 
-    if ((*ip = nats_StrdupPool(pool, localIP)) == NULL)
+    if ((*ip = natsPool_Strdup(pool, (const uint8_t *)localIP)) == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
     return NATS_OK;

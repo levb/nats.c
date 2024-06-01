@@ -29,7 +29,6 @@ struct __natsSrv
 struct __natsSrvPool
 {
     natsSrv     **srvrs;
-    natsStrHash *urls;
     int         size;
     int         cap;
     bool        randomize;
@@ -67,7 +66,7 @@ natsSrvPool_GetNextServer(natsSrvPool *pool, struct __natsOptions *opts, const n
 // Go through the list of the given URLs and add them to the pool if not already
 // present.
 natsStatus
-natsSrvPool_addNewURLs(natsSrvPool *pool, const natsUrl *curUrl, char **urls, int urlCount, const char *tlsName, bool *added);
+natsSrvPool_addNewURLs(natsSrvPool **newPool, natsPool *memPool, natsSrvPool *oldPool, const natsUrl *curUrl, const char **urls, int urlCount, const char *tlsName, bool *added);
 
 // Returns an array of servers (as a copy). User is responsible to free the memory.
 natsStatus

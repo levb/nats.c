@@ -24,7 +24,7 @@ natsStatus
 nats_Trim(char **pres, const char *s);
 
 natsStatus
-nats_ParseControl(natsControl *control, const char *line);
+nats_ParseControl(natsString *op, natsString *arg, const uint8_t *line);
 
 natsStatus
 nats_CreateStringFromBuffer(char **newStr, natsBuffer *buf);

@@ -100,27 +100,27 @@ struct __natsPongList
 
 struct __natsControl
 {
-    char *op;
-    char *args;
+    natsString op;
+    natsString args;
 
 };
 
 struct __natsServerInfo
 {
-    char *id;
-    char *host;
+    const char *id;
+    const char *host;
     int port;
-    char *version;
+    const char *version;
     bool authRequired;
     bool tlsRequired;
     bool tlsAvailable;
     int64_t maxPayload;
-    char **connectURLs;
+    const char **connectURLs;
     int connectURLsCount;
     int proto;
     uint64_t CID;
-    char *nonce;
-    char *clientIP;
+    const char *nonce;
+    const char *clientIP;
     bool lameDuckMode;
     bool headers;
 
@@ -140,17 +140,14 @@ struct __natsConnection
     // pool exists (and grows) for the lifetime of connection.
     natsPool *pool;
 
-    // connectPool is used to process (Re-)Connect handshake, and is freed once
-    // the connection is established.
-    natsPool *connectPool;
-
     natsBuffer *scratch;
 
     // This is the buffer used to accumulate data to write to the socket.
     natsChain *out;
     natsChain *in;
 
-    natsServerInfo info;
+    natsPool *infoPool;
+    natsServerInfo *info;
 
     int64_t ssid;
 

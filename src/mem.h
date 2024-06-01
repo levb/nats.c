@@ -62,19 +62,21 @@ struct __natsString_s
 // +---------------+  |   +---------------+
 // | natsChunk_s   |--|   | used          |
 // +---------------+      | memory        |
-// | used          |      | (chunk len)   |
+// | used          |      | (len)         |
 // | memory        |      +---------------+
-// | (chunk len)   |      | free          |
+// | (len)         |      | free          |
 // +---------------+      | memory        |
-// |   free        |      |               |
-// |   memory      |      |               |
+// | free          |      |               |
+// | memory        |      |               |
 // |               |      |               |
 // +---------------+      +---------------+
 struct __natsChunk_s
 {
     struct __natsChunk_s *prev;
     size_t len;
-    uint8_t mem[];
+    uint8_t *mem;
+
+    uint8_t data[];
 };
 
 struct __natsChain_s
@@ -82,13 +84,14 @@ struct __natsChain_s
     natsChunk *current;
     // When new chunks are added
     size_t chunkSize;
-    uint8_t mem[];
+
+    uint8_t data[];
 };
 
 struct __natsLarge_s
 {
     struct __natsLarge_s *prev;
-    uint8_t *data;
+    uint8_t *mem;
 };
 
 struct __natsPool_s
@@ -123,31 +126,61 @@ struct __natsBuffer_s
     natsLarge *large;
 };
 
-#define NATS_MALLOC(s) malloc((s))
-#define NATS_CALLOC(c, s) calloc((c), (s))
-#define NATS_REALLOC(p, s) realloc((p), (s))
-#define NATS_FREE(p) free((p))
+// Heap-based functions
+
+#define natsHeap_RawAlloc(_s) malloc((_s))
+#define natsHeap_Alloc(_s) calloc(1, (_s))
+#define natsHeap_Realloc(_p, _s) realloc((_p), (_s))
+#define natsHeap_Free(_p) free((_p))
 
 #ifdef _WIN32
-#define NATS_STRDUP(s) _strdup((s))
+#define natsHeap_Strdup(_s) _strdup((_s))
 #else
-#define NATS_STRDUP(s) strdup((s))
+#define natsHeap_Strdup(_s) strdup((_s))
 #endif
 
-#define DUP_STRING(s, s1, s2)                           \
+#define DUP_STRING_HEAP(s, s1, s2)                      \
     {                                                   \
-        (s1) = NATS_STRDUP(s2);                         \
+        (s1) = natsHeap_Strdup(s2);                     \
         if ((s1) == NULL)                               \
             (s) = nats_setDefaultError(NATS_NO_MEMORY); \
     }
 
-#define IF_OK_DUP_STRING(s, s1, s2)                  \
-    if (((s) == NATS_OK) && !nats_IsStringEmpty(s2)) \
-    DUP_STRING((s), (s1), (s2))
+#define IF_OK_DUP_STRING_HEAP(s, s1, s2)             \
+    if (((s) == NATS_OK) && !nats_isStringEmpty(s2)) \
+    DUP_STRING_HEAP((s), (s1), (s2))
 
 //----------------------------------------------------------------
 // string functions.
 //
+
+static inline size_t nats_strlen(const uint8_t *s) { return strlen((const char *)s); }
+static inline uint8_t *nats_strchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strchr((const char *)s, (int)(find)); }
+static inline uint8_t *nats_strrchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strrchr((const char *)s, (int)(find)); }
+static inline const uint8_t *nats_strstr(const uint8_t *s, const char *find) { return (const uint8_t *)strstr((const char *)s, find); }
+static inline int nats_strcmp(const uint8_t *s1, const char *s2) { return strcmp((const char *)s1, s2); }
+
+static inline int nats_strarray_find(const char **array, int count, const char *str)
+{
+    for (int i = 0; i < count; i++)
+    {
+        if (strcmp(array[i], str) == 0)
+            return i;
+    }
+    return -1;
+}
+
+static inline size_t nats_strarray_remove(char **array, int count, const char *str)
+{
+    int i = nats_strarray_find((const char **)array, count, str);
+    if (i < 0)
+        return count;
+
+    for (int j = i + 1; j < count; j++)
+        array[j - 1] = array[j];
+
+    return count - 1;
+}
 
 #define NATS_STR(str)                   \
     {                                   \
@@ -158,25 +191,40 @@ struct __natsBuffer_s
         0, NULL        \
     }
 
-#define natsString_Set(str, text) ((str)->len = sizeof(text) - 1, (str)->data = (uint8_t *)(text), str)
-#define natsString_SetStr(str, stringlit) ((str)->len = strlen(stringlit), (str)->data = (uint8_t *)(stringlit), str)
+#define natsString_Set(str, text) ( \
+    (str)->len = sizeof(text) - 1,  \
+    (str)->data = (uint8_t *)(text), str)
 
-static inline const uint8_t *nats_strstr(const uint8_t *s, const char *find)
+#define natsString_Printable(str)     \
+    ((str) == NULL ? 6 : (str)->len), \
+        ((str) == NULL ? "<NULL>" : (const char *)(str)->data)
+
+static inline bool natsString_Equal(natsString *str1, natsString *str2)
 {
-    return (const uint8_t *)strstr((const char *)s, find);
+    if (str1 == str2)
+        return true;
+    return (str1 != NULL) && (str2 != NULL) &&
+           (str1->len == str2->len) &&
+           (strncmp((const char *)str1->data, (const char *)str2->data, str1->len) == 0);
 }
 
-static inline size_t nats_strlen(const uint8_t *s) { return strlen((const char *)s); }
-static inline uint8_t *nats_strchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strchr((const char *)s, (int)(find)); }
-static inline uint8_t *nats_strrchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strrchr((const char *)s, (int)(find)); }
+static inline bool natsString_EqualZ(natsString *str1, const char *lit)
+{
+    if ((str1 == NULL) && (lit == NULL))
+        return true;
+    return (str1 != NULL) && (lit != NULL) &&
+           (str1->len == strlen((const char *)lit)) &&
+           (strncmp((const char *)str1->data, lit, str1->len) == 0);
+}
 
-#define nats_ToLower(c) (uint8_t)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
-#define nats_ToUpper(c) (uint8_t)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
+static inline bool natsString_IsEmpty(natsString *str)
+{
+    return (str == NULL) || (str->len == 0);
+}
 
-natsString *natsString_DupPool(natsPool *pool, const natsString *src);
-char *nats_StrdupPool(natsPool *pool, const char *src);
-
-#define nats_IsStringEmpty(_s) (((_s) == NULL) || (strlen(_s) == 0))
+#define nats_toLower(c) (uint8_t)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
+#define nats_toUpper(c) (uint8_t)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
+#define nats_isStringEmpty(_s) (((_s) == NULL) || (strlen(_s) == 0))
 
 //----------------------------------------------------------------
 // natsChain functions.
@@ -195,7 +243,28 @@ natsStatus natsChain_AllocChunk(natsChunk **newChunk, natsChain *chain, size_t s
 
 natsStatus natsPool_Create(natsPool **newPool);
 void *natsPool_Alloc(natsPool *pool, size_t size);
+static inline natsStatus natsPool_AllocS(void **newMem, natsPool *pool, size_t size)
+{
+    if (newMem == NULL)
+        return NATS_INVALID_ARG;
+    *newMem = natsPool_Alloc(pool, size);
+    return (*newMem == NULL ? NATS_NO_MEMORY : NATS_OK);
+}
+
 void natsPool_Destroy(natsPool *pool);
+
+char *natsPool_Strdup(natsPool *pool, const uint8_t *str);
+
+#define DUP_STRING_POOL(s, pool, s1, s2)                \
+    {                                                   \
+        (s1) = natsPool_Strdup((pool), (s2));           \
+        if ((s1) == NULL)                               \
+            (s) = nats_setDefaultError(NATS_NO_MEMORY); \
+    }
+
+#define IF_OK_DUP_STRING_POOL(s, pool, s1, s2)       \
+    if (((s) == NATS_OK) && !nats_isStringEmpty(s2)) \
+    DUP_STRING_POOL((s), (pool), (s1), (s2))
 
 //----------------------------------------------------------------
 // natsBuffer functions.
@@ -274,5 +343,8 @@ natsBuf_AppendString(natsBuffer *buf, const char *str)
 
 natsStatus
 natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity);
+
+natsStatus
+natsBuf_Reset(natsBuffer *buf);
 
 #endif /* MEM_H_ */

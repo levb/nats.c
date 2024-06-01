@@ -146,7 +146,7 @@ nats_Trim(char **pres, const char *s)
 }
 
 natsStatus
-nats_ParseControl(natsControl *control, const char *line)
+nats_ParseControl(natsString *op, natsString *arg, const uint8_t *line)
 {
     natsStatus  s           = NATS_OK;
     char        *tok        = NULL;
@@ -648,7 +648,7 @@ nats_Base64_DecodeLen(const char *src, int *srcLen, int *dstLen)
     int dl;
     int i;
 
-    if (nats_IsStringEmpty(src))
+    if (nats_isStringEmpty(src))
         return nats_setError(NATS_INVALID_ARG, "%s", "base64 content cannot be empty");
 
     l = (int) strlen(src);
@@ -743,7 +743,7 @@ nats_ReadFile(natsBuffer **buffer, int initBufSize, const char *fn)
     uint8_t     *ptr    = NULL;
     int         total   = 0;
 
-    if ((initBufSize <= 0) || nats_IsStringEmpty(fn))
+    if ((initBufSize <= 0) || nats_isStringEmpty(fn))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
     f = fopen(fn, "r");
@@ -957,7 +957,7 @@ bool nats_IsSubjectValid(const char *subject, bool wcAllowed)
     int     lastDot = -1;
     char    c;
 
-    if (nats_IsStringEmpty(subject))
+    if (nats_isStringEmpty(subject))
         return false;
 
     len = (int) strlen(subject);

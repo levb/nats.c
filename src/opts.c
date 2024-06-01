@@ -375,7 +375,7 @@ natsOptions_SetUserInfo(natsOptions *opts, const char *user, const char *passwor
 // {
 //     natsStatus s = NATS_OK;
 
-//     if (nats_IsStringEmpty(certs))
+//     if (nats_isStringEmpty(certs))
 //     {
 //         return nats_setError(NATS_INVALID_ARG, "%s",
 //                              "CA certificates can't be NULL nor empty");
@@ -493,7 +493,7 @@ natsOptions_SetUserInfo(natsOptions *opts, const char *user, const char *passwor
 // {
 //     natsStatus  s = NATS_OK;
 
-//     if (nats_IsStringEmpty(certStr) || nats_IsStringEmpty(keyStr))
+//     if (nats_isStringEmpty(certStr) || nats_isStringEmpty(keyStr))
 //     {
 //         return nats_setError(NATS_INVALID_ARG, "%s",
 //                              "certificate and key can't be NULL nor empty");
@@ -1125,13 +1125,13 @@ natsOptions_SetFailRequestsOnDisconnect(natsOptions *opts, bool failRequests)
 
 //     // Both files can be NULL (to unset), but if seeFile can't
 //     // be set if userOrChainedFile is not.
-//     if (nats_IsStringEmpty(userOrChainedFile) && !nats_IsStringEmpty(seedFile))
+//     if (nats_isStringEmpty(userOrChainedFile) && !nats_isStringEmpty(seedFile))
 //     {
 //         UNLOCK_OPTS(opts);
 //         return nats_setError(NATS_INVALID_ARG, "%s", "user or chained file need to be specified");
 //     }
 
-//     if (!nats_IsStringEmpty(userOrChainedFile))
+//     if (!nats_isStringEmpty(userOrChainedFile))
 //     {
 //         s = _createUserCreds(&uc, userOrChainedFile, seedFile, NULL);
 //         if (s != NATS_OK)
@@ -1216,9 +1216,9 @@ natsOptions_SetFailRequestsOnDisconnect(natsOptions *opts, bool failRequests)
 
 //     // If pubKey is not empty, then signature must be specified
 //     CHECK_OPTIONS(opts,
-//             (!nats_IsStringEmpty(pubKey) && (sigCB == NULL)));
+//             (!nats_isStringEmpty(pubKey) && (sigCB == NULL)));
 
-//     if (!nats_IsStringEmpty(pubKey))
+//     if (!nats_isStringEmpty(pubKey))
 //     {
 //         nk = NATS_STRDUP(pubKey);
 //         if (nk == NULL)
@@ -1262,9 +1262,9 @@ natsOptions_SetFailRequestsOnDisconnect(natsOptions *opts, bool failRequests)
 //     userCreds   *uc = NULL;
 
 //     CHECK_OPTIONS(opts,
-//         (!nats_IsStringEmpty(pubKey) && nats_IsStringEmpty(seedFile)));
+//         (!nats_isStringEmpty(pubKey) && nats_isStringEmpty(seedFile)));
 
-//     if (!nats_IsStringEmpty(pubKey))
+//     if (!nats_isStringEmpty(pubKey))
 //     {
 //         nk = NATS_STRDUP(pubKey);
 //         if (nk == NULL)
@@ -1328,7 +1328,7 @@ natsOptions_DisableNoResponders(natsOptions *opts, bool disabled)
 //     NATS_FREE(opts->inboxPfx);
 //     opts->inboxPfx = NULL;
 
-//     if (!nats_IsStringEmpty(inboxPrefix))
+//     if (!nats_isStringEmpty(inboxPrefix))
 //     {
 //         // If not called from clone(), we need to check the validity of the
 //         // inbox prefix.

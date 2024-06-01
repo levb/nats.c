@@ -1,4 +1,4 @@
-// Copyright 2015-2020 The NATS Authors
+// Copyright 2015-2024 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -21,29 +21,17 @@
 #include "conn.h"
 #include "opts.h"
 
-static void
-_freeSrv(natsSrv *srv)
-{
-    if (srv == NULL)
-        return;
-
-    natsUrl_Destroy(srv->url);
-    NATS_FREE(srv->tlsName);
-    NATS_FREE(srv);
-}
-
 static natsStatus
-_createSrv(natsSrv **newSrv, char *url, bool implicit, const char *tlsName)
+_createSrv(natsSrv **newSrv, natsPool *pool, char *url, bool implicit, const char *tlsName)
 {
     natsStatus  s = NATS_OK;
-    natsSrv     *srv = (natsSrv*) NATS_CALLOC(1, sizeof(natsSrv));
-
+    natsSrv     *srv = (natsSrv*) natsPool_Alloc(pool, sizeof(natsSrv));
     if (srv == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
     srv->isImplicit = implicit;
 
-    s = natsUrl_Create(&(srv->url), url);
+    s = natsUrl_Create(&(srv->url), pool, url);
     if ((s == NATS_OK) && (tlsName != NULL))
     {
         srv->tlsName = NATS_STRDUP(tlsName);
@@ -159,7 +147,7 @@ _addURLToPool(natsSrvPool *pool, char *sURL, bool implicit, const char *tlsName)
     if (!implicit && (pool->user == NULL) && (srv->url->username != NULL))
     {
         DUP_STRING(s, pool->user, srv->url->username);
-        if ((s == NATS_OK) && !nats_IsStringEmpty(srv->url->password))
+        if ((s == NATS_OK) && !nats_isStringEmpty(srv->url->password))
             DUP_STRING(s, pool->pwd, srv->url->password);
         if (s != NATS_OK)
             return NATS_UPDATE_ERR_STACK(s);
@@ -221,17 +209,22 @@ _shufflePool(natsSrvPool *pool, int offset)
 }
 
 natsStatus
-natsSrvPool_addNewURLs(natsSrvPool *pool, const natsUrl *curUrl, char **urls, int urlCount, const char *tlsName, bool *added)
+natsSrvPool_addNewURLs(natsSrvPool **newPool, natsPool *memPool, natsSrvPool *oldPool,
+ const natsUrl *curUrl, const char **urls, int urlCount, const char *tlsName, bool *added)
 {
     natsStatus  s       = NATS_OK;
     char        url[256];
-    int         i, j;
     char        *sport;
     int         portPos;
     bool        found;
     bool        isLH;
-    natsStrHash *tmp = NULL;
-    natsSrv     *srv = NULL;
+    natsSrv *srv = NULL;
+    natsSrv *newSrv = NULL;
+    const char  **infoURLs = NULL;
+    int         infoURLCount = urlCount;
+
+    if (newPool == NULL)
+        return nats_setDefaultError(NATS_INVALID_ARG);
 
     // Note about pool randomization: when the pool was first created,
     // it was randomized (if allowed). We keep the order the same (removing
@@ -240,34 +233,39 @@ natsSrvPool_addNewURLs(natsSrvPool *pool, const natsUrl *curUrl, char **urls, in
 
     *added = false;
 
-    // Transform what we got to a map for easy lookups
-    s = natsStrHash_Create(&tmp, NULL, urlCount);
-    if (s != NATS_OK)
-        return  NATS_UPDATE_ERR_STACK(s);
+    // Clone the INFO urls so we can modify the list.
+    infoURLs = natsPool_Alloc(memPool, sizeof(const char*) * urlCount);
+    if (infoURLs == NULL)
+        return nats_setDefaultError(NATS_NO_MEMORY);
+    for (int i=0; i<urlCount; i++)
+        infoURLs[i] = urls[i];
 
-    for (i=0; (s == NATS_OK) && (i<urlCount); i++)
-    {
-        s = natsStrHash_Set(tmp, urls[i], false, (void*)1, NULL);
-    }
+    // Allocate the new server pool
+    *newPool = natsPool_Alloc(memPool, sizeof(natsSrvPool));
 
     // Walk the pool and removed the implicit servers that are no longer in the
     // given array/map
-    for (i=0; i<pool->size; i++)
+    for (int i=0; i<oldPool->size; i++)
     {
-        void *inInfo= NULL;
+        bool *inInfo ;
+        int n;
 
-        srv = pool->srvrs[i];
+        srv = oldPool->srvrs[i];
         snprintf(url, sizeof(url), "%s:%d", srv->url->host, srv->url->port);
-        // Check if this URL is in the INFO protocol
-        inInfo = natsStrHash_Get(tmp, url);
-        // Remove from the temp map so that at the end we are left with only
+
+        // Remove from the temp list so that at the end we are left with only
         // new (or restarted) servers that need to be added to the pool.
-        natsStrHash_Remove(tmp, url);
+        n = nats_strarray_remove((char**) infoURLs, infoURLCount, url);
+        inInfo = (n != infoURLCount);
+        infoURLCount = n;
+
         // Keep servers that were set through Options, but also the one that
         // we are currently connected to (even if it is a discovered server).
         if (!(srv->isImplicit) || (srv->url == curUrl))
         {
-            continue;
+            newSrv = natsPool_Alloc(memPool, sizeof(natsSrv));
+            if (newSrv == NULL)
+                return nats_setDefaultError(NATS_NO_MEMORY);
         }
         if (!inInfo)
         {
@@ -426,48 +424,3 @@ natsSrvPool_Create(natsSrvPool **newPool, natsOptions *opts)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-natsStatus
-natsSrvPool_GetServers(natsSrvPool *pool, bool implicitOnly, char ***servers, int *count)
-{
-    natsStatus  s       = NATS_OK;
-    char        **srvrs = NULL;
-    natsSrv     *srv;
-    natsUrl     *url;
-    int         i;
-    int         discovered = 0;
-
-    if (pool->size == 0)
-    {
-        *servers = NULL;
-        *count   = 0;
-        return NATS_OK;
-    }
-
-    srvrs = (char **) NATS_CALLOC(pool->size, sizeof(char*));
-    if (srvrs == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
-
-    for (i=0; ((s == NATS_OK) && (i<pool->size)); i++)
-    {
-        srv = pool->srvrs[i];
-        if (implicitOnly && !srv->isImplicit)
-            continue;
-        url = srv->url;
-        if (nats_asprintf(&(srvrs[discovered]), "nats://%s:%d", url->host, url->port) == -1)
-            s = nats_setDefaultError(NATS_NO_MEMORY);
-        else
-            discovered++;
-    }
-    if (s == NATS_OK)
-    {
-        *servers = srvrs;
-        *count   = discovered;
-    }
-    else
-    {
-        for (i=0; i<discovered; i++)
-            NATS_FREE(srvrs[i]);
-        NATS_FREE(srvrs);
-    }
-    return NATS_UPDATE_ERR_STACK(s);
-}

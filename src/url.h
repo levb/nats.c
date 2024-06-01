@@ -27,7 +27,7 @@ typedef struct __natsUrl
 } natsUrl;
 
 natsStatus
-natsUrl_Create(natsUrl **newUrl, const char *urlStr);
+natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr);
 
 void
 natsUrl_Destroy(natsUrl *url);
