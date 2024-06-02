@@ -14,9 +14,10 @@ endif()
 
 # We need this to build the test program.
 include_directories(${PROJECT_SOURCE_DIR}/src)
+file(GLOB TEST_SOURCES "*.c")
 
 # Build the test program, link statically with the library.
-add_executable(natstest main.c)
+add_executable(natstest ${TEST_SOURCES})
 target_link_libraries(natstest nats_static ${NATS_EXTRA_LIB})
 
 set (LIST_FILE ${PROJECT_SOURCE_DIR}/test/all_tests.txt)

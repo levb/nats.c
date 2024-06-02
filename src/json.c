@@ -98,7 +98,7 @@ natsJSONParser_Create(natsJSONParser **newParser, natsPool *pool)
 }
 
 natsStatus
-natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, natsString *buf, size_t *consumed)
+natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const natsString *buf, size_t *consumed)
 {
     natsStatus s = NATS_OK;
     bool reachedEnd = false;

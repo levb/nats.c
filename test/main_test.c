@@ -11,9 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "natsp.h"
-
 #include <execinfo.h>
+
+#include "natsp.h"
+#include "test.h"
+
+int __tests = 0;
+bool __failed = false;
 
 struct test_s
 {
@@ -32,27 +36,18 @@ struct test_s allTests[] =
 };
 #undef _TEST_LIST
 
-#ifndef _WIN32
-static void _sigsegv_handler(int sig)
-{
-    void *array[20];
-    int size = backtrace(array, 20);
+// #ifndef _WIN32
+// static void _sigsegv_handler(int sig)
+// {
+//     void *array[20];
+//     int size = backtrace(array, 20);
 
-    // print out all the frames to stderr
-    fprintf(stderr, "Error: signal %d:\n", sig);
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    exit(1);
-}
-#endif // _WIN32
-
-static bool failed = false;
-
-
-void Test_ttt(void)
-{
-    printf("Test_ttt!!!!!!!!!!!!!!!!!!!!\n");
-}
-
+//     // print out all the frames to stderr
+//     fprintf(stderr, "Error: signal %d:\n", sig);
+//     backtrace_symbols_fd(array, size, STDERR_FILENO);
+//     exit(1);
+// }
+// #endif // _WIN32
 
 int main(int argc, char **argv)
 {
@@ -74,9 +69,9 @@ int main(int argc, char **argv)
 
     const char *testname = argv[1];
 
-#ifndef _WIN32
-    signal(SIGSEGV, _sigsegv_handler);
-#endif // _WIN32
+// #ifndef _WIN32
+//     signal(SIGSEGV, _sigsegv_handler);
+// #endif // _WIN32
 
     if (nats_Open() != NATS_OK)
     {
@@ -144,7 +139,7 @@ int main(int argc, char **argv)
     // // Makes valgrind happy
     // nats_CloseAndWait((failed ? 1 : 2000));
 
-    if (failed)
+    if (__failed)
     {
         printf("*** TEST FAILED ***\n");
         return 1;

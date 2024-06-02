@@ -76,7 +76,7 @@ natsJSONParser_Create(natsJSONParser **parser, natsPool *pool);
 // errors, artial parsing returns NATS_OK, jsonObj set to NULL, and consumes the
 // entire buf. 
 natsStatus
-natsJSONParser_Parse(nats_JSON **jsonObj, natsJSONParser *parser, natsString *buf, size_t *consumed);
+natsJSONParser_Parse(nats_JSON **jsonObj, natsJSONParser *parser, const natsString *buf, size_t *consumed);
 
 natsStatus
 nats_JSONGetField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);

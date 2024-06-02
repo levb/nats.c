@@ -212,10 +212,12 @@ bool nats_CheckCompatibilityImpl(uint32_t headerReqVerNumber, uint32_t headerVer
     return true;
 }
 
+static natsTLError globalTLError = {0};
+
 static natsTLError *
 _getTLError(void)
 {
-    return NULL;
+    return &globalTLError;
 }
 
 static char *
@@ -261,6 +263,7 @@ __attribute__((format(printf, 5, 6)))
 natsStatus
 nats_setErrorReal(const char *fileName, const char *funcName, int line, natsStatus errSts, const char *errTxtFmt, ...)
 {
+    printf("<>/<> 1 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
     char tmp[256];
     va_list ap;
@@ -303,6 +306,7 @@ __attribute__((format(printf, 4, 5)))
 void
 nats_updateErrTxt(const char *fileName, const char *funcName, int line, const char *errTxtFmt, ...)
 {
+    printf("<>/<> 2 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
     char tmp[256];
     va_list ap;
@@ -334,6 +338,7 @@ nats_updateErrTxt(const char *fileName, const char *funcName, int line, const ch
 
 void nats_setErrStatusAndTxt(natsStatus err, const char *errTxt)
 {
+    printf("<>/<> 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if ((errTL == NULL) || errTL->skipUpdate)
@@ -347,6 +352,7 @@ void nats_setErrStatusAndTxt(natsStatus err, const char *errTxt)
 natsStatus
 nats_updateErrStack(natsStatus err, const char *func)
 {
+    printf("<>/<> 4 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if ((errTL == NULL) || errTL->skipUpdate)
@@ -359,6 +365,7 @@ nats_updateErrStack(natsStatus err, const char *func)
 
 void nats_clearLastError(void)
 {
+    printf("<>/<> 5 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if ((errTL == NULL) || errTL->skipUpdate)
@@ -371,6 +378,7 @@ void nats_clearLastError(void)
 
 void nats_doNotUpdateErrStack(bool skipStackUpdate)
 {
+    printf("<>/<> 6 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if (errTL == NULL)
@@ -478,9 +486,9 @@ void nats_PrintLastErrorStack(FILE *file)
     if (nats_Open() != NATS_OK)
         return;
 
-    // errTL = natsThreadLocal_Get(gLib.errTLKey);
-    // if ((errTL == NULL) || (errTL->sts == NATS_OK) || (errTL->framesCount == -1))
-    //     return;
+    errTL = _getTLError();
+    if ((errTL == NULL) || (errTL->sts == NATS_OK) || (errTL->framesCount == -1))
+        return;
 
     fprintf(file, "Error: %u - %s",
             errTL->sts, natsStatus_GetText(errTL->sts));
