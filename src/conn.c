@@ -257,13 +257,13 @@ _createConn(natsConnection *nc)
     // retry on failed connect
     if ((s == NATS_OK) || nc->opts->retryOnFailedConnect)
     {
-        natsStatus ls = NATS_OK;
+        // natsStatus ls = NATS_OK;
         CONNLOGf("TCP connected to %s", nc->cur->url->fullUrl);
 
-        // natsChain_Destroy(nc->out); <>/<>
-        ls = natsChain_Create(&(nc->out), 0);
-        if (s == NATS_OK)
-            s = ls;
+        // // natsChain_Destroy(nc->out); <>/<>
+        // ls = natsChain_Create(&(nc->out), 0);
+        // if (s == NATS_OK)
+        //     s = ls;
     }
 
     return NATS_UPDATE_ERR_STACK(s);
@@ -1474,8 +1474,8 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
     nc->sockCtx.fd = NATS_SOCK_INVALID;
     nc->opts = options;
 
-    IFOK(s, natsPool_Create(&(nc->lifetimePool)));
-    IFOK(s, natsPool_Create(&(nc->connectPool)));
+    IFOK(s, natsPool_CreateNamed(&nc->lifetimePool, 0, "conn-lifetime"));
+    IFOK(s, natsPool_CreateNamed(&nc->connectPool, 0, "conn-connect-time"));
 
     nc->errStr[0] = '\0';
 

@@ -45,50 +45,59 @@
 #define HAVE_EXPLICIT_MEMSET 1
 #endif
 
-
-void nats_setMemPageSize(size_t size); // for testing
-size_t nats_memPageSize(void);
-#define NATS_DEFAULT_MEM_PAGE_SIZE 2048
-
-struct __natsString_s
-{
-    size_t len;
-    uint8_t *data;
-};
-
-//----------------------------------------------------------------
-//  Chain structure:
+//----------------------------------------------------------------------------
+//  natsPool - memory pool.
 //
-//   1st chunk              2nd chunk
-// +---------------+  +-->+---------------+
-// | natsChain_s   |  |   | natsChunk_s   |--> ...
-// +---------------+  |   +---------------+
-// | natsChunk_s   |--|   | used          |
-// +---------------+      | memory        |
-// | used          |      | (len)         |
-// | memory        |      +---------------+
-// | (len)         |      | free          |
-// +---------------+      | memory        |
-// | free          |      |               |
-// | memory        |      |               |
-// |               |      |               |
-// +---------------+      +---------------+
-struct __natsChunk_s
+//  - Uses a linked lists of natsSmall for small memory allocations. Each
+//    heap-allocated chunk is 1-page NATS_DEFAULT_MEM_PAGE_SIZE) sized.
+//  - Maximum small allocation size is NATS_DEFAULT_MEM_PAGE_SIZE -
+//    sizeof(natsSmall).
+//  - Uses a linked list of natsLarge for large HEAP memory allocations. The
+//    list elements are allocated in the (small) pool.
+//  - natsPool_Destroy() will free all memory allocated in the pool.
+//
+//  +->+---------------+ 0       +------------->+---------------+
+//  |  | natsSmall     |         |              | natsSmall     |
+//  |  |  - next       |---------+              |  - next       |
+//  |  |---------------+                        |---------------|
+//  |  | natsPool      |                        |               |
+//  +--|  - small      |                        |               |
+//     |               |                        | used          |
+//     |  - large      |---                     | memory        |
+//     |               |                        |               |
+//     | (most recent) |                        |               |
+//     |---------------|                        |---------------| len
+//     | used          |                        | free          |
+//     | memory        |                        | memory        |
+//     |               |                        |               |
+//     |               |                        |               |
+//  +->+---------------|                        |               |
+//  |  | natsLarge #1  |                        |               |
+//  |  |  - prev       |                        |               |
+//  |  |  - mem  ======|=> HEAP                 |               |
+//  |  |---------------|                        |               |
+//  |  | natsLarge #2  |                        |               |
+//  +--|  - prev       |                        |               |
+//     |  - mem  ======|=> HEAP                 |               |
+//     |---------------|                        |               |
+//     | more          |                        |               |
+//     | used          |                        |               |
+//     | memory        |                        |               |
+//     | ...           |                        |               |
+//     |---------------| len                    |               |
+//     | free          |                        |               |
+//     | memory        |                        |               |
+//     |               |                        |               |
+//     +---------------+ page size              +---------------+ page size
+
+void natsPool_setPageSize(size_t size); // for testing
+
+#define NATS_DEFAULT_POOL_PAGE_SIZE 8192
+
+struct __natsSmall_s
 {
-    struct __natsChunk_s *prev;
+    struct __natsSmall_s *next;
     size_t len;
-    uint8_t *mem;
-
-    uint8_t data[];
-};
-
-struct __natsChain_s
-{
-    natsChunk *current;
-    // When new chunks are added
-    size_t chunkSize;
-
-    uint8_t data[];
 };
 
 struct __natsLarge_s
@@ -99,21 +108,77 @@ struct __natsLarge_s
 
 struct __natsPool_s
 {
-    natsChain *small;
+    // Each small is allocated of pageSize.
+    size_t pageSize;
+
+    // small head is the first chunk allocated since that is where we attempt to
+    // allocate first.
+    natsSmall *small;
+    // large head is the most recent large allocation, for simplicity.
     natsLarge *large;
+
+#ifdef DEV_MODE
+    size_t totalAllocs;
+    size_t totalFrees;
+    size_t totalSmallAllocs;
+    size_t totalLargeAllocs;
+    size_t totalSmallFrees;
+    size_t totalLargeFrees;
+    int totalSmallChunks;
+    const char *name;
+    const char *file;
+    int line;
+    const char *func;
+#endif
 };
 
-// A natsBuffer is an expandable, continous memory area used mostly to build
-// strings. It can be backed by:
-// - a chunk of memory owned by the caller, i.e. the caller is responsible for
-//   freeing it.
-// - a chunk of memory allocated by the buffer itself, will be freed if/when the
-//   buffer is destroyed.
-// - a chunk of memory associated with a pool, will be freed when the pool is
-//   destroyed.
-//
-// The natsBuffer itself can be owned by the caller, allocated with calloc, or
-// allocated from a pool.
+natsStatus
+natsPool_Create(natsPool **newPool, size_t pageSize DEV_MODE_POOL_NAME_ARG DEV_MODE_ARGS);
+#ifdef DEV_MODE
+#define natsPool_CreateNamed(_newPool, pageSize, name) \
+    natsPool_Create(_newPool, pageSize, name, __SHORT_FILE__, __LINE__, __func__)
+#else
+#define natsPool_CreateNamed(_newPool, pageSize, name) \
+    natsPool_Create(_newPool, pageSize)
+#endif
+
+void *natsPool_Alloc(natsPool *pool, size_t size);
+
+static inline natsStatus natsPool_AllocS(void **newMem, natsPool *pool, size_t size)
+{
+    if (newMem == NULL)
+        return NATS_INVALID_ARG;
+    *newMem = natsPool_Alloc(pool, size);
+    return (*newMem == NULL ? NATS_NO_MEMORY : NATS_OK);
+}
+
+void natsPool_Destroy(natsPool *pool);
+
+static inline uint8_t *natsPool_Strdup(natsPool *pool, const uint8_t *str)
+{
+    size_t len = strlen((const char *)str) + 1;
+    uint8_t *dup = natsPool_Alloc(pool, len);
+    if (dup != NULL)
+        memcpy(dup, str, len);
+    return dup;
+}
+
+static inline char *natsPool_StrdupC(natsPool *pool, const char *str)
+{
+    return (char *)natsPool_Strdup(pool, (const uint8_t *)str);
+}
+
+#define DUP_STRING_POOL(s, pool, s1, s2)                \
+    {                                                   \
+        (s1) = natsPool_StrdupC((pool), (s2));          \
+        if ((s1) == NULL)                               \
+            (s) = nats_setDefaultError(NATS_NO_MEMORY); \
+    }
+
+#define IF_OK_DUP_STRING_POOL(s, pool, s1, s2)       \
+    if (((s) == NATS_OK) && !nats_isStringEmpty(s2)) \
+    DUP_STRING_POOL((s), (pool), (s1), (s2))
+
 struct __natsBuffer_s
 {
     uint8_t *data;
@@ -123,17 +188,17 @@ struct __natsBuffer_s
 
     natsPool *pool;
     natsPool *poolToDestroy;
-    natsChunk *small;
+    natsSmall *small;
     natsLarge *large;
 };
 
 // Heap-based functions
 
 #ifdef DEV_MODE
-static inline void *nats_heap_malloc(size_t size, const char *file, int line, const char *func )
+static inline void *nats_heap_malloc(size_t size, const char *file, int line, const char *func)
 {
     void *mem = malloc(size);
-    MEMLOGx(file, line, func, "HEAP malloc %zu bytes: %p\n", size, mem);
+    MEMLOGx(file, line, func, "HEAP malloc %zu bytes: %p", size, mem);
     return mem;
 }
 #define natsHeap_RawAlloc(_s) nats_heap_malloc((_s), __SHORT_FILE__, __LINE__, __func__)
@@ -141,7 +206,7 @@ static inline void *nats_heap_malloc(size_t size, const char *file, int line, co
 static inline void *nats_heap_calloc(size_t nmemb, size_t size, const char *file, int line, const char *func)
 {
     void *mem = calloc(nmemb, size);
-    MEMLOGx(file, line, func, "HEAP calloc %zu bytes: %p\n", size, mem);
+    MEMLOGx(file, line, func, "HEAP calloc %zu bytes: %p", size, mem);
     return mem;
 }
 #define natsHeap_Alloc(_s) nats_heap_calloc(1, (_s), __SHORT_FILE__, __LINE__, __func__)
@@ -149,14 +214,14 @@ static inline void *nats_heap_calloc(size_t nmemb, size_t size, const char *file
 static inline void *nats_heap_realloc(void *ptr, size_t size, const char *file, int line, const char *func)
 {
     void *mem = realloc(ptr, size);
-    MEMLOGx(file, line, func, "HEAP realloc %zu bytes: %p\n", size, mem);
+    MEMLOGx(file, line, func, "HEAP realloc %zu bytes: %p", size, mem);
     return mem;
 }
 #define natsHeap_Realloc(_p, _s) nats_heap_realloc((_p), (_s), __SHORT_FILE__, __LINE__, __func__)
 
 static inline void nats_heap_free(void *ptr, const char *file, int line, const char *func)
 {
-    MEMLOGx(file, line, func, "HEAP free: %p\n", ptr);
+    MEMLOGx(file, line, func, "HEAP free: %p", ptr);
     free(ptr);
 }
 #define natsHeap_Free(_p) nats_heap_free((_p), __SHORT_FILE__, __LINE__, __func__)
@@ -187,12 +252,18 @@ static inline void nats_heap_free(void *ptr, const char *file, int line, const c
     if (((s) == NATS_OK) && !nats_isStringEmpty(s2)) \
     DUP_STRING_HEAP((s), (s1), (s2))
 
-    //----------------------------------------------------------------
-    // string functions.
-    //
+//----------------------------------------------------------------
+// string functions.
+//
 
-    static inline size_t
-    nats_strlen(const uint8_t *s) { return strlen((const char *)s); }
+struct __natsString_s
+{
+    size_t len;
+    uint8_t *data;
+};
+
+static inline size_t
+nats_strlen(const uint8_t *s) { return strlen((const char *)s); }
 static inline uint8_t *nats_strchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strchr((const char *)s, (int)(find)); }
 static inline uint8_t *nats_strrchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strrchr((const char *)s, (int)(find)); }
 static inline const uint8_t *nats_strstr(const uint8_t *s, const char *find) { return (const uint8_t *)strstr((const char *)s, find); }
@@ -265,58 +336,6 @@ static inline bool natsString_IsEmpty(natsString *str)
 #define nats_isStringEmpty(_s) (((_s) == NULL) || (strlen(_s) == 0))
 
 //----------------------------------------------------------------
-// natsChain functions.
-
-#define _first_chunk(_chain) ((natsChunk *)((uint8_t *)(_chain) + sizeof(natsChain)));
-#define _chunk_cap(_chain) ((_chain)->chunkSize - sizeof(natsChunk))
-#define _chunk_remaining_cap(_chain,_chunk) ((_chain)->chunkSize - sizeof(natsChunk) - (_chunk)->len)
-#define _chunk_mem_ptr(_chunk) ((uint8_t *)(_chunk) + sizeof(natsChunk) + chunk->len)
-
-natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize);
-natsStatus natsChain_Destroy(natsChain *chain);
-natsStatus natsChain_AllocChunk(natsChunk **newChunk, natsChain *chain, size_t size);
-
-//----------------------------------------------------------------
-// natsPool functions.
-
-natsStatus natsPool_Create(natsPool **newPool);
-void *natsPool_Alloc(natsPool *pool, size_t size);
-static inline natsStatus natsPool_AllocS(void **newMem, natsPool *pool, size_t size)
-{
-    if (newMem == NULL)
-        return NATS_INVALID_ARG;
-    *newMem = natsPool_Alloc(pool, size);
-    return (*newMem == NULL ? NATS_NO_MEMORY : NATS_OK);
-}
-
-void natsPool_Destroy(natsPool *pool);
-
-static inline uint8_t *natsPool_Strdup(natsPool *pool, const uint8_t *str) 
-{
-    size_t len = strlen((const char *)str) + 1;
-    uint8_t *dup = natsPool_Alloc(pool, len);
-    if (dup != NULL)
-        memcpy(dup, str, len);
-    return dup;
-}
-
-static inline char *natsPool_StrdupC(natsPool *pool, const char *str) 
-{
-    return (char *)natsPool_Strdup(pool, (const uint8_t *)str);
-}
-
-#define DUP_STRING_POOL(s, pool, s1, s2)                \
-    {                                                   \
-        (s1) = natsPool_StrdupC((pool), (s2));           \
-        if ((s1) == NULL)                               \
-            (s) = nats_setDefaultError(NATS_NO_MEMORY); \
-    }
-
-#define IF_OK_DUP_STRING_POOL(s, pool, s1, s2)       \
-    if (((s) == NATS_OK) && !nats_isStringEmpty(s2)) \
-    DUP_STRING_POOL((s), (pool), (s1), (s2))
-
-//----------------------------------------------------------------
 // natsBuffer functions.
 //
 
@@ -325,10 +344,10 @@ static inline char *natsPool_StrdupC(natsPool *pool, const char *str)
 #define natsBuf_Len(b) ((b)->len)
 #define natsBuf_Available(b) ((b)->cap - (b)->len)
 
-    //
-    // Allocates a new natsBuffer using calloc.
-    natsStatus
-    natsBuf_Create(natsBuffer **newBuf, size_t cap);
+//
+// Allocates a new natsBuffer using calloc.
+natsStatus
+natsBuf_Create(natsBuffer **newBuf, size_t cap);
 
 // Allocates a new natsBuffer using palloc.
 natsStatus
@@ -343,8 +362,7 @@ natsBuf_AppendBytes(natsBuffer *buf, const uint8_t *data, size_t dataLen);
 natsStatus
 natsBuf_AppendByte(natsBuffer *buf, uint8_t b);
 
-void
-natsBuf_Destroy(natsBuffer *buf);
+void natsBuf_Destroy(natsBuffer *buf);
 
 static inline natsStatus
 natsBuf_AppendString(natsBuffer *buf, const char *str)

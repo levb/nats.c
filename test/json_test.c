@@ -43,7 +43,7 @@ void Test_JSON(void)
         natsJSONParser *parser = NULL;
         nats_JSON *json = NULL;
         size_t consumed;
-        s = natsPool_Create(&pool);
+        s = natsPool_CreateNamed(&pool, 0, "json-test");
         IFOK(s, natsJSONParser_Create(&parser, pool));
         // IFOK(s, natsJSONParser_Parse(&json, parser, &bad[i], &consumed));
         testCond((s == NATS_OK) && (json == NULL));

@@ -15,14 +15,29 @@
 #include "test.h"
 #include "mem.h"
 
-void Test_Chain(void)
+void Test_Pool(void)
 {
-    natsChain *chain = NULL;
+    natsPool *pool = NULL;
 
-    test("Create chain");
-    natsStatus s = natsChain_Create(&chain, 1234);
-    testCond((s == NATS_OK) && (chain != NULL) && (chain->current != NULL) && (chain->current->len == 1234));
+    test("Create pool");
+    natsStatus s = natsPool_CreateNamed(&pool, 1234, "mem-test");
+
+    size_t expectedLength = sizeof(natsPool) + sizeof(natsSmall);
+    testCond((s == NATS_OK) &&
+             (pool != NULL) &&
+             (pool->small != NULL) &&
+             (pool->small->len == expectedLength) &&
+             (pool->pageSize == 1234));
+
+    test("Allocate some small blocks in the first chunk");
+    uint8_t *ptr1 = natsPool_Alloc(pool, 10);
+    uint8_t *ptr2 = natsPool_Alloc(pool, 20);
+    uint8_t *ptr3 = natsPool_Alloc(pool, 30);
+    expectedLength += 10 + 20 + 30;
+    testCond((ptr1 != NULL) && (ptr2 != NULL) && (ptr3 != NULL) &&
+                (pool->small->len == expectedLength) &&
+                (uint8_t*)pool + sizeof(natsPool) == ptr1 &&
+                ptr2 == ptr1 + 10 &&
+                ptr3 == ptr2 + 20);
 
 }
-
-

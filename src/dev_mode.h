@@ -30,23 +30,32 @@
 #define DEVNOLOGx(file, line, func, fmt, ...) 
 
 #ifdef DEV_MODE
+
+#define DEV_MODE_ARGS , const char *file, int line, const char *func
 #define DEVLOGx(file, line, func, fmt, ...) fprintf(stderr, "DEV: %s:%d: %s: " fmt "\n", (file), (line), (func), __VA_ARGS__)
 #define DEVLOG(str) DEVLOGx(__SHORT_FILE__, __LINE__, __func__, "%s", str)
 #define DEVLOGf(fmt, ...) DEVLOGx(__SHORT_FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
+
 #else
+
+#define DEV_MODE_ARGS
 #define DEVLOGx DEVNOLOGx
-#endif
+
+#endif // DEV_MODE
 
 #ifdef DEV_MODE_MEM
+
 #define MEMLOG DEVLOG
 #define MEMLOGf DEVLOGf
 #define MEMLOGx DEVLOGx
+#define DEV_MODE_POOL_NAME_ARG , const char *name
+
 #else
 #define MEMLOG DEVNOLOG
 #define MEMLOGf DEVNOLOGf
 #define MEMLOGx DEVNOLOGx
+#define DEV_MODE_POOL_NAME_ARG
 #endif
-
 
 #ifdef DEV_MODE_CONN
 #define CONNLOG DEVLOG

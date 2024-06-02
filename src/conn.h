@@ -144,8 +144,8 @@ struct __natsConnection
     natsBuffer *scratch;
 
     // This is the buffer used to accumulate data to write to the socket.
-    natsChain *out;
-    natsChain *in;
+    // natsChain *out;
+    // natsChain *in;
 
     natsServerInfo *info;
 

@@ -16,40 +16,97 @@
 #include "mem.h"
 #include "err.h"
 
-static size_t nats_memPageSize_v = NATS_DEFAULT_MEM_PAGE_SIZE;
+static size_t _poolPageSize = NATS_DEFAULT_POOL_PAGE_SIZE;
 
 // for testing
-void nats_setMemPageSize(size_t size) { nats_memPageSize_v = size; }
-size_t nats_memPageSize(void) { return nats_memPageSize_v; }
+void natsPool_setPageSize(size_t size) { _poolPageSize = size; }
 
 #define _numPages(c) \
     (((c) / nats_memPageSize() + 1) * nats_memPageSize())
 #define _roundUpCapacity(c) \
     (_numPages(c) * nats_memPageSize())
-    
-natsStatus
-natsPool_Create(natsPool **newPool)
+
+static inline size_t _smallMax(natsPool *pool) { return pool->pageSize - sizeof(natsSmall); }
+static inline size_t _smallCap(natsPool *pool, natsSmall *small) { return pool->pageSize - small->len; }
+static inline void *_smallGrab(natsSmall *small, size_t size)
 {
-    natsStatus s = NATS_OK;
+    void *mem = (uint8_t *)small + small->len;
+    small->len += size;
+    return mem;
+}
+
+natsStatus
+natsPool_Create(natsPool **newPool, size_t pageSize DEV_MODE_POOL_NAME_ARG DEV_MODE_ARGS)
+{
     natsPool *pool = NULL;
-    natsChain *chain = NULL;
-    natsChunk *chunk = NULL;
+    natsSmall *small = NULL;
 
-    if (newPool == NULL)
-        return nats_setDefaultError(NATS_INVALID_ARG);
+    if (pageSize == 0)
+        pageSize = _poolPageSize;
 
-    s = natsChain_Create(&chain, nats_memPageSize());
-    IFOK(s, natsChain_AllocChunk(&chunk, chain, sizeof(natsPool)));
+    const size_t required = sizeof(natsPool) + sizeof(natsSmall);
+    if (required > pageSize)
+        return nats_setError(NATS_INVALID_ARG, "page size %zu too small, need at least %zu", pageSize, required);
 
-    if (s != NATS_OK)
-        return s;
+    small = natsHeap_Alloc(pageSize);
+    if (small == NULL)
+        return nats_setDefaultError(NATS_NO_MEMORY);
+    _smallGrab(small, sizeof(natsSmall)); // mark itself allocated
 
-    pool = (natsPool *)_chunk_mem_ptr(chunk);
-    chunk->len += sizeof(natsPool);
-    pool->small = chain;
+    pool = _smallGrab(small, sizeof(natsPool));
+    pool->small = small;
+    pool->pageSize = pageSize;
+#ifdef DEV_MODE
+    pool->name = name;
+    pool->file = file;
+    pool->line = line;
+    pool->func = func;
+#endif
+
+    MEMLOGf("created '%s' with page size %zu from %s:%d %s: %p", name, pageSize, file, line, func, (void *)pool);
+    MEMLOGf("current capacity: %zu", _smallCap(pool, small));
+
     *newPool = pool;
-
     return NATS_OK;
+}
+
+static void *_allocSmall(natsSmall **newOrFound, natsPool *pool, size_t size)
+{
+    natsSmall *last = pool->small;
+    natsSmall *small = pool->small;
+    int i = 0;
+    void *mem = NULL;
+
+    for (small = pool->small; small != NULL; small=small->next, i++)
+    {
+        if (size > _smallCap(pool, small))
+        {
+            last = small;
+            continue;
+        }
+
+        mem = _smallGrab(small, size);
+
+        MEMLOGf("Pool %s: allocated %zu in an existing small %d, %zu remaining: %p",
+                pool->name, size, i, _smallCap(pool, small), mem);
+        if (newOrFound != NULL)
+            *newOrFound = small;
+        return mem;
+    }
+
+    small = natsHeap_Alloc(pool->pageSize); // greater than sizeof(natsSmall)
+    if (small == NULL)
+        return NULL;
+    mem = _smallGrab(small, size);
+
+    // Link it to the end of the chain.
+    last->next = small;
+
+    MEMLOGf("Pool %s: allocated %zu in a new small %d, %zu remaining: %p", 
+            pool->name, size, i, _smallCap(pool, small), mem);
+    if (newOrFound != NULL)
+        *newOrFound = small;
+    return mem;
 }
 
 static inline void *
@@ -59,7 +116,7 @@ _allocLarge(natsPool *pool, size_t size, natsLarge **newLarge)
     if (newLarge != NULL)
         *newLarge = NULL;
 
-    large = natsPool_Alloc(pool, sizeof(natsLarge));
+    large = _allocSmall(NULL, pool, sizeof(natsLarge));
     if (large == NULL)
         return NULL;
 
@@ -72,47 +129,35 @@ _allocLarge(natsPool *pool, size_t size, natsLarge **newLarge)
     if (newLarge != NULL)
         *newLarge = large;
 
-    MEMLOGf("allocated LARGE in pool %p, size %zu\n", (void *)pool, size);
-
+    MEMLOGf("Pool %s: allocated %zu in a large: ", pool->name, size);
     return large->mem;
-}
-
-static inline void *
-_allocSmall(natsPool *pool, size_t size)
-{
-    natsChunk *chunk = NULL;
-    void *mem = NULL;
-
-    natsChain_AllocChunk(&chunk, pool->small, size);
-    if (chunk == NULL)
-        return NULL;
-
-    mem = _chunk_mem_ptr(chunk);
-    chunk->len += size;
-    MEMLOGf("allocated SMALL in pool %p, size %zu\n", (void *)pool, size);
-    return mem;
 }
 
 void *natsPool_Alloc(natsPool *pool, size_t size)
 {
-    if (size > _chunk_cap(pool->small))
+    if (size > _smallMax(pool))
         return _allocLarge(pool, size, NULL);
     else
-        return _allocSmall(pool, size);
+        return _allocSmall(NULL, pool, size);
 }
 
 void natsPool_Destroy(natsPool *pool)
 {
-    natsLarge *l;
     if (pool == NULL)
         return;
 
-    for (l = pool->large; l != NULL; l = l->prev)
+    for (natsLarge *l = pool->large; l != NULL; l = l->prev)
         natsHeap_Free(l->mem);
 
-    natsChain_Destroy(pool->small);
+    natsSmall *next = NULL;
+    for (natsSmall *s = pool->small; s != NULL; s = next)
+    {
+        next = s->next;
+        natsHeap_Free(s);
+    }
 
-    // The pool itself is allocated in the chain, so no need to free it.
+    // The pool itself is allocated in the first natsSmall, so no need to free
+    // it.
 }
 
 static natsStatus
@@ -121,7 +166,7 @@ _expandBufInPool(natsBuffer *buf, size_t capacity)
     uint8_t *mem = NULL;
     size_t prevCap = buf->cap;
     size_t newCap;
-    natsChunk *prevSmall = buf->small;
+    natsSmall *prevSmall = buf->small;
 
     // Double the previous capacity.
     for (newCap = prevCap; newCap < capacity; newCap *= 2)
@@ -139,9 +184,9 @@ _expandBufInPool(natsBuffer *buf, size_t capacity)
         return NATS_OK;
     }
 
-    if (newCap > _chunk_cap(buf->pool->small))
+    if (newCap > _smallMax(buf->pool))
     {
-        // We don't fit in a chunk, allocate a large.
+        // We don't fit in a small, allocate a large.
         natsLarge *newLarge = NULL;
         mem = _allocLarge(buf->pool, newCap, &newLarge);
         if (mem == NULL)
@@ -151,24 +196,19 @@ _expandBufInPool(natsBuffer *buf, size_t capacity)
     }
     else
     {
-        // We fit in a chunk, and since we already exhausted any previous chunk,
-        // try a new one.
-        natsChunk *chunk = NULL;
-        natsStatus s = natsChain_AllocChunk(&chunk, buf->pool->small, newCap);
-        if (s != NATS_OK)
-            return nats_setDefaultError(s);
+        // take up an entire natsSmall, will return it to the pool when done.
+        newCap = _smallMax(buf->pool);
+        mem = _allocSmall(&buf->small, buf->pool, newCap);
+        if (mem == NULL)
+            return nats_setDefaultError(NATS_NO_MEMORY);
 
-        // take up whatever capacity remains in the chunk so we can expand in
-        // place later.
-        buf->cap = _chunk_remaining_cap(buf->pool->small, chunk);
-        buf->small = chunk;
-        mem = _chunk_mem_ptr(chunk);
+        buf->large = NULL;
     }
 
     memcpy(mem, buf->data, buf->len);
     buf->data = mem;
 
-    // If we were previously in a small chunk, return the space to the chunk.
+    // If we were previously in a small, return the space to the pool.
     if (prevSmall != NULL)
     {
         prevSmall->len -= prevCap;
@@ -190,90 +230,6 @@ _expandBuf(natsBuffer *buf, size_t capacity)
     return _expandBufInPool(buf, capacity);
 }
 
-natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize)
-{
-    if (chunkSize == 0)
-        chunkSize = nats_memPageSize();
-
-    size_t headSize = sizeof(natsChain) + sizeof(natsChunk);
-    if (chunkSize < headSize)
-        return nats_setDefaultError(NATS_INVALID_ARG);
-
-    uint8_t *mem = natsHeap_Alloc(chunkSize);
-    if (mem == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
-
-    natsChain *chain = (natsChain *)mem;
-    natsChunk *chunk = (natsChunk *)(mem + sizeof(natsChain));
-    chunk->len = sizeof(natsChunk);
-
-    chain->chunkSize = chunkSize;
-    chain->current = chunk;
-
-    *newChain = chain;
-    return NATS_OK;
-}
-
-natsStatus natsChain_Destroy(natsChain *chain)
-{
-    if (chain == NULL)
-        return NATS_OK;
-
-    natsChunk *chunk = chain->current;
-
-    // The first chunk is part of the chain's initial allocation and has its
-    // 'prev' set to NULL, so do not free it
-    while (chunk != NULL && chunk->prev != NULL)
-    {
-        natsChunk *prev = chunk->prev;
-        natsHeap_Free(chunk);
-        chunk = prev;
-    }
-    natsHeap_Free(chain);
-    return NATS_OK;
-}
-
-natsStatus
-natsChain_AllocChunk(natsChunk **newChunk, natsChain *chain, size_t size)
-{
-    natsChunk *use = NULL;
-    natsChunk *chunk = _first_chunk(chain);
-
-    if (size > (chain->chunkSize - sizeof(natsChunk)))
-        return NATS_INVALID_ARG;
-
-    for (; chunk != NULL; chunk = chunk->prev)
-    {
-        if (chunk->len + size <= chain->chunkSize)
-        {
-            use = chunk;
-            break;
-        }
-    }
-
-    uint8_t *mem = _chunk_mem_ptr(use);
-    if (use == NULL)
-    {
-        mem = natsHeap_Alloc(chain->chunkSize);
-        if (mem == NULL)
-            return nats_setDefaultError(NATS_NO_MEMORY);
-
-        use = (natsChunk *)mem;
-        use->len = sizeof(natsChunk);
-        mem += sizeof(natsChunk);
-
-        use->prev = chain->current;
-        chain->current = use;
-    }
-
-    if (newChunk != NULL)
-        *newChunk = use;
-
-    MEMLOGf("allocated chunk in chain %p, used %zu out of %zu\n", (void *)chain, size, chain->chunkSize);
-
-    return NATS_OK;
-}
-
 natsStatus
 natsBuf_Reset(natsBuffer *buf)
 {
@@ -284,12 +240,13 @@ natsBuf_Reset(natsBuffer *buf)
 }
 
 // Creates a new Heap-based pool and allocates the natsBuffer there.
+// TODO: <>/<> do this with direct, page-aligned memory allocation.
 natsStatus
 natsBuf_Create(natsBuffer **newBuf, size_t capacity)
 {
     natsPool *pool = NULL;
     natsBuffer *buf = NULL;
-    natsStatus s = natsPool_Create(&pool);
+    natsStatus s = natsPool_CreateNamed(&pool, 0, "natsBuffer");
     IFOK(s, natsBuf_CreateInPool(newBuf, pool, capacity));
     if (s == NATS_OK)
         buf->poolToDestroy = pool;
@@ -310,7 +267,7 @@ natsBuf_CreateInPool(natsBuffer **newBuf, natsPool *pool, size_t capacity)
         return s;
 
     *newBuf = buf;
-    MEMLOGf("created buffer in pool %p, cap %zu\n", (void *)pool, capacity);
+    MEMLOGf("created buffer in pool %p, cap %zu", (void *)pool, capacity);
     return NATS_OK;
 }
 

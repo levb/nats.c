@@ -1365,7 +1365,7 @@ natsOptions_Create(natsOptions **newOpts)
     if (s != NATS_OK)
         return s;
 
-    s = natsPool_Create(&pool);
+    s = natsPool_CreateNamed(&pool, 0, "natsOptions");
     if (s != NATS_OK)
         return nats_setDefaultError(s);
     opts = (natsOptions*) natsPool_Alloc(pool, sizeof(natsOptions));
