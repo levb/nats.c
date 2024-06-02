@@ -16186,7 +16186,7 @@ test_IgnoreDiscoveredServers(void)
 
     test("Check server pool: ");
     natsConn_Lock(conn);
-    s = (natsSrvPool_GetSize(conn->srvPool) == 1 ? NATS_OK : NATS_ERR);
+    s = (natsServers_Count(conn->srvPool) == 1 ? NATS_OK : NATS_ERR);
     natsConn_Unlock(conn);
     testCond(s == NATS_OK);
 

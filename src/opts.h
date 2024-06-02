@@ -20,14 +20,23 @@
 
 struct __natsOptions
 {
-    // This field must be the first (see natsOptions_clone, same if you add
-    // allocated fields such as strings).
+    // All options values are allocated in this pool.
+    natsPool *pool;
+
+    // All fields that are not "simple" types must be declared before
+    // __memcpy_from_here, and should be manually added to natsOptions_Clone()
+    // and duplicated into the target opts' pool.
     char *url;
     char **servers;
     int serversCount;
+    char *name;
+    char *user;
+    char *password;
+    char *token;
+
+    uint8_t __memcpy_from_here;
     bool noRandomize;
     int64_t timeout;
-    char *name;
     bool verbose;
     bool pedantic;
     bool allowReconnect;
@@ -37,10 +46,6 @@ struct __natsOptions
     int64_t reconnectWait;
     int reconnectBufSize;
     int64_t writeDeadline;
-
-    char *user;
-    char *password;
-    char *token;
 
     bool ignoreDiscoveredServers;
 

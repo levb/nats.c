@@ -21,10 +21,10 @@ int64_t
 nats_ParseInt64(const char *d, int dLen);
 
 natsStatus
-nats_Trim(char **pres, const char *s);
+nats_Trim(char **pres, natsPool *pool, const char *s);
 
 natsStatus
-nats_ParseControl(natsString *op, natsString *arg, const uint8_t *line);
+nats_ParseControl(natsString *op, natsString *arg, uint8_t *line);
 
 natsStatus
 nats_CreateStringFromBuffer(char **newStr, natsBuffer *buf);

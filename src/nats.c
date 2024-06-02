@@ -83,7 +83,7 @@ _freeLib(void)
     const unsigned int offset = (unsigned int)offsetof(natsLib, refs);
 
     natsNUID_free();
-    natsHash_Destroy(gLib.all_services_to_callback);
+    // natsHash_Destroy(gLib.all_services_to_callback);
 
     memset((void *)(offset + (char *)&gLib), 0, sizeof(natsLib) - offset);
 }
@@ -123,8 +123,8 @@ nats_Open(void)
         s = natsCrypto_Init();
     if (s == NATS_OK)
         s = natsNUID_init();
-    if (s == NATS_OK)
-        s = natsHash_Create(&gLib.all_services_to_callback, NULL, 8);
+    // if (s == NATS_OK)
+    //     s = natsHash_Create(&gLib.all_services_to_callback, NULL, 8);
     if (s == NATS_OK)
         gLib.initialized = true;
 

@@ -1577,7 +1577,7 @@ _doReconnect(void *arg)
 
     // Note that the pool's size may decrement after the call to
     // natsSrvPool_GetNextServer.
-    for (i=0; (s == NATS_OK) && (natsSrvPool_GetSize(pool) > 0); )
+    for (i=0; (s == NATS_OK) && (natsServers_Count(pool) > 0); )
     {
         nc->cur = natsSrvPool_GetNextServer(pool, nc->opts, nc->cur);
         if (nc->cur == NULL)
@@ -1586,7 +1586,7 @@ _doReconnect(void *arg)
             break;
         }
 
-        doSleep = (i+1 >= natsSrvPool_GetSize(pool));
+        doSleep = (i+1 >= natsServers_Count(pool));
 
         if (doSleep)
         {
@@ -2040,7 +2040,7 @@ _connect(natsConnection *nc)
     for (;;)
     {
         // The pool may change inside the loop iteration due to INFO protocol.
-        for (i = 0; i < natsSrvPool_GetSize(pool); i++)
+        for (i = 0; i < natsServers_Count(pool); i++)
         {
             nc->cur = natsSrvPool_GetSrv(pool,i);
 

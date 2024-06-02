@@ -32,19 +32,19 @@
 
 static char base32DecodeMap[256];
 
-static const char *base64EncodeURL= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-static const char *base64EncodeStd= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-static char        base64Padding  = '=';
+// static const char *base64EncodeURL= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+// static const char *base64EncodeStd= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+// static char        base64Padding  = '=';
 
-static int base64Ints[] = {
-    62, -1, -1, -1, 63, 52, 53, 54, 55, 56,
-    57, 58, 59, 60, 61, -1, -1, -1, -1, -1,
-    -1, -1,  0,  1,  2,  3,  4,  5,  6,  7,
-     8,  9, 10, 11, 12, 13, 14, 15, 16, 17,
-    18, 19, 20, 21, 22, 23, 24, 25, -1, -1,
-    -1, -1, -1, -1, 26, 27, 28, 29, 30, 31,
-    32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
-    42, 43, 44, 45, 46, 47, 48, 49, 50, 51};
+// static int base64Ints[] = {
+//     62, -1, -1, -1, 63, 52, 53, 54, 55, 56,
+//     57, 58, 59, 60, 61, -1, -1, -1, -1, -1,
+//     -1, -1,  0,  1,  2,  3,  4,  5,  6,  7,
+//      8,  9, 10, 11, 12, 13, 14, 15, 16, 17,
+//     18, 19, 20, 21, 22, 23, 24, 25, -1, -1,
+//     -1, -1, -1, -1, 26, 27, 28, 29, 30, 31,
+//     32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+//     42, 43, 44, 45, 46, 47, 48, 49, 50, 51};
 
 
 // An implementation of crc16 according to CCITT standards for XMODEM.
@@ -115,7 +115,7 @@ nats_ParseInt64(const char *d, int dLen)
 }
 
 natsStatus
-nats_Trim(char **pres, const char *s)
+nats_Trim(char **pres, natsPool *pool, const char *s)
 {
     int     len    = 0;
     char    *res   = NULL;
@@ -134,7 +134,7 @@ nats_Trim(char **pres, const char *s)
     len = (int) (ptr-start) + 1;
 
     // Allocate for copy (add 1 for terminating 0)
-    res = NATS_MALLOC(len+1);
+    res = natsPool_Alloc(pool, len+1);
     if (res == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -146,57 +146,41 @@ nats_Trim(char **pres, const char *s)
 }
 
 natsStatus
-nats_ParseControl(natsString *op, natsString *arg, const uint8_t *line)
+nats_ParseControl(natsString *op, natsString *arg, uint8_t *line)
 {
-    natsStatus  s           = NATS_OK;
-    char        *tok        = NULL;
-    int         len         = 0;
+    uint8_t        *tok        = NULL;
+    size_t         len         = 0;
 
     if ((line == NULL) || (line[0] == '\0'))
         return nats_setDefaultError(NATS_PROTOCOL_ERROR);
 
-    tok = strchr(line, (int) ' ');
+    tok = nats_strchr(line, (int) ' ');
     if (tok == NULL)
     {
-        control->op = NATS_STRDUP(line);
-        if (control->op == NULL)
-            return nats_setDefaultError(NATS_NO_MEMORY);
-
+        op->data = line;
+        op->len  = nats_strlen(line);
         return NATS_OK;
     }
 
-    len = (int) (tok - line);
-    control->op = NATS_MALLOC(len + 1);
-    if (control->op == NULL)
-    {
-        s = nats_setDefaultError(NATS_NO_MEMORY);
-    }
-    else
-    {
-        memcpy(control->op, line, len);
-        control->op[len] = '\0';
-    }
+    len = tok - line;
+    op->data = line;
+    op->len  = len;
 
-    if (s == NATS_OK)
+    // Discard all spaces and the like in between the next token
+    while ((tok[0] != '\0')
+            && ((tok[0] == ' ')
+                || (tok[0] == '\r')
+                || (tok[0] == '\n')
+                || (tok[0] == '\t')))
     {
-        // Discard all spaces and the like in between the next token
-        while ((tok[0] != '\0')
-               && ((tok[0] == ' ')
-                   || (tok[0] == '\r')
-                   || (tok[0] == '\n')
-                   || (tok[0] == '\t')))
-        {
-            tok++;
-        }
+        tok++;
     }
 
     // If there is a token...
     if (tok[0] != '\0')
     {
-        char *tmp;
-
-        len = (int) strlen(tok);
-        tmp = &(tok[len - 1]);
+        len = nats_strlen(tok);
+        uint8_t *tmp = tok + len - 1;
 
         // Remove trailing spaces and the like.
         while ((tmp[0] != '\0')
@@ -210,51 +194,33 @@ nats_ParseControl(natsString *op, natsString *arg, const uint8_t *line)
         }
 
         // We are sure that len is > 0 because of the first while() loop.
-
-        control->args = NATS_MALLOC(len + 1);
-        if (control->args == NULL)
-        {
-            s = nats_setDefaultError(NATS_NO_MEMORY);
-        }
-        else
-        {
-            memcpy(control->args, tok, len);
-            control->args[len] = '\0';
-        }
+        arg->data = tok;
+        arg->len  = len;
     }
-
-    if (s != NATS_OK)
-    {
-        NATS_FREE(control->op);
-        control->op = NULL;
-
-        NATS_FREE(control->args);
-        control->args = NULL;
-    }
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-natsStatus
-nats_CreateStringFromBuffer(char **newStr, natsBuffer *buf)
-{
-    char    *str = NULL;
-    int     len  = 0;
-
-    if ((buf == NULL) || ((len = natsBuf_Len(buf)) == 0))
-        return NATS_OK;
-
-    str = NATS_MALLOC(len + 1);
-    if (str == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
-
-    memcpy(str, natsBuf_Data(buf), len);
-    str[len] = '\0';
-
-    *newStr = str;
 
     return NATS_OK;
 }
+
+// natsStatus
+// nats_CreateStringFromBuffer(char **newStr, natsBuffer *buf)
+// {
+//     char    *str = NULL;
+//     int     len  = 0;
+
+//     if ((buf == NULL) || ((len = natsBuf_Len(buf)) == 0))
+//         return NATS_OK;
+
+//     str = NATS_MALLOC(len + 1);
+//     if (str == NULL)
+//         return nats_setDefaultError(NATS_NO_MEMORY);
+
+//     memcpy(str, natsBuf_Data(buf), len);
+//     str[len] = '\0';
+
+//     *newStr = str;
+
+//     return NATS_OK;
+// }
 
 void
 nats_Sleep(int64_t millisec)
@@ -542,176 +508,176 @@ nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen)
     return NATS_OK;
 }
 
-static natsStatus
-_base64Encode(const char *map, bool padding, const unsigned char *src, int srcLen, char **pDest)
-{
-    char        *dst   = NULL;
-    int         dstLen = 0;
-    int         n;
-    int         di = 0;
-    int         si = 0;
-    int         remain = 0;
-    uint32_t    val = 0;
+// static natsStatus
+// _base64Encode(const char *map, bool padding, const unsigned char *src, int srcLen, char **pDest)
+// {
+//     char        *dst   = NULL;
+//     int         dstLen = 0;
+//     int         n;
+//     int         di = 0;
+//     int         si = 0;
+//     int         remain = 0;
+//     uint32_t    val = 0;
 
-    *pDest = NULL;
+//     *pDest = NULL;
 
-    if ((src == NULL) || (srcLen == 0))
-        return NATS_OK;
+//     if ((src == NULL) || (srcLen == 0))
+//         return NATS_OK;
 
-    n = srcLen;
-    if (padding)
-        dstLen = (n + 2) / 3 * 4;
-    else
-        dstLen = (n * 8 + 5) / 6;
-    dst = NATS_CALLOC(1, dstLen + 1);
-    if (dst == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
+//     n = srcLen;
+//     if (padding)
+//         dstLen = (n + 2) / 3 * 4;
+//     else
+//         dstLen = (n * 8 + 5) / 6;
+//     dst = NATS_CALLOC(1, dstLen + 1);
+//     if (dst == NULL)
+//         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    n = ((srcLen / 3) * 3);
-    for (si = 0; si < n; )
-    {
-        // Convert 3x 8bit source bytes into 4 bytes
-        val = (uint32_t)(src[si+0])<<16 | (uint32_t)(src[si+1])<<8 | (uint32_t)(src[si+2]);
+//     n = ((srcLen / 3) * 3);
+//     for (si = 0; si < n; )
+//     {
+//         // Convert 3x 8bit source bytes into 4 bytes
+//         val = (uint32_t)(src[si+0])<<16 | (uint32_t)(src[si+1])<<8 | (uint32_t)(src[si+2]);
 
-        dst[di+0] = map[val >> 18 & 0x3F];
-        dst[di+1] = map[val >> 12 & 0x3F];
-        dst[di+2] = map[val >>  6 & 0x3F];
-        dst[di+3] = map[val       & 0x3F];
+//         dst[di+0] = map[val >> 18 & 0x3F];
+//         dst[di+1] = map[val >> 12 & 0x3F];
+//         dst[di+2] = map[val >>  6 & 0x3F];
+//         dst[di+3] = map[val       & 0x3F];
 
-        si += 3;
-        di += 4;
-    }
+//         si += 3;
+//         di += 4;
+//     }
 
-    remain = srcLen - si;
-    if (remain == 0)
-    {
-        *pDest = dst;
-        return NATS_OK;
-    }
+//     remain = srcLen - si;
+//     if (remain == 0)
+//     {
+//         *pDest = dst;
+//         return NATS_OK;
+//     }
 
-    // Add the remaining small block
-    val = (uint32_t)src[si+0] << 16;
-    if (remain == 2)
-        val |= (uint32_t)src[si+1] << 8;
+//     // Add the remaining small block
+//     val = (uint32_t)src[si+0] << 16;
+//     if (remain == 2)
+//         val |= (uint32_t)src[si+1] << 8;
 
-    dst[di+0] = map[val >> 18 & 0x3F];
-    dst[di+1] = map[val >> 12 & 0x3F];
+//     dst[di+0] = map[val >> 18 & 0x3F];
+//     dst[di+1] = map[val >> 12 & 0x3F];
 
-    if (remain == 2)
-    {
-        dst[di+2] = map[val >> 6 & 0x3F];
-        if (padding)
-            dst[di+3] = base64Padding;
-    }
-    else if (padding && (remain == 1))
-    {
-        dst[di+2] = base64Padding;
-        dst[di+3] = base64Padding;
-    }
+//     if (remain == 2)
+//     {
+//         dst[di+2] = map[val >> 6 & 0x3F];
+//         if (padding)
+//             dst[di+3] = base64Padding;
+//     }
+//     else if (padding && (remain == 1))
+//     {
+//         dst[di+2] = base64Padding;
+//         dst[di+3] = base64Padding;
+//     }
 
-    *pDest = dst;
+//     *pDest = dst;
 
-    return NATS_OK;
-}
+//     return NATS_OK;
+// }
 
-natsStatus
-nats_Base64RawURL_EncodeString(const unsigned char *src, int srcLen, char **pDest)
-{
-    natsStatus s = _base64Encode(base64EncodeURL, false, src, srcLen, pDest);
-    return NATS_UPDATE_ERR_STACK(s);
-}
+// natsStatus
+// nats_Base64RawURL_EncodeString(const unsigned char *src, int srcLen, char **pDest)
+// {
+//     natsStatus s = _base64Encode(base64EncodeURL, false, src, srcLen, pDest);
+//     return NATS_UPDATE_ERR_STACK(s);
+// }
 
-natsStatus
-nats_Base64_Encode(const unsigned char *src, int srcLen, char **pDest)
-{
-    natsStatus s = _base64Encode(base64EncodeStd, true, src, srcLen, pDest);
-    return NATS_UPDATE_ERR_STACK(s);
-}
+// natsStatus
+// nats_Base64_Encode(const unsigned char *src, int srcLen, char **pDest)
+// {
+//     natsStatus s = _base64Encode(base64EncodeStd, true, src, srcLen, pDest);
+//     return NATS_UPDATE_ERR_STACK(s);
+// }
 
-static bool
-_base64IsValidChar(char c, bool paddingOk)
-{
-    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-        || (c >= '0' && c <= '9') || c == '+' || c == '/')
-    {
-        return true;
-    }
-    if (c == base64Padding && paddingOk)
-        return true;
-    return false;
-}
+// static bool
+// _base64IsValidChar(char c, bool paddingOk)
+// {
+//     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+//         || (c >= '0' && c <= '9') || c == '+' || c == '/')
+//     {
+//         return true;
+//     }
+//     if (c == base64Padding && paddingOk)
+//         return true;
+//     return false;
+// }
 
-natsStatus
-nats_Base64_DecodeLen(const char *src, int *srcLen, int *dstLen)
-{
-    int l;
-    int dl;
-    int i;
+// natsStatus
+// nats_Base64_DecodeLen(const char *src, int *srcLen, int *dstLen)
+// {
+//     int l;
+//     int dl;
+//     int i;
 
-    if (nats_isStringEmpty(src))
-        return nats_setError(NATS_INVALID_ARG, "%s", "base64 content cannot be empty");
+//     if (nats_isStringEmpty(src))
+//         return nats_setError(NATS_INVALID_ARG, "%s", "base64 content cannot be empty");
 
-    l = (int) strlen(src);
-    if (l % 4 != 0)
-        return nats_setError(NATS_INVALID_ARG, "invalid base64 length: %d", l);
+//     l = (int) strlen(src);
+//     if (l % 4 != 0)
+//         return nats_setError(NATS_INVALID_ARG, "invalid base64 length: %d", l);
 
-    dl = l / 4 * 3;
-    for (i=0; i<l; i++)
-    {
-        if (!_base64IsValidChar(src[i], i>=l-2))
-            return nats_setError(NATS_INVALID_ARG, "invalid base64 character: '%c'", src[i]);
+//     dl = l / 4 * 3;
+//     for (i=0; i<l; i++)
+//     {
+//         if (!_base64IsValidChar(src[i], i>=l-2))
+//             return nats_setError(NATS_INVALID_ARG, "invalid base64 character: '%c'", src[i]);
 
-        if (src[i] == base64Padding)
-            dl--;
-    }
+//         if (src[i] == base64Padding)
+//             dl--;
+//     }
 
-    *srcLen = l;
-    *dstLen = dl;
-    return NATS_OK;
-}
+//     *srcLen = l;
+//     *dstLen = dl;
+//     return NATS_OK;
+// }
 
-void
-nats_Base64_DecodeInPlace(const char *src, int l, unsigned char *dst)
-{
-    int i, j, v;
+// void
+// nats_Base64_DecodeInPlace(const char *src, int l, unsigned char *dst)
+// {
+//     int i, j, v;
 
-    for (i=0, j=0; i<l; i+=4, j+=3)
-    {
-        v = base64Ints[src[i]-43];
-        v = (v << 6) | base64Ints[src[i+1]-43];
-        v = (src[i+2] == base64Padding ? v << 6 : (v << 6) | base64Ints[src[i+2]-43]);
-        v = (src[i+3] == base64Padding ? v << 6 : (v << 6) | base64Ints[src[i+3]-43]);
+//     for (i=0, j=0; i<l; i+=4, j+=3)
+//     {
+//         v = base64Ints[src[i]-43];
+//         v = (v << 6) | base64Ints[src[i+1]-43];
+//         v = (src[i+2] == base64Padding ? v << 6 : (v << 6) | base64Ints[src[i+2]-43]);
+//         v = (src[i+3] == base64Padding ? v << 6 : (v << 6) | base64Ints[src[i+3]-43]);
 
-        dst[j] = (v >> 16) & 0xFF;
-        if (src[i+2] != base64Padding)
-            dst[j+1] = (v >> 8) & 0xFF;
-        if (src[i+3] != base64Padding)
-            dst[j+2] = v & 0xFF;
-    }
-}
+//         dst[j] = (v >> 16) & 0xFF;
+//         if (src[i+2] != base64Padding)
+//             dst[j+1] = (v >> 8) & 0xFF;
+//         if (src[i+3] != base64Padding)
+//             dst[j+2] = v & 0xFF;
+//     }
+// }
 
-natsStatus
-nats_Base64_Decode(const char *src, unsigned char **dst, int *dstLen)
-{
-    natsStatus  s;
-    int         sl = 0;
+// natsStatus
+// nats_Base64_Decode(const char *src, unsigned char **dst, int *dstLen)
+// {
+//     natsStatus  s;
+//     int         sl = 0;
 
-    *dst = NULL;
-    *dstLen = 0;
+//     *dst = NULL;
+//     *dstLen = 0;
 
-    s = nats_Base64_DecodeLen(src, &sl, dstLen);
-    if (s == NATS_OK)
-    {
-        *dst = (unsigned char*) NATS_MALLOC(*dstLen);
-        if (*dst == NULL)
-        {
-            *dstLen = 0;
-            return nats_setDefaultError(NATS_NO_MEMORY);
-        }
-        nats_Base64_DecodeInPlace(src, sl, *dst);
-    }
-    return NATS_UPDATE_ERR_STACK(s);
-}
+//     s = nats_Base64_DecodeLen(src, &sl, dstLen);
+//     if (s == NATS_OK)
+//     {
+//         *dst = (unsigned char*) NATS_MALLOC(*dstLen);
+//         if (*dst == NULL)
+//         {
+//             *dstLen = 0;
+//             return nats_setDefaultError(NATS_NO_MEMORY);
+//         }
+//         nats_Base64_DecodeInPlace(src, sl, *dst);
+//     }
+//     return NATS_UPDATE_ERR_STACK(s);
+// }
 
 // Returns the 2-byte crc for the data provided.
 uint16_t
@@ -734,60 +700,60 @@ nats_CRC16_Validate(unsigned char *data, int len, uint16_t expected)
     return crc == expected;
 }
 
-natsStatus
-nats_ReadFile(natsBuffer **buffer, int initBufSize, const char *fn)
-{
-    natsStatus  s;
-    FILE        *f      = NULL;
-    natsBuffer  *buf    = NULL;
-    uint8_t     *ptr    = NULL;
-    int         total   = 0;
+// natsStatus
+// nats_ReadFile(natsBuffer **buffer, int initBufSize, const char *fn)
+// {
+//     natsStatus  s;
+//     FILE        *f      = NULL;
+//     natsBuffer  *buf    = NULL;
+//     uint8_t     *ptr    = NULL;
+//     int         total   = 0;
 
-    if ((initBufSize <= 0) || nats_isStringEmpty(fn))
-        return nats_setDefaultError(NATS_INVALID_ARG);
+//     if ((initBufSize <= 0) || nats_isStringEmpty(fn))
+//         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    f = fopen(fn, "r");
-    if (f == NULL)
-        return nats_setError(NATS_ERR, "error opening file '%s': %s", fn, strerror(errno));
+//     f = fopen(fn, "r");
+//     if (f == NULL)
+//         return nats_setError(NATS_ERR, "error opening file '%s': %s", fn, strerror(errno));
 
-    s = natsBuf_CreateCalloc(&buf, initBufSize);
-    if (s == NATS_OK)
-        ptr = natsBuf_Data(buf);
-    while (s == NATS_OK)
-    {
-        int r = (int) fread(ptr, 1, natsBuf_Available(buf), f);
-        if (r == 0)
-            break;
+//     s = natsBuf_Create(&buf, initBufSize);
+//     if (s == NATS_OK)
+//         ptr = natsBuf_Data(buf);
+//     while (s == NATS_OK)
+//     {
+//         int r = (int) fread(ptr, 1, natsBuf_Available(buf), f);
+//         if (r == 0)
+//             break;
 
-        total += r;
-        natsBuf_MoveTo(buf, total);
-        if (natsBuf_Available(buf) == 0)
-            s = natsBuf_Expand(buf, natsBuf_Capacity(buf)*2);
-        if (s == NATS_OK)
-            ptr = natsBuf_Data(buf) + total;
-    }
+//         total += r;
+//         natsBuf_MoveTo(buf, total);
+//         if (natsBuf_Available(buf) == 0)
+//             s = natsBuf_Expand(buf, natsBuf_Capacity(buf)*2);
+//         if (s == NATS_OK)
+//             ptr = natsBuf_Data(buf) + total;
+//     }
 
-    // Close file. If there was an error, do not report possible closing error
-    // as the actual error
-    if (s != NATS_OK)
-        fclose(f);
-    else if (fclose(f) != 0)
-        s = nats_setError(NATS_ERR, "error closing file '%s': '%s", fn, strerror(errno));
+//     // Close file. If there was an error, do not report possible closing error
+//     // as the actual error
+//     if (s != NATS_OK)
+//         fclose(f);
+//     else if (fclose(f) != 0)
+//         s = nats_setError(NATS_ERR, "error closing file '%s': '%s", fn, strerror(errno));
 
-    IFOK(s, natsBuf_AppendByte(buf, '\0'));
+//     IFOK(s, natsBuf_AppendByte(buf, '\0'));
 
-    if (s == NATS_OK)
-    {
-        *buffer = buf;
-    }
-    else if (buf != NULL)
-    {
-        memset(natsBuf_Data(buf), 0, natsBuf_Capacity(buf));
-        natsBuf_Destroy(buf);
-    }
+//     if (s == NATS_OK)
+//     {
+//         *buffer = buf;
+//     }
+//     else if (buf != NULL)
+//     {
+//         memset(natsBuf_Data(buf), 0, natsBuf_Capacity(buf));
+//         natsBuf_Destroy(buf);
+//     }
 
-    return NATS_UPDATE_ERR_STACK(s);
-}
+//     return NATS_UPDATE_ERR_STACK(s);
+// }
 
 void
 nats_FreeAddrInfo(struct addrinfo *res)
@@ -887,7 +853,7 @@ nats_GetJWTOrSeed(char **val, const char *content, int item)
 
     // First, make a copy of the original content since
     // we are going to call strtok on it, which alters it.
-    str = NATS_STRDUP(content);
+    str = natsHeap_Strdup(content);
     if (str == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -925,7 +891,7 @@ nats_GetJWTOrSeed(char **val, const char *content, int item)
                 if (curItem == item)
                 {
                     // Return a copy of the saved line
-                    *val = NATS_STRDUP(saved);
+                    *val = natsHeap_Strdup(saved);
                     if (*val == NULL)
                         s = nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -941,7 +907,7 @@ nats_GetJWTOrSeed(char **val, const char *content, int item)
     }
 
     memset(str, 0, orgLen);
-    NATS_FREE(str);
+    natsHeap_Free(str);
 
     // Nothing was found, return NATS_NOT_FOUND but don't set the stack error.
     if ((s == NATS_OK) && (*val == NULL))
@@ -1007,57 +973,57 @@ bool nats_IsSubjectValid(const char *subject, bool wcAllowed)
 // allocates a sufficiently large buffer and formats the strings into it, as a
 // ["unencoded-string-0","unencoded-string-1",...]. For an empty array of
 // strings returns "[]".
-natsStatus nats_formatStringArray(char **out, const char **strings, int count)
-{
-    natsStatus s = NATS_OK;
-    natsBuffer buf;
-    int len = 0;
-    int  i;
+// natsStatus nats_formatStringArray(char **out, const char **strings, int count)
+// {
+//     natsStatus s = NATS_OK;
+//     natsBuffer buf;
+//     int len = 0;
+//     int  i;
 
-    len++; // For the '['
-    for (i = 0; i < count; i++)
-    {
-        len += 2; // For the quotes
-        if (i > 0)
-            len++; // For the ','
-        if (strings[i] == NULL)
-            len += strlen("(null)");
-        else
-            len += strlen(strings[i]);
-    }
-    len++; // For the ']'
-    len++; // For the '\0'
+//     len++; // For the '['
+//     for (i = 0; i < count; i++)
+//     {
+//         len += 2; // For the quotes
+//         if (i > 0)
+//             len++; // For the ','
+//         if (strings[i] == NULL)
+//             len += strlen("(null)");
+//         else
+//             len += strlen(strings[i]);
+//     }
+//     len++; // For the ']'
+//     len++; // For the '\0'
 
-    s = natsBuf_InitCalloc(&buf, len);
+//     s = natsBuf_InitCalloc(&buf, len);
 
-    natsBuf_AppendByte(&buf, '[');
-    for (i = 0; (s == NATS_OK) && (i < count); i++)
-    {
-        if (i > 0)
-        {
-            IFOK(s, natsBuf_AppendByte(&buf, ','));
-        }
-        IFOK(s, natsBuf_AppendByte(&buf, '"'));
-        if (strings[i] == NULL)
-        {
-            IFOK(s, natsBuf_AppendString(&buf, "(null)"));
-        }
-        else
-        {
-            IFOK(s, natsBuf_AppendString(&buf, strings[i]));
-        }
-        IFOK(s, natsBuf_AppendByte(&buf, '"'));
-    }
+//     natsBuf_AppendByte(&buf, '[');
+//     for (i = 0; (s == NATS_OK) && (i < count); i++)
+//     {
+//         if (i > 0)
+//         {
+//             IFOK(s, natsBuf_AppendByte(&buf, ','));
+//         }
+//         IFOK(s, natsBuf_AppendByte(&buf, '"'));
+//         if (strings[i] == NULL)
+//         {
+//             IFOK(s, natsBuf_AppendString(&buf, "(null)"));
+//         }
+//         else
+//         {
+//             IFOK(s, natsBuf_AppendString(&buf, strings[i]));
+//         }
+//         IFOK(s, natsBuf_AppendByte(&buf, '"'));
+//     }
 
-    IFOK(s, natsBuf_AppendByte(&buf, ']'));
-    IFOK(s, natsBuf_AppendByte(&buf, '\0'));
+//     IFOK(s, natsBuf_AppendByte(&buf, ']'));
+//     IFOK(s, natsBuf_AppendByte(&buf, '\0'));
     
-    if (s != NATS_OK)
-    {
-        natsBuf_Destroy(&buf);
-        return s;
-    }
+//     if (s != NATS_OK)
+//     {
+//         natsBuf_Destroy(&buf);
+//         return s;
+//     }
 
-    *out = (char*)natsBuf_Data(&buf);
-    return NATS_OK;
-}
+//     *out = (char*)natsBuf_Data(&buf);
+//     return NATS_OK;
+// }

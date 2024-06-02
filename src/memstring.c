@@ -19,7 +19,7 @@ void
 nats_strlow(uint8_t *dst, uint8_t *src, size_t n)
 {
     while (n) {
-        *dst = nats_ToLower(*src);
+        *dst = nats_toLower(*src);
         dst++;
         src++;
         n--;

@@ -209,7 +209,7 @@ natsStrHash_Set(natsStrHash *hash, char *key, void *data)
 }
 
 void *
-natsStrHash_GetEx(natsStrHash *hash, char *key, int keyLen)
+natsStrHash_Get(natsStrHash *hash, char *key, int keyLen)
 {
     natsStrHashEntry *e;
     uint32_t hk = natsStrHash_Hash(key, keyLen);

@@ -129,16 +129,17 @@ struct __natsServerInfo
 struct __natsConnection
 {
     natsOptions *opts;
-    natsSrv *cur;
+    natsServer *cur;
 
     int refs;
 
     natsSockCtx sockCtx;
 
-    natsSrvPool *srvPool;
+    natsServers *servers;
 
     // pool exists (and grows) for the lifetime of connection.
-    natsPool *pool;
+    natsPool *lifetimePool;
+    natsPool *connectPool;
 
     natsBuffer *scratch;
 
@@ -146,7 +147,6 @@ struct __natsConnection
     natsChain *out;
     natsChain *in;
 
-    natsPool *infoPool;
     natsServerInfo *info;
 
     int64_t ssid;

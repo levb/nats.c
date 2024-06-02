@@ -29,32 +29,12 @@ natsOptions_SetURL(natsOptions *opts, const char* url)
     CHECK_OPTIONS(opts, 0);
 
     if (opts->url != NULL)
-    {
-        NATS_FREE(opts->url);
         opts->url = NULL;
-    }
 
     if (url != NULL)
-        s = nats_Trim(&(opts->url), url);
+        s = nats_Trim(&(opts->url), opts->pool, url);
 
     return NATS_UPDATE_ERR_STACK(s);
-}
-
-static void
-_freeServers(natsOptions *opts)
-{
-    int i;
-
-    if ((opts->servers == NULL) || (opts->serversCount == 0))
-        return;
-
-    for (i = 0; i < opts->serversCount; i++)
-        NATS_FREE(opts->servers[i]);
-
-    NATS_FREE(opts->servers);
-
-    opts->servers       = NULL;
-    opts->serversCount  = 0;
 }
 
 natsStatus
@@ -67,24 +47,19 @@ natsOptions_SetServers(natsOptions *opts, const char** servers, int serversCount
                            (((servers != NULL) && (serversCount <= 0))
                             || ((servers == NULL) && (serversCount != 0))));
 
-    _freeServers(opts);
-
     if (servers != NULL)
     {
-        opts->servers = (char**) NATS_CALLOC(serversCount, sizeof(char*));
+        opts->servers = (char**) natsPool_Alloc(opts->pool, serversCount * sizeof(char*));
         if (opts->servers == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
 
         for (i = 0; (s == NATS_OK) && (i < serversCount); i++)
         {
-            s = nats_Trim(&(opts->servers[i]), servers[i]);
+            s = nats_Trim(&(opts->servers[i]), opts->pool, servers[i]);
             if (s == NATS_OK)
                 opts->serversCount++;
         }
     }
-
-    if (s != NATS_OK)
-        _freeServers(opts);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -119,11 +94,10 @@ natsOptions_SetName(natsOptions *opts, const char *name)
 
     CHECK_OPTIONS(opts, 0);
 
-    NATS_FREE(opts->name);
     opts->name = NULL;
     if (name != NULL)
     {
-        opts->name = NATS_STRDUP(name);
+        opts->name = natsPool_StrdupC(opts->pool, name);
         if (opts->name == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
@@ -138,19 +112,17 @@ natsOptions_SetUserInfo(natsOptions *opts, const char *user, const char *passwor
 
     CHECK_OPTIONS(opts, 0);
 
-    NATS_FREE(opts->user);
     opts->user= NULL;
-    NATS_FREE(opts->password);
     opts->password = NULL;
     if (user != NULL)
     {
-        opts->user = NATS_STRDUP(user);
+        opts->user = natsPool_StrdupC(opts->pool, user);
         if (opts->user== NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
     if ((s == NATS_OK) && (password != NULL))
     {
-        opts->password = NATS_STRDUP(password);
+        opts->password = natsPool_StrdupC(opts->pool, password);
         if (opts->password == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
@@ -1378,18 +1350,7 @@ _freeOptions(natsOptions *opts)
     if (opts == NULL)
         return;
 
-    NATS_FREE(opts->url);
-    NATS_FREE(opts->name);
-    _freeServers(opts);
-    NATS_FREE(opts->user);
-    NATS_FREE(opts->password);
-    NATS_FREE(opts->token);
-    // NATS_FREE(opts->nkey);
-    // natsSSLCtx_release(opts->sslCtx);
-    // _freeUserCreds(opts->userCreds);
-    // NATS_FREE(opts->inboxPfx);
-    // natsMutex_Destroy(opts->mu);
-    NATS_FREE(opts);
+    natsPool_Destroy(opts->pool);
 }
 
 natsStatus
@@ -1397,15 +1358,20 @@ natsOptions_Create(natsOptions **newOpts)
 {
     natsStatus  s;
     natsOptions *opts = NULL;
+    natsPool    *pool = NULL;
 
     // Ensure the library is loaded
     s = nats_Open();
     if (s != NATS_OK)
         return s;
 
-    opts = (natsOptions*) NATS_CALLOC(1, sizeof(natsOptions));
+    s = natsPool_Create(&pool);
+    if (s != NATS_OK)
+        return nats_setDefaultError(s);
+    opts = (natsOptions*) natsPool_Alloc(pool, sizeof(natsOptions));
     if (opts == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
+    opts->pool = pool;
 
     opts->allowReconnect        = true;
     opts->secure                = false;

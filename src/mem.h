@@ -45,7 +45,10 @@
 #define HAVE_EXPLICIT_MEMSET 1
 #endif
 
-#define NATS_DEFAULT_NEW_CHUNK_SIZE 4096
+
+void nats_setMemPageSize(size_t size); // for testing
+size_t nats_memPageSize(void);
+#define NATS_DEFAULT_MEM_PAGE_SIZE 2048
 
 struct __natsString_s
 {
@@ -118,10 +121,8 @@ struct __natsBuffer_s
     size_t cap;
     size_t len;
 
-    bool freeData;
-    bool freeSelf;
-
     natsPool *pool;
+    natsPool *poolToDestroy;
     natsChunk *small;
     natsLarge *large;
 };
@@ -208,7 +209,7 @@ static inline bool natsString_Equal(natsString *str1, natsString *str2)
            (strncmp((const char *)str1->data, (const char *)str2->data, str1->len) == 0);
 }
 
-static inline bool natsString_EqualZ(natsString *str1, const char *lit)
+static inline bool natsString_EqualC(natsString *str1, const char *lit)
 {
     if ((str1 == NULL) && (lit == NULL))
         return true;
@@ -231,7 +232,7 @@ static inline bool natsString_IsEmpty(natsString *str)
 
 #define _first_chunk(_chain) ((natsChunk *)((uint8_t *)(_chain) + sizeof(natsChain)));
 #define _chunk_cap(_chain) ((_chain)->chunkSize - sizeof(natsChunk))
-#define _chunk_remaining_cap(_chain) ((_chain)->chunkSize - sizeof(natsChunk) - chunk->len)
+#define _chunk_remaining_cap(_chain,_chunk) ((_chain)->chunkSize - sizeof(natsChunk) - (_chunk)->len)
 #define _chunk_mem_ptr(_chunk) ((uint8_t *)(_chunk) + sizeof(natsChunk) + chunk->len)
 
 natsStatus natsChain_Create(natsChain **newChain, size_t chunkSize);
@@ -253,11 +254,23 @@ static inline natsStatus natsPool_AllocS(void **newMem, natsPool *pool, size_t s
 
 void natsPool_Destroy(natsPool *pool);
 
-char *natsPool_Strdup(natsPool *pool, const uint8_t *str);
+static inline uint8_t *natsPool_Strdup(natsPool *pool, const uint8_t *str) 
+{
+    size_t len = strlen((const char *)str) + 1;
+    uint8_t *dup = natsPool_Alloc(pool, len);
+    if (dup != NULL)
+        memcpy(dup, str, len);
+    return dup;
+}
+
+static inline char *natsPool_StrdupC(natsPool *pool, const char *str) 
+{
+    return (char *)natsPool_Strdup(pool, (const uint8_t *)str);
+}
 
 #define DUP_STRING_POOL(s, pool, s1, s2)                \
     {                                                   \
-        (s1) = natsPool_Strdup((pool), (s2));           \
+        (s1) = natsPool_StrdupC((pool), (s2));           \
         if ((s1) == NULL)                               \
             (s) = nats_setDefaultError(NATS_NO_MEMORY); \
     }
@@ -270,79 +283,39 @@ char *natsPool_Strdup(natsPool *pool, const uint8_t *str);
 // natsBuffer functions.
 //
 
-#define NATS_DEFAULT_BUFFER_SIZE 256
-
 #define natsBuf_Data(b) ((b)->data)
 #define natsBuf_Capacity(b) ((b)->cap)
 #define natsBuf_Len(b) ((b)->len)
 #define natsBuf_Available(b) ((b)->cap - (b)->len)
-#define natsBuf_MoveTo(b, pos) (b)->len = pos;
 
-// Initializes an caller-allocated natsBuffer using 'data' as the back-end byte
-// array. natsBuf_Destroy will not free 'data', it is the responsibility of the
-// caller. natsBuf_Expand() may calloc a new underlying array if needed and that
-// array will be freed in natsBuf_Destroy.
-//
-// One would use this call to initialize a natsBuffer without the added cost of
-// allocating memory for the natsBuffer structure itself, for instance
-// initializing an natsBuffer on the stack.
-natsStatus
-natsBuf_InitWith(natsBuffer *buf, uint8_t *data, size_t len, size_t cap);
-
-// Initializes an caller-allocated natsBuffer with a new backend using calloc.
-natsStatus
-natsBuf_InitCalloc(natsBuffer *buf, size_t cap);
-
-// Allocates a new natsBuffer using calloc.
-natsStatus
-natsBuf_CreateCalloc(natsBuffer **newBuf, size_t cap);
+    //
+    // Allocates a new natsBuffer using calloc.
+    natsStatus
+    natsBuf_Create(natsBuffer **newBuf, size_t cap);
 
 // Allocates a new natsBuffer using palloc.
 natsStatus
-natsBuf_CreatePool(natsBuffer **newBuf, natsPool *pool, size_t cap);
+natsBuf_CreateInPool(natsBuffer **newBuf, natsPool *pool, size_t cap);
 
 // Resets the buffer length to 0.
 natsStatus natsBuf_Reset(natsBuffer *buf);
 
-// Expands 'buf' underlying buffer to the given new size 'newSize'.
-//
-// If 'buf' did not own the underlying buffer, a new buffer is
-// created and data copied over. The original data is now detached.
-// The underlying buffer is now owned by 'buf' and will be freed when
-// the natsBuffer is destroyed, if needed.
-//
-// When 'buf' owns the underlying buffer and it is expanded, a memory
-// reallocation of the buffer occurs to satisfy the new size requirement.
-//
-// Note that one should not save the returned value of natsBuf_Data() and
-// use it after any call to natsBuf_Expand/Append/AppendByte() since
-// the memory address for the underlying byte buffer may have changed due
-// to the buffer expansion.
 natsStatus
-natsBuf_Expand(natsBuffer *buf, size_t newSize);
+natsBuf_AppendBytes(natsBuffer *buf, const uint8_t *data, size_t dataLen);
 
-// Appends 'dataLen' bytes from the 'data' byte array to the buffer,
-// potentially expanding the buffer.
-// See natsBuf_Expand for details about natsBuffer not owning the data.
-natsStatus
-natsBuf_Append(natsBuffer *buf, const uint8_t *data, size_t dataLen);
-
-// Appends a byte to the buffer, potentially expanding the buffer.
-// See natsBuf_Expand for details about natsBuffer not owning the data.
 natsStatus
 natsBuf_AppendByte(natsBuffer *buf, uint8_t b);
 
-natsStatus
+void
 natsBuf_Destroy(natsBuffer *buf);
 
 static inline natsStatus
 natsBuf_AppendString(natsBuffer *buf, const char *str)
 {
-    return natsBuf_Append(buf, (const uint8_t *)str, -1);
+    if (str == NULL)
+        return NATS_OK;
+    return natsBuf_AppendBytes(buf, (const uint8_t *)str, strlen(str));
 }
-
-natsStatus
-natsPool_ExpandBuffer(natsBuffer *buf, size_t capacity);
 
 natsStatus
 natsBuf_Reset(natsBuffer *buf);

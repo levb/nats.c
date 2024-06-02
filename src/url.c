@@ -18,17 +18,11 @@
 #include "url.h"
 #include "err.h"
 
-void
-natsUrl_Destroy(natsUrl *url)
+bool natsUrl_IsLocalhost(natsUrl *url)
 {
-    if (url == NULL)
-        return;
-
-    NATS_FREE(url->fullUrl);
-    NATS_FREE(url->host);
-    NATS_FREE(url->username);
-    NATS_FREE(url->password);
-    NATS_FREE(url);
+    return ((strcasecmp(url->host, "localhost") == 0) ||
+            (strcasecmp(url->host, "127.0.0.1") == 0) ||
+            (strcasecmp(url->host, "::1") == 0));
 }
 
 static natsStatus
@@ -63,8 +57,8 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
     if (nats_isStringEmpty(urlStr))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    s = natsPool_AllocS(&url, sizeof(natsUrl));
-    IFOK(s, nats_Trim(&copy, urlStr));
+    s = natsPool_AllocS((void **)&url, pool, sizeof(natsUrl));
+    IFOK(s, nats_Trim(&copy, pool, urlStr));
 
     // Scheme
     if (s == NATS_OK)
@@ -174,12 +168,8 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
         }
     }
 
-    NATS_FREE(copy);
-
     if (s == NATS_OK)
         *newUrl = url;
-    else
-        natsUrl_Destroy(url);
 
     return NATS_UPDATE_ERR_STACK(s);
 }

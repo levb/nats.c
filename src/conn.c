@@ -18,7 +18,7 @@
 #include "parser.h"
 #include "err.h"
 #include "url.h"
-#include "srvpool.h"
+#include "servers.h"
 #include "opts.h"
 #include "util.h"
 #include "json.h"
@@ -160,7 +160,7 @@ _connect(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
     natsStatus retSts = NATS_OK;
-    natsSrvPool *srvPool = nc->srvPool;
+    natsServers *servers = nc->servers;
     int i = 0;
     int l = 0;
     int max = 0;
@@ -177,9 +177,9 @@ _connect(natsConnection *nc)
     for (;;)
     {
         // The pool may change inside the loop iteration due to INFO protocol.
-        for (i = 0; i < natsSrvPool_GetSize(srvPool); i++)
+        for (i = 0; i < natsServers_Count(servers); i++)
         {
-            nc->cur = natsSrvPool_GetSrv(srvPool, i);
+            nc->cur = natsServers_Get(servers, i);
             printf("<>/<> connecting to %s\n", nc->cur->url->fullUrl);
 
             s = _createConn(nc);
@@ -191,8 +191,8 @@ _connect(natsConnection *nc)
                 if (s == NATS_OK)
                 {
                     nc->cur->lastAuthErrCode = 0;
-                    natsSrvPool_SetSrvDidConnect(srvPool, i, true);
-                    natsSrvPool_SetSrvReconnects(srvPool, i, 0);
+                    natsServers_SetSrvDidConnect(servers, i, true);
+                    natsServers_SetSrvReconnects(servers, i, 0);
                     retSts = NATS_OK;
                     retry = false;
                     break;
@@ -249,7 +249,7 @@ _createConn(natsConnection *nc)
     // Set ctx.noRandomize based on public NoRandomize option.
     nc->sockCtx.noRandomize = nc->opts->noRandomize;
 
-    s = natsSock_ConnectTcp(&(nc->sockCtx), nc->pool, nc->cur->url->host, nc->cur->url->port);
+    s = natsSock_ConnectTcp(&(nc->sockCtx), nc->connectPool, nc->cur->url->host, nc->cur->url->port);
     if (s == NATS_OK)
         nc->sockCtx.fdActive = true;
 
@@ -365,7 +365,7 @@ _processExpectedInfo(natsConnection *nc)
 
     s = natsSock_ReadLine(&(nc->sockCtx), buffer, sizeof(buffer) - 1);
     IFOK(s, nats_ParseControl(&op, &arg, buffer));
-    if ((s == NATS_OK) && (!natsString_EqualZ(&op, _INFO_OP_)))
+    if ((s == NATS_OK) && (!natsString_EqualC(&op, _INFO_OP_)))
     {
         s = nats_setError(NATS_PROTOCOL_ERROR,
                           "Unexpected protocol: got '%.*s' instead of '%s'",
@@ -572,8 +572,6 @@ _processInfo(natsConnection *nc, natsString *jsonData)
     natsJSONParser *parser = NULL;
     nats_JSON *json = NULL;
     natsServerInfo *info = NULL;
-    natsPool *oldPool = nc->infoPool;
-    natsSrvPool *oldServers = nc->srvPool;
 
     if (natsString_IsEmpty(jsonData))
         return NATS_OK;
@@ -581,15 +579,14 @@ _processInfo(natsConnection *nc, natsString *jsonData)
     // Clear the previous server info
     nc->info = NULL;
 
-    s = natsPool_Create(&nc->infoPool);
-    IFOK(s, natsJSONParser_Create(&parser, nc->infoPool));
+    IFOK(s, natsJSONParser_Create(&parser, nc->connectPool));
     IFOK(s, natsJSONParser_Parse(&json, parser, jsonData, NULL));
     if ((s == NATS_OK) && (json == NULL))
         s = nats_setError(NATS_PROTOCOL_ERROR,
                           "Got incomplete JSON in '%s'",
                           _INFO_OP_);
 
-    IFOK(s, natsPool_AllocS((void **)&info, nc->infoPool, sizeof(natsServerInfo)));
+    IFOK(s, natsPool_AllocS((void **)&info, nc->connectPool, sizeof(natsServerInfo)));
 
     IFOK(s, nats_JSONGetStrPtr(json, "server_id", &info->id));
     IFOK(s, nats_JSONGetStrPtr(json, "version", &(info->version)));
@@ -599,9 +596,9 @@ _processInfo(natsConnection *nc, natsString *jsonData)
     IFOK(s, nats_JSONGetBool(json, "tls_required", &(info->tlsRequired)));
     IFOK(s, nats_JSONGetBool(json, "tls_available", &(info->tlsAvailable)));
     IFOK(s, nats_JSONGetLong(json, "max_payload", &(info->maxPayload)));
-    IFOK(s, nats_JSONGetArrayStrPtr(json, "connect_urls",
-                                 &(info->connectURLs),
-                                 &(info->connectURLsCount)));
+    // IFOK(s, nats_JSONGetArrayStrPtr(json, "connect_urls",
+    //                              &(info->connectURLs),
+    //                              &(info->connectURLsCount)));
     IFOK(s, nats_JSONGetInt(json, "proto", &(info->proto)));
     IFOK(s, nats_JSONGetULong(json, "client_id", &(info->CID)));
     IFOK(s, nats_JSONGetStrPtr(json, "nonce", &(info->nonce)));
@@ -624,9 +621,7 @@ _processInfo(natsConnection *nc, natsString *jsonData)
         if ((nc->cur != NULL) && (nc->cur->url != NULL) && !nats_HostIsIP(nc->cur->url->host))
             tlsName = (const char *)nc->cur->url->host;
 
-        s = natsSrvPool_addNewURLs(&nc->srvPool,
-                                    nc->infoPool,
-                                    oldServers,
+        s = natsServers_addNewURLs(nc->servers,
                                    nc->cur->url,
                                    info->connectURLs,
                                    info->connectURLsCount,
@@ -644,9 +639,6 @@ _processInfo(natsConnection *nc, natsString *jsonData)
     if (s != NATS_OK)
         s = nats_setError(NATS_PROTOCOL_ERROR,
                           "Invalid protocol: %s", nats_GetLastError(NULL));
-
-    if (oldPool != NULL)
-        natsPool_Destroy(oldPool);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -770,10 +762,10 @@ _connectProto(natsConnection *nc, char **proto)
         // Options take precedence for an implicit URL. If above is still
         // empty, we will check if we have saved a user from an explicit
         // URL in the server pool.
-        if (nats_isStringEmpty(user) && nats_isStringEmpty(token) && (nc->srvPool->user != NULL))
+        if (nats_isStringEmpty(user) && nats_isStringEmpty(token) && (nc->servers->user != NULL))
         {
-            user = nc->srvPool->user;
-            pwd = nc->srvPool->pwd;
+            user = nc->servers->user;
+            pwd = nc->servers->pwd;
             // Again, if there is no password, assume username is token.
             if (pwd == NULL)
             {
@@ -1448,9 +1440,9 @@ _setupServerPool(natsConnection *nc)
 {
     natsStatus s;
 
-    s = natsSrvPool_Create(&(nc->srvPool), nc->opts);
+    s = natsServers_Create(&(nc->servers), nc->connectPool, nc->opts);
     if (s == NATS_OK)
-        nc->cur = natsSrvPool_GetSrv(nc->srvPool, 0);
+        nc->cur = natsServers_Get(nc->servers, 0);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -1482,16 +1474,16 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
     nc->sockCtx.fd = NATS_SOCK_INVALID;
     nc->opts = options;
 
-    IFOK(s, natsPool_Create(&(nc->pool)));
-    IFOK(s, natsPool_Create(&(nc->infoPool)));
+    IFOK(s, natsPool_Create(&(nc->lifetimePool)));
+    IFOK(s, natsPool_Create(&(nc->connectPool)));
 
     nc->errStr[0] = '\0';
 
     IFOK(s, _setupServerPool(nc));
     // IFOK(s, natsHash_Create(&(nc->subs), 8));
     IFOK(s, natsSock_Init(&nc->sockCtx));
-    IFOK(s, natsBuf_CreatePool(&(nc->scratch), nc->pool, DEFAULT_SCRATCH_SIZE));
-    IFOK(s, natsBuf_Append(nc->scratch, (const uint8_t *)_HPUB_P_, _HPUB_P_LEN_));
+    IFOK(s, natsBuf_CreateInPool(&(nc->scratch), nc->lifetimePool, DEFAULT_SCRATCH_SIZE));
+    IFOK(s, natsBuf_AppendBytes(nc->scratch, (const uint8_t *)_HPUB_P_, _HPUB_P_LEN_));
 
     if (s == NATS_OK)
     {
@@ -1525,6 +1517,9 @@ natsConnection_Connect(natsConnection **newConn, natsOptions *options)
         s = natsConn_create(&nc, opts);
     if (s == NATS_OK)
         s = _connect(nc);
+
+    natsPool_Destroy(nc->connectPool);
+    nc->connectPool = NULL;
 
     if ((s == NATS_OK) || (s == NATS_NOT_YET_CONNECTED))
         *newConn = nc;
@@ -1615,6 +1610,9 @@ natsConnection_ConnectTo(natsConnection **newConn, const char *url)
     if (s == NATS_OK)
         s = _connect(nc);
 
+    natsPool_Destroy(nc->connectPool);
+    nc->connectPool = NULL;
+
     if (s == NATS_OK)
         *newConn = nc;
     else
@@ -1665,8 +1663,8 @@ _freeConn(natsConnection *nc)
     if (nc == NULL)
         return;
 
-    natsPool_Destroy(nc->pool);
-    natsPool_Destroy(nc->infoPool);
+    natsPool_Destroy(nc->lifetimePool);
+    natsPool_Destroy(nc->connectPool);
     natsParser_Destroy(nc->ps);
     natsOptions_Destroy(nc->opts);
     natsHeap_Free(nc->el.buffer);

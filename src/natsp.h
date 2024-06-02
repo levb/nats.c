@@ -60,6 +60,7 @@ int64_t nats_setTargetTime(int64_t timeout);
 //-----------------------------------------------------------------------------
 // Types
 
+typedef struct __natsBuffer_s natsBuffer;
 typedef struct __natsChain_s natsChain;
 typedef struct __natsChunk_s natsChunk;
 typedef struct __natsHash natsHash;
@@ -70,13 +71,11 @@ typedef struct __natsPong natsPong;
 typedef struct __natsPongList natsPongList;
 typedef struct __natsPool_s natsPool;
 typedef struct __natsServerInfo natsServerInfo;
+typedef struct __natsServers_s natsServers;
 typedef struct __natsSockCtx natsSockCtx;
-typedef struct __natsSrv natsSrv;
-typedef struct __natsSrvPool natsSrvPool;
+typedef struct __natsServer_s natsServer;
 typedef struct __natsStrHash natsStrHash;
 typedef struct __natsStrHashIter natsStrHashIter;
 typedef struct __natsString_s natsString;
-
-typedef struct __natsBuffer_s natsBuffer;
 
 #endif /* NATSP_H_ */

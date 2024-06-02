@@ -18,7 +18,7 @@
 #include "util.h"
 #include "mem.h"
 #include "url.h"
-#include "srvpool.h"
+#include "servers.h"
 #include "parser.h"
 
 // cloneMsgArg is used when the split buffer scenario has the pubArg in the existing read buffer, but
@@ -918,7 +918,7 @@ natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t* buf, size_t bufLen
 natsStatus
 natsParser_Create(natsParser **newParser)
 {
-    natsParser  *parser = (natsParser *) NATS_CALLOC(1, sizeof(natsParser));
+    natsParser  *parser = (natsParser *) natsHeap_Alloc(sizeof(natsParser));
 
     if (parser == NULL)
         return NATS_NO_MEMORY;
@@ -939,5 +939,5 @@ natsParser_Destroy(natsParser *parser)
     natsBuf_Destroy(&(parser->argBufRec));
     natsBuf_Destroy(&(parser->msgBufRec));
 
-    NATS_FREE(parser);
+    natsHeap_Free(parser);
 }

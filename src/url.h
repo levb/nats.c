@@ -29,7 +29,7 @@ typedef struct __natsUrl
 natsStatus
 natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr);
 
-void
-natsUrl_Destroy(natsUrl *url);
+bool
+natsUrl_IsLocalhost(natsUrl *url);
 
 #endif /* SRC_URL_H_ */

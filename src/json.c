@@ -391,7 +391,7 @@ _createParser(natsJSONParser **newParser, natsPool *pool, int nested, natsBuffer
     }
     else
     {
-        IFOK(s, natsBuf_CreatePool(&(parser->strBuf), pool, 32));
+        IFOK(s, natsBuf_Create(&parser->strBuf, 32));
         if (s != NATS_OK)
             return NATS_UPDATE_ERR_STACK(s);
     }
@@ -481,7 +481,7 @@ static void _finishValue(natsJSONParser *parser)
 static void _finishStringValue(natsJSONParser *parser)
 {
     natsBuf_AppendByte(parser->strBuf, '\0');
-    parser->field->value.vstr = natsPool_Strdup(parser->json->pool, natsBuf_Data(parser->strBuf));
+    parser->field->value.vstr = natsPool_StrdupC(parser->json->pool, (char *)natsBuf_Data(parser->strBuf));
     parser->state = JSON_STATE_FIELDS;
     parser->skipWhitespace = true;
 }
@@ -896,20 +896,20 @@ nats_JSONGetStrPtr(nats_JSON *json, const char *fieldName, const char **str)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-natsStatus
-nats_JSONGetBytes(nats_JSON *json, const char *fieldName, unsigned char **value, int *len)
-{
-    natsStatus s;
-    const char *str = NULL;
+// natsStatus
+// nats_JSONGetBytes(nats_JSON *json, const char *fieldName, unsigned char **value, int *len)
+// {
+//     natsStatus s;
+//     const char *str = NULL;
 
-    *value = NULL;
-    *len = 0;
+//     *value = NULL;
+//     *len = 0;
 
-    s = nats_JSONGetStrPtr(json, fieldName, &str);
-    if ((s == NATS_OK) && (str != NULL))
-        s = nats_Base64_Decode(str, value, len);
-    return NATS_UPDATE_ERR_STACK(s);
-}
+//     s = nats_JSONGetStrPtr(json, fieldName, &str);
+//     if ((s == NATS_OK) && (str != NULL))
+//         s = nats_Base64_Decode(str, value, len);
+//     return NATS_UPDATE_ERR_STACK(s);
+// }
 
 natsStatus
 nats_JSONGetInt(nats_JSON *json, const char *fieldName, int *value)
@@ -1420,7 +1420,7 @@ nats_marshalDuration(natsBuffer *out_buf, bool comma, const char *field_name, in
     s = natsBuf_AppendString(out_buf, start);
     IFOK(s, natsBuf_AppendString(out_buf, field_name));
     IFOK(s, natsBuf_AppendString(out_buf, "\":\""));
-    IFOK(s, natsBuf_Append(out_buf, buf + w, sizeof(buf) - w));
+    IFOK(s, natsBuf_AppendBytes(out_buf, buf + w, sizeof(buf) - w));
     IFOK(s, natsBuf_AppendString(out_buf, "\""));
     return NATS_UPDATE_ERR_STACK(s);
 }
