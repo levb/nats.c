@@ -21,7 +21,8 @@ void Test_Chain(void)
 
     test("Create chain");
     natsStatus s = natsChain_Create(&chain, 1234);
-    testCond((s == NATS_OK) && (chain != NULL) && (chain->current != NULL));
+    testCond((s == NATS_OK) && (chain != NULL) && (chain->current != NULL) && (chain->current->len == 1234));
+
 }
 
 
