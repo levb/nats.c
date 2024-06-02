@@ -13,10 +13,15 @@
 
 #include "natsp.h"
 #include "test.h"
+#include "mem.h"
 
-void Test_ttt(void)
+void Test_Chain(void)
 {
-    printf("Test_ttt!!!!!!!!!!!!!!!!!!!!\n");
+    natsChain *chain = NULL;
+
+    test("Create chain");
+    natsStatus s = natsChain_Create(&chain, 1234);
+    testCond((s == NATS_OK) && (chain != NULL) && (chain->current != NULL));
 }
 
 

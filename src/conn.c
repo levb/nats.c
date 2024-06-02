@@ -180,12 +180,12 @@ _connect(natsConnection *nc)
         for (i = 0; i < natsServers_Count(servers); i++)
         {
             nc->cur = natsServers_Get(servers, i);
-            printf("<>/<> connecting to %s\n", nc->cur->url->fullUrl);
+            CONNLOGf("connecting to %s", nc->cur->url->fullUrl);
 
             s = _createConn(nc);
             if (s == NATS_OK)
             {
-                printf("<>/<> proceeding to process connection init\n");
+                CONNLOG("proceeding to process connection init");
                 s = _processConnInit(nc);
 
                 if (s == NATS_OK)
@@ -258,7 +258,7 @@ _createConn(natsConnection *nc)
     if ((s == NATS_OK) || nc->opts->retryOnFailedConnect)
     {
         natsStatus ls = NATS_OK;
-        printf("<>/<> TCP connected to %s\n", nc->cur->url->fullUrl);
+        CONNLOGf("TCP connected to %s", nc->cur->url->fullUrl);
 
         // natsChain_Destroy(nc->out); <>/<>
         ls = natsChain_Create(&(nc->out), 0);
@@ -1487,7 +1487,7 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
 
     if (s == NATS_OK)
     {
-        printf("<>/<> natsConn_create: created natsConnection: %p\n", (void*)nc);
+        CONNLOGf("natsConn_create: created natsConnection: %p", (void*)nc);
         *newConn = nc;
     }
     else

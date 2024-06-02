@@ -129,10 +129,46 @@ struct __natsBuffer_s
 
 // Heap-based functions
 
+#ifdef DEV_MODE
+static inline void *nats_heap_malloc(size_t size, const char *file, int line, const char *func )
+{
+    void *mem = malloc(size);
+    MEMLOGx(file, line, func, "HEAP malloc %zu bytes: %p\n", size, mem);
+    return mem;
+}
+#define natsHeap_RawAlloc(_s) nats_heap_malloc((_s), __SHORT_FILE__, __LINE__, __func__)
+
+static inline void *nats_heap_calloc(size_t nmemb, size_t size, const char *file, int line, const char *func)
+{
+    void *mem = calloc(nmemb, size);
+    MEMLOGx(file, line, func, "HEAP calloc %zu bytes: %p\n", size, mem);
+    return mem;
+}
+#define natsHeap_Alloc(_s) nats_heap_calloc(1, (_s), __SHORT_FILE__, __LINE__, __func__)
+
+static inline void *nats_heap_realloc(void *ptr, size_t size, const char *file, int line, const char *func)
+{
+    void *mem = realloc(ptr, size);
+    MEMLOGx(file, line, func, "HEAP realloc %zu bytes: %p\n", size, mem);
+    return mem;
+}
+#define natsHeap_Realloc(_p, _s) nats_heap_realloc((_p), (_s), __SHORT_FILE__, __LINE__, __func__)
+
+static inline void nats_heap_free(void *ptr, const char *file, int line, const char *func)
+{
+    MEMLOGx(file, line, func, "HEAP free: %p\n", ptr);
+    free(ptr);
+}
+#define natsHeap_Free(_p) nats_heap_free((_p), __SHORT_FILE__, __LINE__, __func__)
+
+#else
+
 #define natsHeap_RawAlloc(_s) malloc((_s))
 #define natsHeap_Alloc(_s) calloc(1, (_s))
 #define natsHeap_Realloc(_p, _s) realloc((_p), (_s))
 #define natsHeap_Free(_p) free((_p))
+
+#endif
 
 #ifdef _WIN32
 #define natsHeap_Strdup(_s) _strdup((_s))
@@ -151,11 +187,12 @@ struct __natsBuffer_s
     if (((s) == NATS_OK) && !nats_isStringEmpty(s2)) \
     DUP_STRING_HEAP((s), (s1), (s2))
 
-//----------------------------------------------------------------
-// string functions.
-//
+    //----------------------------------------------------------------
+    // string functions.
+    //
 
-static inline size_t nats_strlen(const uint8_t *s) { return strlen((const char *)s); }
+    static inline size_t
+    nats_strlen(const uint8_t *s) { return strlen((const char *)s); }
 static inline uint8_t *nats_strchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strchr((const char *)s, (int)(find)); }
 static inline uint8_t *nats_strrchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strrchr((const char *)s, (int)(find)); }
 static inline const uint8_t *nats_strstr(const uint8_t *s, const char *find) { return (const uint8_t *)strstr((const char *)s, find); }

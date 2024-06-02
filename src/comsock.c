@@ -80,8 +80,6 @@ natsSock_ShuffleIPs(natsSockCtx *ctx, natsPool *pool, struct addrinfo **ipListHe
     struct addrinfo *p      = NULL;
     int             i, j;
 
-    printf("<>/<> natsSock_ShuffleIPs: pool %p\n", (void*)pool);
-
     if (ctx->noRandomize || (ipListHead == NULL) || (*ipListHead == NULL) || count <= 1)
         return;
 
@@ -158,8 +156,6 @@ natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int por
         max = 2;
 
     start = nats_Now();
-    printf("<>/<> natsSock_ConnectTcp: start=%" PRId64 "\n", start);
-
     for (i=0; i<max; i++)
     {
         struct addrinfo hints;

@@ -71,6 +71,9 @@ _allocLarge(natsPool *pool, size_t size, natsLarge **newLarge)
 
     if (newLarge != NULL)
         *newLarge = large;
+
+    MEMLOGf("allocated LARGE in pool %p, size %zu\n", (void *)pool, size);
+
     return large->mem;
 }
 
@@ -86,6 +89,7 @@ _allocSmall(natsPool *pool, size_t size)
 
     mem = _chunk_mem_ptr(chunk);
     chunk->len += size;
+    MEMLOGf("allocated SMALL in pool %p, size %zu\n", (void *)pool, size);
     return mem;
 }
 
@@ -247,7 +251,6 @@ natsChain_AllocChunk(natsChunk **newChunk, natsChain *chain, size_t size)
         }
     }
 
-    printf("<>/<> found %p\n", (void *)use);
     uint8_t *mem = _chunk_mem_ptr(use);
     if (use == NULL)
     {
@@ -265,6 +268,9 @@ natsChain_AllocChunk(natsChunk **newChunk, natsChain *chain, size_t size)
 
     if (newChunk != NULL)
         *newChunk = use;
+
+    MEMLOGf("allocated chunk in chain %p, used %zu out of %zu\n", (void *)chain, size, chain->chunkSize);
+
     return NATS_OK;
 }
 
@@ -303,8 +309,8 @@ natsBuf_CreateInPool(natsBuffer **newBuf, natsPool *pool, size_t capacity)
     if (s != NATS_OK)
         return s;
 
-    printf("<>/<> natsBuf_CreatePool: created buffer in pool %p, size %zu\n", (void *)pool, capacity);
     *newBuf = buf;
+    MEMLOGf("created buffer in pool %p, cap %zu\n", (void *)pool, capacity);
     return NATS_OK;
 }
 

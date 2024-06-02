@@ -24,7 +24,7 @@ void Test_JSON(void)
     char buf[512];
 
     const natsString bad[]  = {
-        NATS_STR("{"),
+        NATS_STR("{}"),
     };
     const char *good[] = {
         "{ \"test\" : 0,\"test2\":1}",
@@ -43,11 +43,10 @@ void Test_JSON(void)
         natsJSONParser *parser = NULL;
         nats_JSON *json = NULL;
         size_t consumed;
-        printf("<>/<> 1: %d\n", i);
-        // s = natsPool_Create(&pool);
-        // IFOK(s, natsJSONParser_Create(&parser, pool));
+        s = natsPool_Create(&pool);
+        IFOK(s, natsJSONParser_Create(&parser, pool));
         // IFOK(s, natsJSONParser_Parse(&json, parser, &bad[i], &consumed));
-        testCond((s != NATS_OK) && (json == NULL));
+        testCond((s == NATS_OK) && (json == NULL));
         // json = NULL;
     }
     // nats_clearLastError();

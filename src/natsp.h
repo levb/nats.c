@@ -21,27 +21,34 @@
 #endif
 
 #include "nats.h"
+#include "dev_mode.h"
 
-#define SSL             void*
-#define SSL_free(c)     { (c) = NULL; }
-#define SSL_CTX         void*
-#define SSL_CTX_free(c) { (c) = NULL; }
-#define NO_SSL_ERR  "The library was built without SSL support!"
+#define SSL void *
+#define SSL_free(c) \
+    {               \
+        (c) = NULL; \
+    }
+#define SSL_CTX void *
+#define SSL_CTX_free(c) \
+    {                   \
+        (c) = NULL;     \
+    }
+#define NO_SSL_ERR "The library was built without SSL support!"
 
-// Comment/uncomment to replace some function calls with direct structure
-// access
-//#define DEV_MODE    (1)
+#define LIB_NATS_VERSION_STRING NATS_VERSION_STRING
+#define LIB_NATS_VERSION_NUMBER NATS_VERSION_NUMBER
+#define LIB_NATS_VERSION_REQUIRED_NUMBER NATS_VERSION_REQUIRED_NUMBER
 
-#define LIB_NATS_VERSION_STRING             NATS_VERSION_STRING
-#define LIB_NATS_VERSION_NUMBER             NATS_VERSION_NUMBER
-#define LIB_NATS_VERSION_REQUIRED_NUMBER    NATS_VERSION_REQUIRED_NUMBER
+#define CString "C"
 
-#define CString     "C"
+#define IFOK(s, c)    \
+    if (s == NATS_OK) \
+    {                 \
+        s = (c);      \
+    }
 
-#define IFOK(s, c)      if (s == NATS_OK) { s = (c); }
-
-#define NATS_MILLIS_TO_NANOS(d)     (((int64_t)d)*(int64_t)1E6)
-#define NATS_SECONDS_TO_NANOS(d)    (((int64_t)d)*(int64_t)1E9)
+#define NATS_MILLIS_TO_NANOS(d) (((int64_t)d) * (int64_t)1E6)
+#define NATS_SECONDS_TO_NANOS(d) (((int64_t)d) * (int64_t)1E9)
 
 #define _CRLF_ "\r\n"
 #define _SPC_ " "

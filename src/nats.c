@@ -212,7 +212,10 @@ bool nats_CheckCompatibilityImpl(uint32_t headerReqVerNumber, uint32_t headerVer
     return true;
 }
 
-static natsTLError globalTLError = {0};
+static natsTLError globalTLError = {
+    .sts = NATS_OK,
+    .framesCount = -1
+};
 
 static natsTLError *
 _getTLError(void)
@@ -237,9 +240,8 @@ static void
 _updateStack(natsTLError *errTL, const char *funcName, natsStatus errSts,
              bool calledFromSetError)
 {
-    int idx;
+    int idx = errTL->framesCount;
 
-    idx = errTL->framesCount;
     if ((idx >= 0) && (idx < MAX_FRAMES) && (strcmp(errTL->func[idx], funcName) == 0))
     {
         return;
@@ -263,11 +265,13 @@ __attribute__((format(printf, 5, 6)))
 natsStatus
 nats_setErrorReal(const char *fileName, const char *funcName, int line, natsStatus errSts, const char *errTxtFmt, ...)
 {
-    printf("<>/<> 1 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
     char tmp[256];
     va_list ap;
     int n;
+
+    printf("<>/<> 3 !!!!!!!!!!!!==== %d %s\n", errSts, errTxtFmt);
+    return 0;
 
     if ((errTL == NULL) || errTL->skipUpdate)
         return errSts;
@@ -306,7 +310,6 @@ __attribute__((format(printf, 4, 5)))
 void
 nats_updateErrTxt(const char *fileName, const char *funcName, int line, const char *errTxtFmt, ...)
 {
-    printf("<>/<> 2 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
     char tmp[256];
     va_list ap;
@@ -338,7 +341,6 @@ nats_updateErrTxt(const char *fileName, const char *funcName, int line, const ch
 
 void nats_setErrStatusAndTxt(natsStatus err, const char *errTxt)
 {
-    printf("<>/<> 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if ((errTL == NULL) || errTL->skipUpdate)
@@ -352,7 +354,6 @@ void nats_setErrStatusAndTxt(natsStatus err, const char *errTxt)
 natsStatus
 nats_updateErrStack(natsStatus err, const char *func)
 {
-    printf("<>/<> 4 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if ((errTL == NULL) || errTL->skipUpdate)
