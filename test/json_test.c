@@ -18,21 +18,46 @@
 #include "json.h"
 #include "test.h"
 
-void Test_JSON(void)
+void Test_JSONStructure(void)
 {
-    natsStatus s;
-    char buf[512];
+    natsStatus s = NATS_OK;
+    typedef struct TC
+    {
+        const char *name;
+        const char *json;
+    } TC;
+    const TC tests[] = {
+        {"empty object: ", "{}"},
+        {"single: number: ", "{ \"test\":1}"},
+        {"single: boolean true: ","{ \"test\":true}"},
+        {"single: boolean false: ","{ \"test\":false}"},
+        {"single: string: ","{ \"test\":\"abc\"}"},
+        {"single: null: ","{ \"test\": null}"},
+        {"multiple: numbers: ","{ \"test\":1, \"test2\":2}"},
+        {"multiple: booleans: ","{ \"test\":true, \"test2\":false}"},
+        {"multiple: strings: ","{ \"test\":\"a\", \"test2\":\"b\"}"},
+        {"multiple: nulls: ","{ \"test\":null, \"test2\":null}"},
+        {"multiple: mixed: ","{ \"test\":1, \"test2\":true, \"test3\":\"abc\", \"test4\":null}"},
+        {"multiple: mixed different order: ","{ \"test2\":true, \"test3\":\"abc\", \"test4\":null, \"test\":1}"},
 
-    const natsString bad[] = {
-        NATS_STR("{"),
+        // {"empty array","{ \"test\": []}"},
+        // {"array of empty arrays","{ \"test\": [[], [], []]}"},
+        // {"array of empty objects","{ \"test\": [{}, {}, {}]}"},
+        // {"array of strings","{ \"test\": [\"a\", \"b\", \"c\"]}"},
+        // {"array of objects","{ \"test\": [{\"a\": 1}, {\"b\": \"c\"}]}"},
+        // {"array of arrays","{ \"test\": [[{\"a\": 1}], [{\"b\": \"c\"}]]}"},
+        // {"array of numbers","{ \"test\": [1, 2, 3]}"},
+        // {"array of doubles","{ \"test\": [1.1, 2.2, 3.3]}"},
+        // {"array of booleans","{ \"test\": [true, false, true]}"},
+        // {"array of nulls","{ \"test\": [null, null, null]}"},
+        // {"empty nested object","{ \"test\":{}}"},
+        // {"nested objects","{ \"test\": {\"inner\":\"a\"),\"inner2\":2,\"inner3\":false,\"inner4\":{\"inner_inner1\" : 1.234}}}"},
+
+        {"ignored commas","{ ,, \"test\":1,,,,  }"},
     };
-    const char *good[] = {
-        "{ \"test\" : 0,\"test2\":1}",
-        "{ \"test\" : 0, \"test2\":1}",
-        "{ \"test\":true}",
-        "{ \"test\": true}",
-        "{ \"test\": true }",
-        "{ \"test\": null}",
+    const TC errorTests[] = {
+        {"error: starts with a letter", " A"},
+        {"error: starts with a quote", " \""},
     };
 
     natsPool *pool = NULL;
@@ -40,33 +65,39 @@ void Test_JSON(void)
     s = natsPool_Create(&pool, 0, "json-test");
     testCond(s == NATS_OK);
 
-    for (int i = 0; i < (int)(sizeof(bad) / sizeof(*bad)); i++)
+    for (int i = 0; i < (int)(sizeof(tests) / sizeof(*tests)); i++)
     {
-        snprintf(buf, sizeof(buf), "Negative test %d: ", (i + 1));
-        test(buf);
         natsJSONParser *parser = NULL;
         nats_JSON *json = NULL;
-        size_t consumed;
-        IFOK(s, natsJSONParser_Create(&parser, pool));
-        IFOK(s, natsJSONParser_Parse(&json, parser, &bad[i], &consumed));
-        testCond((s == NATS_OK) && (json == NULL));
-        json = NULL;
+        size_t consumed = 0;
+        TC tc = tests[i];
+        natsString data = NATS_STRC(tc.json);
+        
+        test(tc.name);
+        s = natsJSONParser_Create(&parser, pool);
+        IFOK(s, natsJSONParser_Parse(&json, parser, &data, &consumed));
+        testCond((s == NATS_OK) && (json != NULL) && (consumed == strlen(tc.json)));
     }
-    nats_clearLastError();
 
-    // for (i = 0; i < (int)(sizeof(good) / sizeof(char *)); i++)
-    // {
-    //     snprintf(buf, sizeof(buf), "Positive test %d: ", (i + 1));
-    //     test(buf);
-    //     s = nats_JSONParse(&json, good[i], -1);
-    //     testCond((s == NATS_OK) && (json != NULL));
-    //     nats_JSONDestroy(json);
-    //     json = NULL;
-    // }
-    // nats_clearLastError();
+    for (int i = 0; i < (int)(sizeof(errorTests) / sizeof(*errorTests)); i++)
+    {
+        natsJSONParser *parser = NULL;
+        nats_JSON *json = NULL;
+        TC tc = errorTests[i];
+
+        nats_clearLastError();
+
+        test(tc.name);
+        s = natsJSONParser_Create(&parser, pool);
+        natsString data = NATS_STRC(tc.json);
+        IFOK(s, natsJSONParser_Parse(&json, parser, &data, NULL));
+        testCond((s != NATS_OK) && (json == NULL));
+    }
 
     natsPool_Destroy(pool);
 }
+
+
 // Test_JSON(void)
 // {
 //     natsStatus s;

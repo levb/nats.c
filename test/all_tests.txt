@@ -1,2 +1,2 @@
 _tc(Pool)
-_tc(JSON)
+_tc(JSONStructure)

@@ -214,7 +214,7 @@ bool nats_CheckCompatibilityImpl(uint32_t headerReqVerNumber, uint32_t headerVer
 
 static natsTLError globalTLError = {
     .sts = NATS_OK,
-    .framesCount = -1
+    .framesCount = -1,
 };
 
 static natsTLError *
@@ -394,7 +394,7 @@ const char *
 nats_GetLastError(natsStatus *status)
 {
     natsStatus s;
-    natsTLError *errTL = NULL;
+    natsTLError *errTL = _getTLError();
 
     if (status != NULL)
         *status = NATS_OK;
@@ -404,9 +404,8 @@ nats_GetLastError(natsStatus *status)
     if (s != NATS_OK)
         return NULL;
 
-    // errTL = natsThreadLocal_Get(gLib.errTLKey);
-    // if ((errTL == NULL) || (errTL->sts == NATS_OK))
-    //     return NULL;
+    if ((errTL == NULL) || (errTL->sts == NATS_OK))
+        return NULL;
 
     if (status != NULL)
         *status = errTL->sts;
@@ -417,7 +416,7 @@ nats_GetLastError(natsStatus *status)
 natsStatus
 nats_GetLastErrorStack(char *buffer, size_t bufLen)
 {
-    natsTLError *errTL = NULL;
+    natsTLError *errTL = _getTLError();
     int offset = 0;
     int i, max, n, len;
 
@@ -431,9 +430,8 @@ nats_GetLastErrorStack(char *buffer, size_t bufLen)
     if (nats_Open() != NATS_OK)
         return NATS_FAILED_TO_INITIALIZE;
 
-    // errTL = natsThreadLocal_Get(gLib.errTLKey);
-    // if ((errTL == NULL) || (errTL->sts == NATS_OK) || (errTL->framesCount == -1))
-    //     return NATS_OK;
+    if ((errTL == NULL) || (errTL->sts == NATS_OK) || (errTL->framesCount == -1))
+        return NATS_OK;
 
     max = errTL->framesCount;
     if (max >= MAX_FRAMES)

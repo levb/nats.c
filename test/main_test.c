@@ -18,6 +18,7 @@
 
 int __tests = 0;
 bool __failed = false;
+char __namebuf[1024];
 
 struct test_s
 {

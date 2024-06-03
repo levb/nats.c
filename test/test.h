@@ -3,6 +3,7 @@
 
 extern int __tests;
 extern bool __failed;
+extern char __namebuf[1024];
 
 #define test(s)                      \
     {                                \

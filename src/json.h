@@ -173,9 +173,6 @@ typedef natsStatus (*jsonRangeCB)(void *userInfo, const char *fieldName, nats_JS
 natsStatus
 nats_JSONRange(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo);
 
-void
-nats_JSONDestroy(nats_JSON *json);
-
 natsStatus
 nats_EncodeTimeUTC(char *buf, size_t bufLen, int64_t timeUTC);
 

@@ -145,7 +145,6 @@ static inline natsStatus natsPool_allocS(void **newMem, natsPool *pool, size_t s
     return (*newMem == NULL ? NATS_NO_MEMORY : NATS_OK);
 }
 
-
 #ifdef DEV_MODE
 
 natsStatus natsPool_log_create(natsPool **newPool, size_t pageSize, const char *name DEV_MODE_ARGS);
@@ -303,21 +302,21 @@ static inline size_t nats_strarray_remove(char **array, int count, const char *s
     return count - 1;
 }
 
-#define NATS_STR(str)                   \
+#define NATS_STR(_str)                     \
+    {                                      \
+        sizeof(str) - 1, (uint8_t *)(_str) \
+    }
+#define NATS_STRC(_str)                 \
     {                                   \
-        sizeof(str) - 1, (uint8_t *)str \
+        strlen(_str), (uint8_t *)(_str) \
     }
 #define NATS_EMPTY_STR \
     {                  \
         0, NULL        \
     }
 
-#define natsString_Set(str, text) ( \
-    (str)->len = sizeof(text) - 1,  \
-    (str)->data = (uint8_t *)(text), str)
-
-#define natsString_Printable(str)     \
-    ((str) == NULL ? 6 : (str)->len), \
+#define natsString_Printable(str)            \
+    ((str) == NULL ? 6 : (int)((str)->len)), \
         ((str) == NULL ? "<NULL>" : (const char *)(str)->data)
 
 static inline bool natsString_Equal(natsString *str1, natsString *str2)
