@@ -25,13 +25,13 @@
 #define DEVNOLOGx(file, line, func, fmt, ...)
 
 // Comment/uncomment to enable debug logging and tracking.
-#define DEV_MODE (1)
+// #define DEV_MODE (1)
 #ifdef DEV_MODE
 
 // Comment/uncomment to enable debug logging and tracking in specific modules.
 // #define DEV_MODE_CONN
 // #define DEV_MODE_MEM
-// #define DEV_MODE_JSON
+#define DEV_MODE_JSON
 
 #define DEV_MODE_CTX , __SHORT_FILE__, __LINE__, __NATS_FUNCTION__
 #define DEV_MODE_ARGS , const char *file, int line, const char *func
