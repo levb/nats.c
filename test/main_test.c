@@ -36,18 +36,18 @@ struct test_s allTests[] =
 };
 #undef _TEST_LIST
 
-// #ifndef _WIN32
-// static void _sigsegv_handler(int sig)
-// {
-//     void *array[20];
-//     int size = backtrace(array, 20);
+#ifndef _WIN32
+static void _sigsegv_handler(int sig)
+{
+    void *array[20];
+    int size = backtrace(array, 20);
 
-//     // print out all the frames to stderr
-//     fprintf(stderr, "Error: signal %d:\n", sig);
-//     backtrace_symbols_fd(array, size, STDERR_FILENO);
-//     exit(1);
-// }
-// #endif // _WIN32
+    // print out all the frames to stderr
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
+#endif // _WIN32
 
 int main(int argc, char **argv)
 {
@@ -69,9 +69,9 @@ int main(int argc, char **argv)
 
     const char *testname = argv[1];
 
-// #ifndef _WIN32
-//     signal(SIGSEGV, _sigsegv_handler);
-// #endif // _WIN32
+#ifndef _WIN32
+    signal(SIGSEGV, _sigsegv_handler);
+#endif // _WIN32
 
     if (nats_Open() != NATS_OK)
     {

@@ -127,7 +127,7 @@ _resizeStr(natsStrHash *hash, int newSize)
     int k;
     int newIndex;
 
-    bkts = (natsStrHashEntry **)natsPool_Alloc(hash->pool, newSize * sizeof(natsStrHashEntry *));
+    bkts = (natsStrHashEntry **)natsPool_Alloc(hash->pool, newSize * sizeof(natsStrHashEntry *) );
     if (bkts == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 

@@ -270,9 +270,6 @@ nats_setErrorReal(const char *fileName, const char *funcName, int line, natsStat
     va_list ap;
     int n;
 
-    printf("<>/<> 3 !!!!!!!!!!!!==== %d %s\n", errSts, errTxtFmt);
-    return 0;
-
     if ((errTL == NULL) || errTL->skipUpdate)
         return errSts;
 
@@ -366,7 +363,6 @@ nats_updateErrStack(natsStatus err, const char *func)
 
 void nats_clearLastError(void)
 {
-    printf("<>/<> 5 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if ((errTL == NULL) || errTL->skipUpdate)
@@ -379,7 +375,6 @@ void nats_clearLastError(void)
 
 void nats_doNotUpdateErrStack(bool skipStackUpdate)
 {
-    printf("<>/<> 6 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     natsTLError *errTL = _getTLError();
 
     if (errTL == NULL)

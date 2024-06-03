@@ -23,8 +23,8 @@ void Test_JSON(void)
     natsStatus s;
     char buf[512];
 
-    const natsString bad[]  = {
-        NATS_STR("{}"),
+    const natsString bad[] = {
+        NATS_STR("{ \"test\" : 0,\"test2\":1}"),
     };
     const char *good[] = {
         "{ \"test\" : 0,\"test2\":1}",
@@ -43,7 +43,7 @@ void Test_JSON(void)
         natsJSONParser *parser = NULL;
         nats_JSON *json = NULL;
         size_t consumed;
-        s = natsPool_CreateNamed(&pool, 0, "json-test");
+        s = natsPool_Create(&pool, 0, "json-test");
         IFOK(s, natsJSONParser_Create(&parser, pool));
         // IFOK(s, natsJSONParser_Parse(&json, parser, &bad[i], &consumed));
         testCond((s == NATS_OK) && (json == NULL));

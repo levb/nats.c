@@ -92,7 +92,8 @@
 
 void natsPool_setPageSize(size_t size); // for testing
 
-#define NATS_DEFAULT_POOL_PAGE_SIZE 8192
+#define NATS_DEFAULT_POOL_PAGE_SIZE 155
+#define NATS_DEFAULT_BUFFER_SIZE 256
 
 struct __natsSmall_s
 {
@@ -133,24 +134,67 @@ struct __natsPool_s
 };
 
 natsStatus
-natsPool_Create(natsPool **newPool, size_t pageSize DEV_MODE_POOL_NAME_ARG DEV_MODE_ARGS);
-#ifdef DEV_MODE
-#define natsPool_CreateNamed(_newPool, pageSize, name) \
-    natsPool_Create(_newPool, pageSize, name, __SHORT_FILE__, __LINE__, __func__)
-#else
-#define natsPool_CreateNamed(_newPool, pageSize, name) \
-    natsPool_Create(_newPool, pageSize)
-#endif
+natsPool_create(natsPool **newPool, size_t pageSize, const char *name);
+void *natsPool_alloc(natsPool *pool, size_t size);
 
-void *natsPool_Alloc(natsPool *pool, size_t size);
-
-static inline natsStatus natsPool_AllocS(void **newMem, natsPool *pool, size_t size)
+static inline natsStatus natsPool_allocS(void **newMem, natsPool *pool, size_t size)
 {
     if (newMem == NULL)
         return NATS_INVALID_ARG;
-    *newMem = natsPool_Alloc(pool, size);
+    *newMem = natsPool_alloc(pool, size);
     return (*newMem == NULL ? NATS_NO_MEMORY : NATS_OK);
 }
+
+#ifdef DEV_MODE
+
+static inline natsStatus natsPool_log_create(natsPool **newPool, size_t pageSize, const char *name DEV_MODE_ARGS)
+{
+    natsStatus s = natsPool_create(newPool, pageSize, name);
+    if (s != NATS_OK)
+    {
+        MEMLOGx(file, line, func, "POOL '%s' create failed: %d", name, s);
+        return s;
+    }
+    MEMLOGx(file, line, func, "POOL '%s' created with page size %zu: %p", name, (*newPool)->pageSize, (void *)*newPool);
+    (*newPool)->name = name;
+    (*newPool)->file = file;
+    (*newPool)->line = line;
+    (*newPool)->func = func;
+
+    return s;
+}
+
+static inline void *natsPool_log_alloc(natsPool *pool, size_t size, const char *file, int line, const char *func)
+{
+    void *mem = natsPool_alloc(pool, size);
+    if (mem != NULL)
+        MEMLOGx(file, line, func, "POOL '%s' allocated %zu bytes: %p", pool->name, size, mem);
+    else
+        MEMLOGx(file, line, func, "POOL '%s' allocating %zu bytes failed", pool->name, size);
+    return mem;
+}
+
+static inline natsStatus natsPool_log_allocS(void **newMem, natsPool *pool, size_t size, const char *file, int line, const char *func)
+{
+    natsStatus s = natsPool_allocS(newMem, pool, size);
+    if (s == NATS_OK)
+        MEMLOGx(file, line, func, "POOL '%s' allocated %zu bytes: %p", pool->name, size, *newMem);
+    else
+        MEMLOGx(file, line, func, "POOL '%s' allocating %zu bytes failed", pool->name, size);
+    return s;
+}
+
+#define natsPool_Create(_p, _s, _n) natsPool_log_create((_p), (_s), (_n)DEV_MODE_CTX)
+#define natsPool_Alloc(_p, _s) natsPool_log_alloc((_p), (_s)DEV_MODE_CTX)
+#define natsPool_AllocS(_n, _p, _s) natsPool_log_allocS((_n), (_p), (_s)DEV_MODE_CTX)
+
+#else
+
+#define natsPool_Create(_p, _s, _n) natsPool_create((_p), (_s), (_n))
+#define natsPool_Alloc(_p, _s) natsPool_alloc((_p), (_s))
+#define natsPool_AllocS(_n, _p, _s) natsPool_allocS((_n), (_p), (_s))
+
+#endif
 
 void natsPool_Destroy(natsPool *pool);
 
@@ -195,36 +239,36 @@ struct __natsBuffer_s
 // Heap-based functions
 
 #ifdef DEV_MODE
-static inline void *nats_heap_malloc(size_t size, const char *file, int line, const char *func)
+static inline void *natsHeap_log_RawAlloc(size_t size, const char *file, int line, const char *func)
 {
     void *mem = malloc(size);
     MEMLOGx(file, line, func, "HEAP malloc %zu bytes: %p", size, mem);
     return mem;
 }
-#define natsHeap_RawAlloc(_s) nats_heap_malloc((_s), __SHORT_FILE__, __LINE__, __func__)
+#define natsHeap_RawAlloc(_s) natsHeap_log_RawAlloc((_s)DEV_MODE_CTX)
 
-static inline void *nats_heap_calloc(size_t nmemb, size_t size, const char *file, int line, const char *func)
+static inline void *natsHeap_log_Alloc(size_t nmemb, size_t size, const char *file, int line, const char *func)
 {
     void *mem = calloc(nmemb, size);
     MEMLOGx(file, line, func, "HEAP calloc %zu bytes: %p", size, mem);
     return mem;
 }
-#define natsHeap_Alloc(_s) nats_heap_calloc(1, (_s), __SHORT_FILE__, __LINE__, __func__)
+#define natsHeap_Alloc(_s) natsHeap_log_Alloc(1, (_s)DEV_MODE_CTX)
 
-static inline void *nats_heap_realloc(void *ptr, size_t size, const char *file, int line, const char *func)
+static inline void *natsHeap_log_Realloc(void *ptr, size_t size, const char *file, int line, const char *func)
 {
     void *mem = realloc(ptr, size);
     MEMLOGx(file, line, func, "HEAP realloc %zu bytes: %p", size, mem);
     return mem;
 }
-#define natsHeap_Realloc(_p, _s) nats_heap_realloc((_p), (_s), __SHORT_FILE__, __LINE__, __func__)
+#define natsHeap_Realloc(_p, _s) natsHeap_log_Realloc((_p), (_s)DEV_MODE_CTX)
 
-static inline void nats_heap_free(void *ptr, const char *file, int line, const char *func)
+static inline void natsHeap_log_Free(void *ptr, const char *file, int line, const char *func)
 {
-    MEMLOGx(file, line, func, "HEAP free: %p", ptr);
     free(ptr);
+    MEMLOGx(file, line, func, "HEAP free: %p", ptr);
 }
-#define natsHeap_Free(_p) nats_heap_free((_p), __SHORT_FILE__, __LINE__, __func__)
+#define natsHeap_Free(_p) natsHeap_log_Free((_p)DEV_MODE_CTX)
 
 #else
 

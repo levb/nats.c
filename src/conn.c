@@ -1474,8 +1474,8 @@ natsConn_create(natsConnection **newConn, natsOptions *options)
     nc->sockCtx.fd = NATS_SOCK_INVALID;
     nc->opts = options;
 
-    IFOK(s, natsPool_CreateNamed(&nc->lifetimePool, 0, "conn-lifetime"));
-    IFOK(s, natsPool_CreateNamed(&nc->connectPool, 0, "conn-connect-time"));
+    IFOK(s, natsPool_Create(&nc->lifetimePool, 0, "conn-lifetime"));
+    IFOK(s, natsPool_Create(&nc->connectPool, 0, "conn-connect-time"));
 
     nc->errStr[0] = '\0';
 

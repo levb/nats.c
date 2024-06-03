@@ -20,7 +20,7 @@ void Test_Pool(void)
     natsPool *pool = NULL;
 
     test("Create pool");
-    natsStatus s = natsPool_CreateNamed(&pool, 1234, "mem-test");
+    natsStatus s = natsPool_Create(&pool, 1234, "mem-test" );
 
     size_t expectedLength = sizeof(natsPool) + sizeof(natsSmall);
     testCond((s == NATS_OK) &&
