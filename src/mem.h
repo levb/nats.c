@@ -92,7 +92,7 @@
 
 void natsPool_setPageSize(size_t size); // for testing
 
-#define NATS_DEFAULT_POOL_PAGE_SIZE 155
+#define NATS_DEFAULT_POOL_PAGE_SIZE 4096
 #define NATS_DEFAULT_BUFFER_SIZE 256
 
 struct __natsSmall_s
@@ -145,44 +145,12 @@ static inline natsStatus natsPool_allocS(void **newMem, natsPool *pool, size_t s
     return (*newMem == NULL ? NATS_NO_MEMORY : NATS_OK);
 }
 
+
 #ifdef DEV_MODE
 
-static inline natsStatus natsPool_log_create(natsPool **newPool, size_t pageSize, const char *name DEV_MODE_ARGS)
-{
-    natsStatus s = natsPool_create(newPool, pageSize, name);
-    if (s != NATS_OK)
-    {
-        MEMLOGx(file, line, func, "POOL '%s' create failed: %d", name, s);
-        return s;
-    }
-    MEMLOGx(file, line, func, "POOL '%s' created with page size %zu: %p", name, (*newPool)->pageSize, (void *)*newPool);
-    (*newPool)->name = name;
-    (*newPool)->file = file;
-    (*newPool)->line = line;
-    (*newPool)->func = func;
-
-    return s;
-}
-
-static inline void *natsPool_log_alloc(natsPool *pool, size_t size, const char *file, int line, const char *func)
-{
-    void *mem = natsPool_alloc(pool, size);
-    if (mem != NULL)
-        MEMLOGx(file, line, func, "POOL '%s' allocated %zu bytes: %p", pool->name, size, mem);
-    else
-        MEMLOGx(file, line, func, "POOL '%s' allocating %zu bytes failed", pool->name, size);
-    return mem;
-}
-
-static inline natsStatus natsPool_log_allocS(void **newMem, natsPool *pool, size_t size, const char *file, int line, const char *func)
-{
-    natsStatus s = natsPool_allocS(newMem, pool, size);
-    if (s == NATS_OK)
-        MEMLOGx(file, line, func, "POOL '%s' allocated %zu bytes: %p", pool->name, size, *newMem);
-    else
-        MEMLOGx(file, line, func, "POOL '%s' allocating %zu bytes failed", pool->name, size);
-    return s;
-}
+natsStatus natsPool_log_create(natsPool **newPool, size_t pageSize, const char *name DEV_MODE_ARGS);
+natsStatus natsPool_log_allocS(void **newMem, natsPool *pool, size_t size DEV_MODE_ARGS);
+void *natsPool_log_alloc(natsPool *pool, size_t size DEV_MODE_ARGS);
 
 #define natsPool_Create(_p, _s, _n) natsPool_log_create((_p), (_s), (_n)DEV_MODE_CTX)
 #define natsPool_Alloc(_p, _s) natsPool_log_alloc((_p), (_s)DEV_MODE_CTX)
@@ -242,7 +210,7 @@ struct __natsBuffer_s
 static inline void *natsHeap_log_RawAlloc(size_t size, const char *file, int line, const char *func)
 {
     void *mem = malloc(size);
-    MEMLOGx(file, line, func, "HEAP malloc %zu bytes: %p", size, mem);
+    MEMLOGx(file, line, func, "Alloc in HEAP: malloc: bytes:%zu, ptr:%p", size, mem);
     return mem;
 }
 #define natsHeap_RawAlloc(_s) natsHeap_log_RawAlloc((_s)DEV_MODE_CTX)
@@ -250,7 +218,7 @@ static inline void *natsHeap_log_RawAlloc(size_t size, const char *file, int lin
 static inline void *natsHeap_log_Alloc(size_t nmemb, size_t size, const char *file, int line, const char *func)
 {
     void *mem = calloc(nmemb, size);
-    MEMLOGx(file, line, func, "HEAP calloc %zu bytes: %p", size, mem);
+    MEMLOGx(file, line, func, "Alloc in HEAP: calloc: bytes:%zu, ptr:%p", size, mem);
     return mem;
 }
 #define natsHeap_Alloc(_s) natsHeap_log_Alloc(1, (_s)DEV_MODE_CTX)
@@ -258,7 +226,7 @@ static inline void *natsHeap_log_Alloc(size_t nmemb, size_t size, const char *fi
 static inline void *natsHeap_log_Realloc(void *ptr, size_t size, const char *file, int line, const char *func)
 {
     void *mem = realloc(ptr, size);
-    MEMLOGx(file, line, func, "HEAP realloc %zu bytes: %p", size, mem);
+    MEMLOGx(file, line, func, "Re-Alloc in HEAP: bytes:%zu, ptr:%p", size, mem);
     return mem;
 }
 #define natsHeap_Realloc(_p, _s) natsHeap_log_Realloc((_p), (_s)DEV_MODE_CTX)
@@ -266,7 +234,7 @@ static inline void *natsHeap_log_Realloc(void *ptr, size_t size, const char *fil
 static inline void natsHeap_log_Free(void *ptr, const char *file, int line, const char *func)
 {
     free(ptr);
-    MEMLOGx(file, line, func, "HEAP free: %p", ptr);
+    MEMLOGx(file, line, func, "Free in HEAP: ptr:%p", ptr);
 }
 #define natsHeap_Free(_p) natsHeap_log_Free((_p)DEV_MODE_CTX)
 

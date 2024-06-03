@@ -14,11 +14,6 @@
 #ifndef DEV_MODE_H_
 #define DEV_MODE_H_
 
-// Comment/uncomment to replace some function calls with direct structure
-// access
-#define DEV_MODE (1)
-#define DEV_MODE_MEM (1)
-
 #ifndef _WIN32
 #define __SHORT_FILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #else
@@ -29,7 +24,13 @@
 #define DEVNOLOGf(fmt, ...)
 #define DEVNOLOGx(file, line, func, fmt, ...)
 
+// Comment/uncomment to enable debug logging and tracking.
+#define DEV_MODE (1)
 #ifdef DEV_MODE
+
+// Comment/uncomment to enable debug logging and tracking in specific modules.
+#define DEV_MODE_MEM (1)
+
 #define DEV_MODE_CTX , __SHORT_FILE__, __LINE__, __NATS_FUNCTION__
 #define DEV_MODE_ARGS , const char *file, int line, const char *func
 #define DEVLOGx(file, line, func, fmt, ...) fprintf(stderr, "DEV: %s:%d: %s: " fmt "\n", (file), (line), (func), __VA_ARGS__)

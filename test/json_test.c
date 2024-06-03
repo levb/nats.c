@@ -24,7 +24,7 @@ void Test_JSON(void)
     char buf[512];
 
     const natsString bad[] = {
-        NATS_STR("{ \"test\" : 0,\"test2\":1}"),
+        NATS_STR("{"),
     };
     const char *good[] = {
         "{ \"test\" : 0,\"test2\":1}",
@@ -35,21 +35,24 @@ void Test_JSON(void)
         "{ \"test\": null}",
     };
 
+    natsPool *pool = NULL;
+    test("Create memory pool: ");
+    s = natsPool_Create(&pool, 0, "json-test");
+    testCond(s == NATS_OK);
+
     for (int i = 0; i < (int)(sizeof(bad) / sizeof(*bad)); i++)
     {
         snprintf(buf, sizeof(buf), "Negative test %d: ", (i + 1));
         test(buf);
-        natsPool *pool = NULL;
         natsJSONParser *parser = NULL;
         nats_JSON *json = NULL;
         size_t consumed;
-        s = natsPool_Create(&pool, 0, "json-test");
         IFOK(s, natsJSONParser_Create(&parser, pool));
-        // IFOK(s, natsJSONParser_Parse(&json, parser, &bad[i], &consumed));
+        IFOK(s, natsJSONParser_Parse(&json, parser, &bad[i], &consumed));
         testCond((s == NATS_OK) && (json == NULL));
-        // json = NULL;
+        json = NULL;
     }
-    // nats_clearLastError();
+    nats_clearLastError();
 
     // for (i = 0; i < (int)(sizeof(good) / sizeof(char *)); i++)
     // {
@@ -61,6 +64,8 @@ void Test_JSON(void)
     //     json = NULL;
     // }
     // nats_clearLastError();
+
+    natsPool_Destroy(pool);
 }
 // Test_JSON(void)
 // {
