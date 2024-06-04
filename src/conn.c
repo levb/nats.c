@@ -607,7 +607,10 @@ _processInfo(natsConnection *nc, natsString *jsonData)
     IFOK(s, nats_JSONGetBool(json, "headers", &(info->headers)));
 
     if (s == NATS_OK)
+    {
         _unpackSrvVersion(nc);
+        nc->info = info;
+    }
 
     // The array could be empty/not present on initial connect,
     // if advertise is disabled on that server, or servers that
