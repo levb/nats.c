@@ -25,7 +25,7 @@
 #define DEVNOLOGx(file, line, func, fmt, ...)
 
 // Comment/uncomment to enable debug logging and tracking.
-// #define DEV_MODE (1)
+#define DEV_MODE (1)
 #ifdef DEV_MODE
 
 // Comment/uncomment to enable debug logging and tracking in specific modules.

@@ -71,7 +71,7 @@ int main(int argc, char **argv)
     const char *testname = argv[1];
 
 #ifndef _WIN32
-    signal(SIGSEGV, _sigsegv_handler);
+    // signal(SIGSEGV, _sigsegv_handler);
 #endif // _WIN32
 
     if (nats_Open() != NATS_OK)

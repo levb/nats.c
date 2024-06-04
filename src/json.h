@@ -46,6 +46,7 @@ typedef struct
 typedef struct
 {
     natsStrHash *fields;
+    nats_JSONArray *array;
     natsPool *pool;
 } nats_JSON;
 

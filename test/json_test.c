@@ -40,16 +40,15 @@ void Test_JSONStructure(void)
         {"multiple: mixed: ","{ \"test\":1, \"test2\":true, \"test3\":\"abc\", \"test4\":null}"},
         {"multiple: mixed different order: ","{ \"test2\":true, \"test3\":\"abc\", \"test4\":null, \"test\":1}"},
 
-        // {"empty array: ","{ \"test\": []}"},
-        // {"array of empty arrays: ","{ \"test\": [[], [], []]}"},
-        // {"array of empty objects: ","{ \"test\": [{}, {}, {}]}"},
-        // {"array of strings: ","{ \"test\": [\"a\", \"b\", \"c\"]}"},
-        // {"array of objects: ","{ \"test\": [{\"a\": 1}, {\"b\": \"c\"}]}"},
-        // {"array of arrays: ","{ \"test\": [[{\"a\": 1}], [{\"b\": \"c\"}]]}"},
-        // {"array of numbers: ","{ \"test\": [1, 2, 3]}"},
-        // {"array of doubles: ","{ \"test\": [1.1, 2.2, 3.3]}"},
-        // {"array of booleans: ","{ \"test\": [true, false, true]}"},
-        // {"array of nulls: ","{ \"test\": [null, null, null]}"},
+        {"empty array: ","{ \"test\": []}"},
+        {"array of empty arrays: ","{ \"test\": [[], [], []]}"},
+        {"array of empty objects: ","{ \"test\": [{}, {}, {}]}"},
+        {"array of strings: ","{ \"test\": [\"a\", \"b\", \"c\"]}"},
+        {"array of objects: ","{ \"test\": [{\"a\": 1}, {\"b\": \"c\"}]}"},
+        {"array of arrays: ","{ \"test\": [[{\"a\": 1}], [{\"b\": \"c\"}]]}"},
+        {"array of numbers: ","{ \"test\": [1, 2, 3]}"},
+        {"array of doubles: ","{ \"test\": [1.1, 2.2, 3.3]}"},
+        {"array of booleans: ","{ \"test\": [true, false, true]}"},
         {"empty nested object","{ \n\"test\":\n{}}"},
         {"nested objects","{ \"test\":1, \"inner1\": {\"inner\":\"a\",\"inner2\":2,\"inner3\":false,\"inner4\":{\"inner2\" : 1.234}}}"},
 
@@ -59,6 +58,8 @@ void Test_JSONStructure(void)
         {"error: starts with a letter", " A"},
         {"error: starts with a quote", " \""},
         {"error: value starts with a wrong char", " {\"test\" : XXX }"},
+        {"error: array of nulls: ", "{ \"test\": [null, null, null]}"},
+        {"error: mixed type array: ", "{ \"test\": [1, \"abc\", true]}"},
     };
 
     natsPool *pool = NULL;

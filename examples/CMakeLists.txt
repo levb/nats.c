@@ -31,8 +31,6 @@ endif()
 # Get all the .c files in the examples directory
 file(GLOB EXAMPLES_SOURCES RELATIVE ${PROJECT_SOURCE_DIR}/examples *.c)
 
-message(STATUS "<>/<>/<> Building examples: ${EXAMPLES_SOURCES}")
-
 if(NOT NATS_BUILD_STATIC_EXAMPLES)
   add_definitions(-Dnats_IMPORTS)
 endif()

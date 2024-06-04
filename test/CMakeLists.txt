@@ -14,7 +14,7 @@ endif()
 
 # We need this to build the test program.
 include_directories(${PROJECT_SOURCE_DIR}/src)
-file(GLOB TEST_SOURCES "*.c")
+file(GLOB TEST_SOURCES RELATIVE ${PROJECT_SOURCE_DIR}/test *.c)
 
 # Build the test program, link statically with the library.
 add_executable(natstest ${TEST_SOURCES})

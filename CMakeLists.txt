@@ -162,7 +162,7 @@ if(UNIX)
 
   # Some compiler hardening flags.
   if(NATS_COMPILER_HARDENING)
-     set(NATS_COMMON_C_FLAGS "${NATS_COMMON_C_FLAGS} -fPIE -fstack-protector-all -D_FORTIFY_SOURCE=2 -O1")
+     set(NATS_COMMON_C_FLAGS "${NATS_COMMON_C_FLAGS} -fPIE -fstack-protector-all -D_FORTIFY_SOURCE=2 -O0")
      # Works only with GCC.
      if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
        set(NATS_COMMON_C_FLAGS "${NATS_COMMON_C_FLAGS} -Wl,-z,relro,-z,now -pie")
