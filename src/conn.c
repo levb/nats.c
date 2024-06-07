@@ -53,23 +53,273 @@
 
 #endif // DEV_MODE
 
-static natsStatus _createConn(natsConnection *nc);
-static natsStatus _processConnInit(natsConnection *nc);
+static natsStatus _connect(natsConnection *nc);
+static natsStatus _connectTCP(natsConnection *nc);
+static natsStatus _createConnectionObject(natsConnection **newnc);
+// static natsStatus _processConnInit(natsConnection *nc);
 static void _close(natsConnection *nc, natsConnStatus status, bool fromPublicClose, bool doCBs);
-static natsStatus _processExpectedInfo(natsConnection *nc);
-static natsStatus _sendConnect(natsConnection *nc);
-static void _clearSSL(natsConnection *nc);
-static natsStatus _evStopPolling(natsConnection *nc);
-static natsStatus _processInfo(natsConnection *nc, natsString *jsonData);
-static natsStatus _checkForSecure(natsConnection *nc);
-static natsStatus _connectProto(natsConnection *nc, char **proto);
-static natsStatus _readProto(natsConnection *nc, natsBuffer **proto);
+// static natsStatus _processExpectedInfo(natsConnection *nc);
+// static natsStatus _sendConnect(natsConnection *nc);
+// static void _clearSSL(natsConnection *nc);
+// static natsStatus _evStopPolling(natsConnection *nc);
+// static natsStatus _processInfo(natsConnection *nc, natsString *jsonData);
+// static natsStatus _checkForSecure(natsConnection *nc);
+// static natsStatus _connectProto(natsConnection *nc, char **proto);
+// static natsStatus _readProto(natsConnection *nc, natsBuffer **proto);
 static bool _processOpError(natsConnection *nc, natsStatus s, bool initialConnect);
 
-    static void _clearServerInfo(natsServerInfo *si);
+// static void _clearServerInfo(natsServerInfo *si);
 static void _freeConn(natsConnection *nc);
 
-#define natsConn_bufferWriteStr(_nc, _s) natsConn_bufferWrite((_nc), (_s), strlen(_s));
+natsStatus
+natsConnection_Connect(natsConnection **newConn, natsOptions *options)
+{
+    natsStatus s = NATS_OK;
+    natsConnection *nc = NULL;
+
+    if (options == NULL)
+    {
+        s = natsConnection_ConnectTo(newConn, NATS_DEFAULT_URL);
+        return NATS_UPDATE_ERR_STACK(s);
+    }
+
+    s = _createConnectionObject(&nc);
+    IFOK(s, natsOptions_clone(&(nc->opts), nc->lifetimePool, options));
+    IFOK(s, _connect(nc));
+    if ((s == NATS_OK) || (s == NATS_NOT_YET_CONNECTED))
+        *newConn = nc;
+    else
+        natsConn_release(nc);
+
+    return NATS_UPDATE_ERR_STACK(s);
+}
+
+// Creates and initializes a natsConnection memory object, does not take any
+// action yet.
+static natsStatus
+_createConnectionObject(natsConnection **newConn)
+{
+    natsStatus s = NATS_OK;
+    natsPool *pool = NULL;
+    natsConnection *nc = NULL;
+
+    natsLib_Retain();
+    s = natsPool_Create(&pool, 0, "conn-lifetime");
+    IFOK(s, natsPool_AllocS((void **)&nc, pool, sizeof(natsConnection)));
+    IFOK(s, _setupServerPool(nc));
+    IFOK(s, natsSock_Init(&nc->sockCtx));
+    if (s != NATS_OK)
+    {
+        natsPool_Destroy(pool);
+        natsLib_Release();
+        return NATS_UPDATE_ERR_STACK(s);
+    }
+    CONNLOGf("natsConn_create: created natsConnection: %p", (void *)nc);
+    nc->refs = 1;
+    *newConn = nc;
+
+    return NATS_OK;
+}
+
+// Main connect function. Will connect to the server
+static natsStatus
+_connect(natsConnection *nc)
+{
+    natsStatus s = NATS_OK;
+    natsStatus retSts = NATS_OK;
+    natsServers *servers = nc->servers;
+    int i = 0;
+    int l = 0;
+    int max = 0;
+    int64_t wtime = 0;
+    bool retry = false;
+
+    if (nc->opts->retryOnFailedConnect)
+    {
+        retry = true;
+        max = nc->opts->maxReconnect;
+        wtime = nc->opts->reconnectWait;
+    }
+
+    for (;;)
+    {
+        // The pool may change inside the loop iteration due to INFO protocol.
+        for (i = 0; i < natsServers_Count(servers); i++)
+        {
+            nc->cur = natsServers_Get(servers, i);
+            CONNLOGf("connecting to %s", nc->cur->url->fullUrl);
+
+            s = _connectTCP(nc);
+            if (s == NATS_OK)
+            {
+                CONNLOG("proceeding to process connection init");
+                s = _processConnInit(nc);
+
+                if (s == NATS_OK)
+                {
+                    nc->cur->lastAuthErrCode = 0;
+                    natsServers_SetSrvDidConnect(servers, i, true);
+                    natsServers_SetSrvReconnects(servers, i, 0);
+                    retSts = NATS_OK;
+                    retry = false;
+                    break;
+                }
+                else
+                {
+                    retSts = s;
+
+                    _close(nc, NATS_CONN_STATUS_DISCONNECTED, false, false);
+
+                    nc->cur = NULL;
+                }
+            }
+            else
+            {
+                if (natsConn_isClosed(nc))
+                {
+                    s = NATS_CONNECTION_CLOSED;
+                    break;
+                }
+
+                if (s == NATS_IO_ERROR)
+                    retSts = NATS_OK;
+            }
+        }
+
+        if (!retry)
+            break;
+
+        l++;
+        if ((max > 0) && (l > max))
+            break;
+
+        if (wtime > 0)
+            nats_Sleep(wtime);
+    }
+
+    if ((retSts == NATS_OK) && (nc->status != NATS_CONN_STATUS_CONNECTED))
+        s = nats_setDefaultError(NATS_NO_SERVER);
+
+    return NATS_UPDATE_ERR_STACK(s);
+}
+
+// _connectTCP will connect to the server and do the right thing when an
+// existing connection is in place.
+static natsStatus
+_connectTCP(natsConnection *nc)
+{
+    natsStatus s = NATS_OK;
+
+    // Set the IP resolution order
+    nc->sockCtx.orderIP = nc->opts->orderIP;
+
+    // Set ctx.noRandomize based on public NoRandomize option.
+    nc->sockCtx.noRandomize = nc->opts->noRandomize;
+
+    s = natsSock_ConnectTcp(&(nc->sockCtx), nc->connectPool, nc->cur->url->host, nc->cur->url->port);
+    if (s == NATS_OK)
+        nc->sockCtx.fdActive = true;
+
+    // Need to create or reset the buffer even on failure in case we allow
+    // retry on failed connect
+    if ((s == NATS_OK) || nc->opts->retryOnFailedConnect)
+    {
+        // natsStatus ls = NATS_OK;
+        CONNLOGf("TCP connected to %s", nc->cur->url->fullUrl);
+
+        // // natsChain_Destroy(nc->out); <>/<>
+        // ls = natsChain_Create(&(nc->out), 0);
+        // if (s == NATS_OK)
+        //     s = ls;
+    }
+
+    return NATS_UPDATE_ERR_STACK(s);
+}
+
+static natsStatus
+_processConnInit(natsConnection *nc)
+{
+    natsStatus s = NATS_OK;
+
+    nc->status = NATS_CONN_STATUS_CONNECTING;
+
+    // Process the INFO protocol that we should be receiving
+    s = _processExpectedInfo(nc);
+
+    // Send the CONNECT and PING protocol, and wait for the PONG.
+    if (s == NATS_OK)
+        s = _sendConnect(nc);
+
+    // If there is no write deadline option, switch to blocking socket here...
+    if ((s == NATS_OK) && (nc->opts->writeDeadline <= 0))
+        s = natsSock_SetBlocking(nc->sockCtx.fd, true);
+
+    s = natsSock_SetBlocking(nc->sockCtx.fd, false);
+
+    // If we are reconnecting, buffer will have already been allocated
+    if ((s == NATS_OK) && (nc->el.buffer == NULL))
+    {
+        nc->el.buffer = (char *)natsHeap_Alloc(nc->opts->ioBufSize);
+        if (nc->el.buffer == NULL)
+            s = nats_setDefaultError(NATS_NO_MEMORY);
+    }
+    if (s == NATS_OK)
+    {
+        s = nc->opts->evCbs.attach(&(nc->el.data),
+                                   nc->opts->evLoop,
+                                   nc,
+                                   (int)nc->sockCtx.fd);
+        if (s == NATS_OK)
+        {
+            nc->el.attached = true;
+        }
+        else
+        {
+            nats_setError(s,
+                          "Error attaching to the event loop: %d - %s",
+                          s, natsStatus_GetText(s));
+        }
+    }
+
+    return NATS_UPDATE_ERR_STACK(s);
+}
+
+// Low level close call that will do correct cleanup and set
+// desired status. Also controls whether user defined callbacks
+// will be triggered. The lock should not be held entering this
+// function. This function will handle the locking manually.
+static void
+_close(natsConnection *nc, natsConnStatus status, bool fromPublicClose, bool doCBs)
+{
+    natsConn_retain(nc);
+
+    if (natsConn_isClosed(nc))
+    {
+        nc->status = status;
+
+        natsConn_release(nc);
+        return;
+    }
+
+    nc->status = NATS_CONN_STATUS_CLOSED;
+
+    _evStopPolling(nc);
+
+    natsSock_Close(nc->sockCtx.fd);
+    nc->sockCtx.fd = NATS_SOCK_INVALID;
+
+    // We need to cleanup some things if the connection was SSL.
+    _clearSSL(nc);
+    nc->sockCtx.fdActive = false;
+
+    // natsAsyncCb_PostConnHandler(nc, ASYNC_DISCONNECTED);
+    // natsAsyncCb_PostConnHandler(nc, ASYNC_CLOSED);
+
+    nc->status = status;
+
+    nc->opts->evCbs.detach(nc->el.data);
+    natsConn_release(nc);
+}
 
 void natsConnection_ProcessReadEvent(natsConnection *nc)
 {
@@ -126,7 +376,7 @@ void natsConnection_ProcessWriteEvent(natsConnection *nc)
     // buf = natsBuf_Data(nc->bw);
     // len = natsBuf_Len(nc->bw);
 
-    s = natsSock_Write(&(nc->sockCtx), (uint8_t*)"<>/<> TEST", 10, &n);
+    s = natsSock_Write(&(nc->sockCtx), (uint8_t *)"<>/<> TEST", 10, &n);
     if (s == NATS_OK)
     {
         // if (n == len)
@@ -152,206 +402,6 @@ void natsConnection_ProcessWriteEvent(natsConnection *nc)
         _processOpError(nc, s, false);
 
     (void)NATS_UPDATE_ERR_STACK(s);
-}
-
-// Main connect function. Will connect to the server
-static natsStatus
-_connect(natsConnection *nc)
-{
-    natsStatus s = NATS_OK;
-    natsStatus retSts = NATS_OK;
-    natsServers *servers = nc->servers;
-    int i = 0;
-    int l = 0;
-    int max = 0;
-    int64_t wtime = 0;
-    bool retry = false;
-
-    if (nc->opts->retryOnFailedConnect)
-    {
-        retry = true;
-        max = nc->opts->maxReconnect;
-        wtime = nc->opts->reconnectWait;
-    }
-
-    for (;;)
-    {
-        // The pool may change inside the loop iteration due to INFO protocol.
-        for (i = 0; i < natsServers_Count(servers); i++)
-        {
-            nc->cur = natsServers_Get(servers, i);
-            CONNLOGf("connecting to %s", nc->cur->url->fullUrl);
-
-            s = _createConn(nc);
-            if (s == NATS_OK)
-            {
-                CONNLOG("proceeding to process connection init");
-                s = _processConnInit(nc);
-
-                if (s == NATS_OK)
-                {
-                    nc->cur->lastAuthErrCode = 0;
-                    natsServers_SetSrvDidConnect(servers, i, true);
-                    natsServers_SetSrvReconnects(servers, i, 0);
-                    retSts = NATS_OK;
-                    retry = false;
-                    break;
-                }
-                else
-                {
-                    retSts = s;
-
-                    _close(nc, NATS_CONN_STATUS_DISCONNECTED, false, false);
-
-                    nc->cur = NULL;
-                }
-            }
-            else
-            {
-                if (natsConn_isClosed(nc))
-                {
-                    s = NATS_CONNECTION_CLOSED;
-                    break;
-                }
-
-                if (s == NATS_IO_ERROR)
-                    retSts = NATS_OK;
-            }
-        }
-
-        if (!retry)
-            break;
-
-        l++;
-        if ((max > 0) && (l > max))
-            break;
-
-        if (wtime > 0)
-            nats_Sleep(wtime);
-    }
-
-    if ((retSts == NATS_OK) && (nc->status != NATS_CONN_STATUS_CONNECTED))
-        s = nats_setDefaultError(NATS_NO_SERVER);
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-// _createConn will connect to the server and do the right thing when an
-// existing connection is in place.
-static natsStatus
-_createConn(natsConnection *nc)
-{
-    natsStatus s = NATS_OK;
-
-    // Set the IP resolution order
-    nc->sockCtx.orderIP = nc->opts->orderIP;
-
-    // Set ctx.noRandomize based on public NoRandomize option.
-    nc->sockCtx.noRandomize = nc->opts->noRandomize;
-
-    s = natsSock_ConnectTcp(&(nc->sockCtx), nc->connectPool, nc->cur->url->host, nc->cur->url->port);
-    if (s == NATS_OK)
-        nc->sockCtx.fdActive = true;
-
-    // Need to create or reset the buffer even on failure in case we allow
-    // retry on failed connect
-    if ((s == NATS_OK) || nc->opts->retryOnFailedConnect)
-    {
-        // natsStatus ls = NATS_OK;
-        CONNLOGf("TCP connected to %s", nc->cur->url->fullUrl);
-
-        // // natsChain_Destroy(nc->out); <>/<>
-        // ls = natsChain_Create(&(nc->out), 0);
-        // if (s == NATS_OK)
-        //     s = ls;
-    }
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-static natsStatus
-_processConnInit(natsConnection *nc)
-{
-    natsStatus s = NATS_OK;
-
-    nc->status = NATS_CONN_STATUS_CONNECTING;
-
-    // Process the INFO protocol that we should be receiving
-    s = _processExpectedInfo(nc);
-
-    // Send the CONNECT and PING protocol, and wait for the PONG.
-    if (s == NATS_OK)
-        s = _sendConnect(nc);
-
-    // If there is no write deadline option, switch to blocking socket here...
-    if ((s == NATS_OK) && (nc->opts->writeDeadline <= 0))
-        s = natsSock_SetBlocking(nc->sockCtx.fd, true);
-
-        s = natsSock_SetBlocking(nc->sockCtx.fd, false);
-
-        // If we are reconnecting, buffer will have already been allocated
-        if ((s == NATS_OK) && (nc->el.buffer == NULL))
-        {
-            nc->el.buffer = (char *)natsHeap_Alloc(nc->opts->ioBufSize);
-            if (nc->el.buffer == NULL)
-                s = nats_setDefaultError(NATS_NO_MEMORY);
-        }
-        if (s == NATS_OK)
-        {
-            s = nc->opts->evCbs.attach(&(nc->el.data),
-                                       nc->opts->evLoop,
-                                       nc,
-                                       (int)nc->sockCtx.fd);
-            if (s == NATS_OK)
-            {
-                nc->el.attached = true;
-            }
-            else
-            {
-                nats_setError(s,
-                              "Error attaching to the event loop: %d - %s",
-                              s, natsStatus_GetText(s));
-            }
-        }
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-// Low level close call that will do correct cleanup and set
-// desired status. Also controls whether user defined callbacks
-// will be triggered. The lock should not be held entering this
-// function. This function will handle the locking manually.
-static void
-_close(natsConnection *nc, natsConnStatus status, bool fromPublicClose, bool doCBs)
-{
-    natsConn_retain(nc);
-
-    if (natsConn_isClosed(nc))
-    {
-        nc->status = status;
-
-        natsConn_release(nc);
-        return;
-    }
-
-    nc->status = NATS_CONN_STATUS_CLOSED;
-
-    _evStopPolling(nc);
-
-    natsSock_Close(nc->sockCtx.fd);
-    nc->sockCtx.fd = NATS_SOCK_INVALID;
-
-    // We need to cleanup some things if the connection was SSL.
-    _clearSSL(nc);
-    nc->sockCtx.fdActive = false;
-
-    // natsAsyncCb_PostConnHandler(nc, ASYNC_DISCONNECTED);
-    // natsAsyncCb_PostConnHandler(nc, ASYNC_CLOSED);
-
-    nc->status = status;
-
-    nc->opts->evCbs.detach(nc->el.data);
-    natsConn_release(nc);
 }
 
 static natsStatus
@@ -1446,88 +1496,6 @@ _setupServerPool(natsConnection *nc)
     s = natsServers_Create(&(nc->servers), nc->connectPool, nc->opts);
     if (s == NATS_OK)
         nc->cur = natsServers_Get(nc->servers, 0);
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-natsStatus
-natsConn_create(natsConnection **newConn, natsOptions *options)
-{
-    natsStatus s = NATS_OK;
-    natsConnection *nc = NULL;
-
-    s = nats_Open();
-    if (s == NATS_OK)
-    {
-        nc = natsHeap_Alloc(sizeof(natsConnection));
-        if (nc == NULL)
-            s = nats_setDefaultError(NATS_NO_MEMORY);
-    }
-    if (s != NATS_OK)
-    {
-        // options have been cloned or created for the connection,
-        // which was supposed to take ownership, so destroy it now.
-        natsOptions_Destroy(options);
-        return NATS_UPDATE_ERR_STACK(s);
-    }
-
-    natsLib_Retain();
-
-    nc->refs = 1;
-    nc->sockCtx.fd = NATS_SOCK_INVALID;
-    nc->opts = options;
-
-    IFOK(s, natsPool_Create(&nc->lifetimePool, 0, "conn-lifetime"));
-    IFOK(s, natsPool_Create(&nc->connectPool, 0, "conn-connect-time"));
-
-    nc->errStr[0] = '\0';
-
-    IFOK(s, _setupServerPool(nc));
-    // IFOK(s, natsHash_Create(&(nc->subs), 8));
-    IFOK(s, natsSock_Init(&nc->sockCtx));
-    IFOK(s, natsBuf_CreateInPool(&(nc->scratch), nc->lifetimePool, DEFAULT_SCRATCH_SIZE));
-    IFOK(s, natsBuf_AppendBytes(nc->scratch, (const uint8_t *)_HPUB_P_, _HPUB_P_LEN_));
-
-    if (s == NATS_OK)
-    {
-        CONNLOGf("natsConn_create: created natsConnection: %p", (void*)nc);
-        *newConn = nc;
-    }
-    else
-        natsConn_release(nc);
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
-natsStatus
-natsConnection_Connect(natsConnection **newConn, natsOptions *options)
-{
-    natsStatus s = NATS_OK;
-    natsConnection *nc = NULL;
-    natsOptions *opts = NULL;
-
-    if (options == NULL)
-    {
-        s = natsConnection_ConnectTo(newConn, NATS_DEFAULT_URL);
-        return NATS_UPDATE_ERR_STACK(s);
-    }
-
-    opts = natsOptions_clone(options);
-    if (opts == NULL)
-        s = NATS_NO_MEMORY;
-
-    if (s == NATS_OK)
-        s = natsConn_create(&nc, opts);
-    if (s == NATS_OK)
-        s = _connect(nc);
-
-    natsPool_Destroy(nc->connectPool);
-    nc->connectPool = NULL;
-
-    if ((s == NATS_OK) || (s == NATS_NOT_YET_CONNECTED))
-        *newConn = nc;
-    else
-        natsConn_release(nc);
 
     return NATS_UPDATE_ERR_STACK(s);
 }

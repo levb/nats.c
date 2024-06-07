@@ -57,11 +57,21 @@ natsStatus natsLibevent_Detach(void *userData);
 void
 natsLibevent_Init(void)
 {
-#if _WIN32
-    evthread_use_windows_threads();
-#else
-    evthread_use_pthreads();
-#endif
+// #if _WIN32
+//     evthread_use_windows_threads();
+// #else
+//     evthread_use_pthreads();
+// #endif
+}
+
+natsStatus natsConnection_ConnectLibevent(natsConnection **conn, struct event_base *evLoop,
+natsOptions * opts, natsCallback_Connect onConnectOK, natsCallback_ConnectError onConnectError)
+{
+    natsOptions_SetEventLoop(opts, evLoop, natsLibevent_Attach, natsLibevent_Read, natsLibevent_Write, natsLibevent_Detach);
+
+    // <>/<> TODO callbacks
+
+    return natsConnection_Connect(conn, opts);
 }
 
 static void

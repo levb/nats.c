@@ -22,7 +22,7 @@
 #include "err.h"
 
 natsStatus
-natsOptions_SetURL(natsOptions *opts, const char* url)
+natsOptions_SetURL(natsOptions *opts, const char *url)
 {
     natsStatus s = NATS_OK;
 
@@ -38,18 +38,17 @@ natsOptions_SetURL(natsOptions *opts, const char* url)
 }
 
 natsStatus
-natsOptions_SetServers(natsOptions *opts, const char** servers, int serversCount)
+natsOptions_SetServers(natsOptions *opts, const char **servers, int serversCount)
 {
-    natsStatus  s = NATS_OK;
-    int         i;
+    natsStatus s = NATS_OK;
+    int i;
 
     CHECK_OPTIONS(opts,
-                           (((servers != NULL) && (serversCount <= 0))
-                            || ((servers == NULL) && (serversCount != 0))));
+                  (((servers != NULL) && (serversCount <= 0)) || ((servers == NULL) && (serversCount != 0))));
 
     if (servers != NULL)
     {
-        opts->servers = (char**) natsPool_Alloc(opts->pool, serversCount * sizeof(char*));
+        opts->servers = (char **)natsPool_Alloc(opts->pool, serversCount * sizeof(char *));
         if (opts->servers == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
 
@@ -67,7 +66,7 @@ natsOptions_SetServers(natsOptions *opts, const char** servers, int serversCount
 natsStatus
 natsOptions_SetNoRandomize(natsOptions *opts, bool noRandomize)
 {
-    natsStatus  s = NATS_OK;
+    natsStatus s = NATS_OK;
 
     CHECK_OPTIONS(opts, 0);
 
@@ -86,11 +85,10 @@ natsOptions_SetTimeout(natsOptions *opts, int64_t timeout)
     return NATS_OK;
 }
 
-
 natsStatus
 natsOptions_SetName(natsOptions *opts, const char *name)
 {
-    natsStatus  s = NATS_OK;
+    natsStatus s = NATS_OK;
 
     CHECK_OPTIONS(opts, 0);
 
@@ -108,16 +106,16 @@ natsOptions_SetName(natsOptions *opts, const char *name)
 natsStatus
 natsOptions_SetUserInfo(natsOptions *opts, const char *user, const char *password)
 {
-    natsStatus  s = NATS_OK;
+    natsStatus s = NATS_OK;
 
     CHECK_OPTIONS(opts, 0);
 
-    opts->user= NULL;
+    opts->user = NULL;
     opts->password = NULL;
     if (user != NULL)
     {
         opts->user = natsPool_StrdupC(opts->pool, user);
-        if (opts->user== NULL)
+        if (opts->user == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
     if ((s == NATS_OK) && (password != NULL))
@@ -758,7 +756,7 @@ natsOptions_SetReconnectJitter(natsOptions *opts, int64_t jitter, int64_t jitter
 {
     CHECK_OPTIONS(opts, ((jitter < 0) || (jitterTLS < 0)));
 
-    opts->reconnectJitter    = jitter;
+    opts->reconnectJitter = jitter;
     opts->reconnectJitterTLS = jitterTLS;
 
     return NATS_OK;
@@ -798,7 +796,7 @@ natsOptions_SetMaxPendingMsgs(natsOptions *opts, int maxPending)
 }
 
 natsStatus
-natsOptions_SetMaxPendingBytes(natsOptions* opts, int64_t maxPending)
+natsOptions_SetMaxPendingBytes(natsOptions *opts, int64_t maxPending)
 {
     CHECK_OPTIONS(opts, (maxPending <= 0));
 
@@ -910,22 +908,18 @@ natsOptions_SetIgnoreDiscoveredServers(natsOptions *opts, bool ignore)
 natsStatus
 natsOptions_SetEventLoop(natsOptions *opts,
                          void *loop,
-                         natsEvLoop_Attach          attachCb,
-                         natsEvLoop_ReadAddRemove   readCb,
-                         natsEvLoop_WriteAddRemove  writeCb,
-                         natsEvLoop_Detach          detachCb)
+                         natsEvLoop_Attach attachCb,
+                         natsEvLoop_ReadAddRemove readCb,
+                         natsEvLoop_WriteAddRemove writeCb,
+                         natsEvLoop_Detach detachCb)
 {
-    CHECK_OPTIONS(opts, (loop == NULL)
-                                 || (attachCb == NULL)
-                                 || (readCb == NULL)
-                                 || (writeCb == NULL)
-                                 || (detachCb == NULL));
+    CHECK_OPTIONS(opts, (loop == NULL) || (attachCb == NULL) || (readCb == NULL) || (writeCb == NULL) || (detachCb == NULL));
 
-    opts->evLoop        = loop;
-    opts->evCbs.attach  = attachCb;
-    opts->evCbs.read    = readCb;
-    opts->evCbs.write   = writeCb;
-    opts->evCbs.detach  = detachCb;
+    opts->evLoop = loop;
+    opts->evCbs.attach = attachCb;
+    opts->evCbs.read = readCb;
+    opts->evCbs.write = writeCb;
+    opts->evCbs.detach = detachCb;
 
     return NATS_OK;
 }
@@ -933,11 +927,7 @@ natsOptions_SetEventLoop(natsOptions *opts,
 natsStatus
 natsOptions_IPResolutionOrder(natsOptions *opts, int order)
 {
-    CHECK_OPTIONS(opts, ((order != 0)
-                                    && (order != 4)
-                                    && (order != 6)
-                                    && (order != 46)
-                                    && (order != 64)));
+    CHECK_OPTIONS(opts, ((order != 0) && (order != 4) && (order != 6) && (order != 46) && (order != 64)));
 
     opts->orderIP = order;
 
@@ -1353,49 +1343,62 @@ _freeOptions(natsOptions *opts)
     natsPool_Destroy(opts->pool);
 }
 
-natsStatus
+natsStatus 
 natsOptions_Create(natsOptions **newOpts)
 {
-    natsStatus  s;
+    return natsOptions_create(newOpts, NULL);
+}
+
+natsStatus
+natsOptions_create(natsOptions **newOpts, natsPool *pool)
+{
+    natsStatus s;
     natsOptions *opts = NULL;
-    natsPool    *pool = NULL;
+    bool ownPool = (pool == NULL);
 
     // Ensure the library is loaded
     s = nats_Open();
+    if (ownPool)
+        IFOK(s, natsPool_Create(&pool, 0, "options"));
+    IFOK(s, natsPool_AllocS((void**)&opts, pool, sizeof(natsOptions)));
     if (s != NATS_OK)
+    {
+        if (ownPool)
+            natsPool_Destroy(pool);
         return s;
-
-    s = natsPool_Create(&pool, 0, "natsOptions" );
-    if (s != NATS_OK)
-        return nats_setDefaultError(s);
-    opts = (natsOptions*) natsPool_Alloc(pool, sizeof(natsOptions));
-    if (opts == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
+    }
     opts->pool = pool;
+    opts->ownPool = ownPool;
 
-    opts->allowReconnect        = true;
-    opts->secure                = false;
-    opts->maxReconnect          = NATS_OPTS_DEFAULT_MAX_RECONNECT;
-    opts->reconnectWait         = NATS_OPTS_DEFAULT_RECONNECT_WAIT;
-    opts->pingInterval          = NATS_OPTS_DEFAULT_PING_INTERVAL;
-    opts->maxPingsOut           = NATS_OPTS_DEFAULT_MAX_PING_OUT;
-    opts->ioBufSize             = NATS_OPTS_DEFAULT_IO_BUF_SIZE;
-    opts->maxPendingMsgs        = NATS_OPTS_DEFAULT_MAX_PENDING_MSGS;
-    opts->maxPendingBytes       = -1;
-    opts->timeout               = NATS_OPTS_DEFAULT_TIMEOUT;
-    opts->reconnectBufSize      = NATS_OPTS_DEFAULT_RECONNECT_BUF_SIZE;
-    opts->reconnectJitter       = NATS_OPTS_DEFAULT_RECONNECT_JITTER;
-    opts->reconnectJitterTLS    = NATS_OPTS_DEFAULT_RECONNECT_JITTER_TLS;
+    opts->allowReconnect = true;
+    opts->secure = false;
+    opts->maxReconnect = NATS_OPTS_DEFAULT_MAX_RECONNECT;
+    opts->reconnectWait = NATS_OPTS_DEFAULT_RECONNECT_WAIT;
+    opts->pingInterval = NATS_OPTS_DEFAULT_PING_INTERVAL;
+    opts->maxPingsOut = NATS_OPTS_DEFAULT_MAX_PING_OUT;
+    opts->ioBufSize = NATS_OPTS_DEFAULT_IO_BUF_SIZE;
+    opts->maxPendingMsgs = NATS_OPTS_DEFAULT_MAX_PENDING_MSGS;
+    opts->maxPendingBytes = -1;
+    opts->timeout = NATS_OPTS_DEFAULT_TIMEOUT;
+    opts->reconnectBufSize = NATS_OPTS_DEFAULT_RECONNECT_BUF_SIZE;
+    opts->reconnectJitter = NATS_OPTS_DEFAULT_RECONNECT_JITTER;
+    opts->reconnectJitterTLS = NATS_OPTS_DEFAULT_RECONNECT_JITTER_TLS;
 
     *newOpts = opts;
 
     return NATS_OK;
 }
 
-natsOptions*
-natsOptions_clone(natsOptions *opts)
+natsStatus
+natsOptions_Create(natsOptions **newOpts)
 {
-    natsStatus  s       = NATS_OK;
+    return _createOpts(newOpts, NULL);
+}
+
+natsStatus
+natsOptions_clone(natsOptions **newOptions, natsPool *pool, natsOptions *opts)
+{
+    natsStatus s = NATS_OK;
     natsOptions *cloned = NULL;
 
     if ((s = natsOptions_Create(&cloned)) != NATS_OK)
@@ -1405,17 +1408,17 @@ natsOptions_clone(natsOptions *opts)
     }
 
     // Make a blind copy first...
-    memcpy((char*)cloned, (char*)opts, sizeof(natsOptions));
+    memcpy((char *)cloned, (char *)opts, sizeof(natsOptions));
 
     // Then remove all pointers, so that if we fail while
     // strduping them, and free the cloned, we don't free the strings
     // from the original.
-    cloned->name    = NULL;
+    cloned->name = NULL;
     cloned->servers = NULL;
-    cloned->url     = NULL;
-    cloned->user    = NULL;
-    cloned->password= NULL;
-    cloned->token   = NULL;
+    cloned->url = NULL;
+    cloned->user = NULL;
+    cloned->password = NULL;
+    cloned->token = NULL;
 
     // Also, set the number of servers count to 0, until we update
     // it (if necessary) when calling SetServers.
@@ -1429,7 +1432,7 @@ natsOptions_clone(natsOptions *opts)
 
     if ((s == NATS_OK) && (opts->servers != NULL))
         s = natsOptions_SetServers(cloned,
-                                   (const char**)opts->servers,
+                                   (const char **)opts->servers,
                                    opts->serversCount);
 
     if ((s == NATS_OK) && (opts->user != NULL))
@@ -1445,8 +1448,7 @@ natsOptions_clone(natsOptions *opts)
     return cloned;
 }
 
-void
-natsOptions_Destroy(natsOptions *opts)
+void natsOptions_Destroy(natsOptions *opts)
 {
     if (opts == NULL)
         return;

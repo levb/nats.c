@@ -22,6 +22,7 @@ struct __natsOptions
 {
     // All options values are allocated in this pool.
     natsPool *pool;
+    bool    ownPool;
 
     // All fields that are not "simple" types must be declared before
     // __memcpy_from_here, and should be manually added to natsOptions_Clone()
@@ -103,7 +104,8 @@ struct __natsOptions
 #define NATS_OPTS_DEFAULT_RECONNECT_JITTER      (100)               // 100 ms
 #define NATS_OPTS_DEFAULT_RECONNECT_JITTER_TLS  (1000)              // 1 second
 
-natsOptions*
-natsOptions_clone(natsOptions *opts);
+natsStatus natsOptions_clone(natsOptions **newOptions, natsPool *pool, natsOptions *opts);
+
+natsStatus natsOptions_create(natsOptions **newOptions, natsPool *pool);
 
 #endif /* OPTS_H_ */

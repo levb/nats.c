@@ -141,12 +141,6 @@ struct __natsConnection
     natsPool *lifetimePool;
     natsPool *connectPool;
 
-    natsBuffer *scratch;
-
-    // This is the buffer used to accumulate data to write to the socket.
-    // natsChain *out;
-    // natsChain *in;
-
     natsServerInfo *info;
 
     int64_t ssid;
@@ -179,9 +173,6 @@ struct __natsConnection
 #define RESP_INFO_POOL_MAX_SIZE (10)
 
 #define SET_WRITE_DEADLINE(nc) if ((nc)->opts->writeDeadline > 0) natsDeadline_Init(&(nc)->sockCtx.writeDeadline, (nc)->opts->writeDeadline)
-
-natsStatus
-natsConn_create(natsConnection **newConn, natsOptions *options);
 
 void
 natsConn_retain(natsConnection *nc);

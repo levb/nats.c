@@ -142,6 +142,12 @@ NATS_EXTERN natsStatus natsOptions_SetURL(natsOptions *opts, const char *url);
 NATS_EXTERN natsStatus natsOptions_SetVerbose(natsOptions *opts, bool verbose);
 NATS_EXTERN void natsOptions_Destroy(natsOptions *opts);
 
+typedef void (*natsCallback_Connect)(natsConnection *nc);
+typedef void (*natsCallback_ConnectError)(natsStatus err, natsOptions *opts);
+
+NATS_EXTERN natsStatus natsConnection_ConnectLibevent(
+    natsConnection **nc, void *evLoop, natsOptions *opts,
+    natsCallback_Connect onConnectOK, natsCallback_ConnectError onConnectError);
 NATS_EXTERN natsStatus natsConnection_Connect(natsConnection **nc, natsOptions *options);
 NATS_EXTERN natsStatus natsConnection_ConnectTo(natsConnection **nc, const char *urls);
 NATS_EXTERN natsStatus natsConnection_Publish(natsConnection *nc, const char *subj, const void *data, int dataLen);

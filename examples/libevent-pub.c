@@ -59,16 +59,8 @@ int main(int argc, char **argv)
     if (evLoop == NULL)
         s = NATS_ERR;
 
-    // Indicate which loop and callbacks to use once connected.
     if (s == NATS_OK)
-        s = natsOptions_SetEventLoop(opts, (void *)evLoop,
-                                     natsLibevent_Attach,
-                                     natsLibevent_Read,
-                                     natsLibevent_Write,
-                                     natsLibevent_Detach);
-
-    if (s == NATS_OK)
-        s = natsConnection_Connect(&conn, opts);
+        s = natsConnection_ConnectLibevent(&conn, evLoop, opts, onConnectOK, onConnectError);
 
     if (s != NATS_OK)
     {
