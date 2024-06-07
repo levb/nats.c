@@ -1343,12 +1343,6 @@ _freeOptions(natsOptions *opts)
     natsPool_Destroy(opts->pool);
 }
 
-natsStatus 
-natsOptions_Create(natsOptions **newOpts)
-{
-    return natsOptions_create(newOpts, NULL);
-}
-
 natsStatus
 natsOptions_create(natsOptions **newOpts, natsPool *pool)
 {
@@ -1392,7 +1386,7 @@ natsOptions_create(natsOptions **newOpts, natsPool *pool)
 natsStatus
 natsOptions_Create(natsOptions **newOpts)
 {
-    return _createOpts(newOpts, NULL);
+    return natsOptions_create(newOpts, NULL);
 }
 
 natsStatus
@@ -1402,10 +1396,7 @@ natsOptions_clone(natsOptions **newOptions, natsPool *pool, natsOptions *opts)
     natsOptions *cloned = NULL;
 
     if ((s = natsOptions_Create(&cloned)) != NATS_OK)
-    {
-        NATS_UPDATE_ERR_STACK(s);
-        return NULL;
-    }
+        return NATS_UPDATE_ERR_STACK(s);
 
     // Make a blind copy first...
     memcpy((char *)cloned, (char *)opts, sizeof(natsOptions));
@@ -1445,7 +1436,8 @@ natsOptions_clone(natsOptions **newOptions, natsPool *pool, natsOptions *opts)
         NATS_UPDATE_ERR_STACK(s);
     }
 
-    return cloned;
+    *newOptions = cloned;
+    return NATS_OK;
 }
 
 void natsOptions_Destroy(natsOptions *opts)

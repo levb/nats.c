@@ -64,16 +64,6 @@ natsLibevent_Init(void)
 // #endif
 }
 
-natsStatus natsConnection_ConnectLibevent(natsConnection **conn, struct event_base *evLoop,
-natsOptions * opts, natsCallback_Connect onConnectOK, natsCallback_ConnectError onConnectError)
-{
-    natsOptions_SetEventLoop(opts, evLoop, natsLibevent_Attach, natsLibevent_Read, natsLibevent_Write, natsLibevent_Detach);
-
-    // <>/<> TODO callbacks
-
-    return natsConnection_Connect(conn, opts);
-}
-
 static void
 natsLibevent_ProcessEvent(evutil_socket_t fd, short event, void *arg)
 {
@@ -238,6 +228,16 @@ natsLibevent_Detach(void *userData)
     free(nle);
 
     return NATS_OK;
+}
+
+natsStatus natsConnection_ConnectLibevent(natsConnection **conn, void *evLoop,
+                                          natsOptions *opts, natsCallback_Connect onConnectOK, natsCallback_ConnectError onConnectError)
+{
+    natsOptions_SetEventLoop(opts, evLoop, natsLibevent_Attach, natsLibevent_Read, natsLibevent_Write, natsLibevent_Detach);
+
+    // <>/<> TODO callbacks
+
+    return natsConnection_Connect(conn, opts);
 }
 
 /** @} */ // end of libeventFunctions

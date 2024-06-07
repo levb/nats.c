@@ -22,13 +22,13 @@ void onPublishOK(natsConnection *nc, void *closure)
 {
 }
 
-void onConnectOK(natsConnection *nc, void *closure)
+void onConnectOK(natsConnection *nc)
 {
     printf("Published test message!!!!\n");
     // natsConnection_Close(nc);
 }
 
-void onConnectError(natsConnection *nc, natsStatus err, void *closure)
+void onConnectError(natsStatus err, natsOptions *opts)
 {
     printf("Error: %d - %s\n", err, natsStatus_GetText(err));
 }
