@@ -115,17 +115,14 @@ struct __natsPool_s
     // small head is the first chunk allocated since that is where we attempt to
     // allocate first.
     natsSmall *small;
+
     // large head is the most recent large allocation, for simplicity.
     natsLarge *large;
 
+    uint8_t **iobufs;
+    int iobufsCount;
+
 #ifdef DEV_MODE
-    size_t totalAllocs;
-    size_t totalFrees;
-    size_t totalSmallAllocs;
-    size_t totalLargeAllocs;
-    size_t totalSmallFrees;
-    size_t totalLargeFrees;
-    int totalSmallChunks;
     const char *name;
     const char *file;
     int line;
@@ -154,6 +151,7 @@ void *natsPool_log_alloc(natsPool *pool, size_t size DEV_MODE_ARGS);
 #define natsPool_Create(_p, _s, _n) natsPool_log_create((_p), (_s), (_n)DEV_MODE_CTX)
 #define natsPool_Alloc(_p, _s) natsPool_log_alloc((_p), (_s)DEV_MODE_CTX)
 #define natsPool_AllocS(_n, _p, _s) natsPool_log_allocS((_n), (_p), (_s)DEV_MODE_CTX)
+#define natsPool_AllocIOBuf(_n, _p, _s) natsPool_log_allocS((_n), (_p), (_s)DEV_MODE_CTX)
 
 #else
 

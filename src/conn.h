@@ -126,6 +126,8 @@ struct __natsServerInfo
 
 };
 
+
+
 struct __natsConnection
 {
     natsOptions *opts;
@@ -133,14 +135,10 @@ struct __natsConnection
 
     int refs;
 
-    natsSockCtx sockCtx;
-
-    natsServers *servers;
-
-    // pool exists (and grows) for the lifetime of connection.
     natsPool *lifetimePool;
     natsPool *connectPool;
-
+    natsSockCtx sockCtx;
+    natsServers *servers;
     natsServerInfo *info;
 
     int64_t ssid;
@@ -149,6 +147,10 @@ struct __natsConnection
     natsStatus err;
     char errStr[256];
 
+    natsPool *opPool;
+    uint8_t * readbuf;
+    size_t readbufLen;
+    size_t readbufCap;
     natsParser *ps;
 
     natsPongList pongs;
@@ -168,6 +170,8 @@ struct __natsConnection
         int mi;
         int up;
     } srvVersion;
+
+    int state;
 };
 
 #define RESP_INFO_POOL_MAX_SIZE (10)

@@ -19,6 +19,8 @@
 #include "mem.h"
 #include "url.h"
 #include "servers.h"
+#include "json.h"
+#include "mem.h"
 #include "parser.h"
 
 // cloneMsgArg is used when the split buffer scenario has the pubArg in the existing read buffer, but
@@ -224,701 +226,716 @@
 //     return s;
 // }
 
+static inline natsStatus
+_parseInfoData(natsParser *ps, natsConnection *nc, uint8_t **p, uint8_t *end)
+{
+    natsStatus s = NATS_OK;
+
+    return s;
+}
+
 // parse is the fast protocol parser engine.
 natsStatus
-natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t* buf, size_t bufLen)
+natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen, size_t *consumed)
 {
-    natsStatus  s = NATS_OK;
-//     size_t      i;
-//     uint8_t     b;
+    natsStatus s = NATS_OK;
+    uint8_t *p = buf;
+    uint8_t *end = buf + bufLen;
+    uint8_t b;
+    bool done = false;
 
-//     for (i = 0; (s == NATS_OK) && (i < bufLen); i++)
-//     {
-//         b = buf[i];
+    for (; (s == NATS_OK) && (p < end); p++)
+    {
+        b = *p;
 
-//         switch (ps->state)
-//         {
-//             case OP_START:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'M':
-//                     case 'm':
-//                         ps->state  = OP_M;
-//                         ps->hdr    = -1;
-//                         ps->ma.hdr = -1;
-//                         break;
-//                     case 'H':
-//                     case 'h':
-//                         ps->state  = OP_H;
-//                         ps->hdr    = 0;
-//                         ps->ma.hdr = 0;
-//                         break;
-//                     case 'P':
-//                     case 'p':
-//                         ps->state = OP_P;
-//                         break;
-//                     case '+':
-//                         ps->state = OP_PLUS;
-//                         break;
-//                     case '-':
-//                         ps->state = OP_MINUS;
-//                         break;
-//                     case 'I':
-//                     case 'i':
-//                         ps->state = OP_I;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_H:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'M':
-//                     case 'm':
-//                         ps->state = OP_M;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_M:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'S':
-//                     case 's':
-//                         ps->state = OP_MS;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_MS:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'G':
-//                     case 'g':
-//                         ps->state = OP_MSG;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_MSG:
-//             {
-//                 switch (b)
-//                 {
-//                     case ' ':
-//                     case '\t':
-//                         ps->state = OP_MSG_SPC;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_MSG_SPC:
-//             {
-//                 switch (b)
-//                 {
-//                     case ' ':
-//                     case '\t':
-//                         continue;
-//                     default:
-//                         ps->state      = MSG_ARG;
-//                         ps->afterSpace = i;
-//                         break;
-//                 }
-//                 break;
-//             }
-//             case MSG_ARG:
-//             {
-//                 switch (b)
-//                 {
-//                     case '\r':
-//                         ps->drop = 1;
-//                         break;
-//                     case '\n':
-//                     {
-//                         uint8_t *start = NULL;
-//                         size_t  len    = 0;
+        switch (ps->state)
+        {
+        case OP_START:
+        {
+            switch (b)
+            {
+            // case 'M':
+            // case 'm':
+            //     ps->state = OP_M;
+            //     ps->hdr = -1;
+            //     ps->ma.hdr = -1;
+            //     break;
+            // case 'H':
+            // case 'h':
+            //     ps->state = OP_H;
+            //     ps->hdr = 0;
+            //     ps->ma.hdr = 0;
+            //     break;
+            // case 'P':
+            // case 'p':
+            //     ps->state = OP_P;
+            //     break;
+            // case '+':
+            //     ps->state = OP_PLUS;
+            //     break;
+            // case '-':
+            //     ps->state = OP_MINUS;
+            //     break;
+            case 'I':
+            case 'i':
+                ps->state = OP_I;
+                continue;
+            default:
+                goto parseErr;
+            }
+            continue;
+        }
+        case OP_I:
+        {
+            switch (b)
+            {
+            case 'N':
+            case 'n':
+                ps->state = OP_IN;
+                break;
+            default:
+                goto parseErr;
+            }
+            break;
+        }
+        case OP_IN:
+        {
+            switch (b)
+            {
+            case 'F':
+            case 'f':
+                ps->state = OP_INF;
+                break;
+            default:
+                goto parseErr;
+            }
+            break;
+        }
+        case OP_INF:
+        {
+            switch (b)
+            {
+            case 'O':
+            case 'o':
+                ps->state = OP_INFO;
+                break;
+            default:
+                goto parseErr;
+            }
+            break;
+        }
+        case OP_INFO:
+        {
+            switch (b)
+            {
+            case ' ':
+            case '\t':
+                ps->state = OP_INFO_SPC;
+                break;
+            default:
+                goto parseErr;
+            }
+            break;
+        }
+        case OP_INFO_SPC:
+        {
+            switch (b)
+            {
+            case ' ':
+            case '\t':
+                continue;
+            case '{':
+                s = _parseInfoData(ps, nc, &p, end, &done);
+                if (done)
+                    ps->state = OP_INFO_END;
+                continue;
+            default:
+            {
+                break;
+            }
+            }
+            break;
+        }
+        case INFO_ARG:
+        {
+            switch (b)
+            {
+            case '\r':
+                // ps->drop = 1;
+                break;
+            case '\n':
+            {
+                // uint8_t *start = NULL;
+                // size_t  len    = 0;
 
-//                         if (ps->argBuf != NULL)
-//                         {
-//                             start = natsBuf_Data(ps->argBuf);
-//                             len   = natsBuf_Len(ps->argBuf);
-//                         }
-//                         else
-//                         {
-//                             start = buf + ps->afterSpace;
-//                             len   = (i - ps->drop) - ps->afterSpace;
-//                         }
+                // if (ps->argBuf != NULL)
+                // {
+                //     start = natsBuf_Data(ps->argBuf);
+                //     len   = natsBuf_Len(ps->argBuf);
+                // }
+                // else
+                // {
+                //     start = buf + ps->afterSpace;
+                //     len   = (i - ps->drop) - ps->afterSpace;
+                // }
+                // <>//<>
+                // natsConn_processAsyncINFO(nc, start, len);
+                ps->drop = 0;
+                ps->afterSpace = i + 1;
+                ps->state = OP_START;
 
-//                         s = _processMsgArgs(ps, nc, start, len);
-//                         if (s == NATS_OK)
-//                         {
-//                             ps->drop        = 0;
-//                             ps->afterSpace  = i+1;
-//                             ps->state       = MSG_PAYLOAD;
+                if (ps->argBuf != NULL)
+                {
+                    natsBuf_Destroy(ps->argBuf);
+                    ps->argBuf = NULL;
+                }
+                break;
+            }
+            default:
+            {
+                if (ps->argBuf != NULL)
+                    s = natsBuf_AppendByte(ps->argBuf, b);
+                break;
+            }
+            }
+            break;
+        }
+            //             case OP_H:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'M':
+            //                     case 'm':
+            //                         ps->state = OP_M;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_M:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'S':
+            //                     case 's':
+            //                         ps->state = OP_MS;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MS:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'G':
+            //                     case 'g':
+            //                         ps->state = OP_MSG;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MSG:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case ' ':
+            //                     case '\t':
+            //                         ps->state = OP_MSG_SPC;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MSG_SPC:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case ' ':
+            //                     case '\t':
+            //                         continue;
+            //                     default:
+            //                         ps->state      = MSG_ARG;
+            //                         ps->afterSpace = i;
+            //                         break;
+            //                 }
+            //                 break;
+            //             }
+            //             case MSG_ARG:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case '\r':
+            //                         ps->drop = 1;
+            //                         break;
+            //                     case '\n':
+            //                     {
+            //                         uint8_t *start = NULL;
+            //                         size_t  len    = 0;
 
-//                             // jump ahead with the index. If this overruns
-//                             // what is left we fall out and process split
-//                             // buffer.
-//                             i = ps->afterSpace + ps->ma.size - 1;
-//                         }
-//                         break;
-//                     }
-//                     default:
-//                     {
-//                         if (ps->argBuf != NULL)
-//                             s = natsBuf_AppendByte(ps->argBuf, b);
-//                         break;
-//                     }
-//                 }
-//                 break;
-//             }
-//             case MSG_PAYLOAD:
-//             {
-//                 bool done = false;
+            //                         if (ps->argBuf != NULL)
+            //                         {
+            //                             start = natsBuf_Data(ps->argBuf);
+            //                             len   = natsBuf_Len(ps->argBuf);
+            //                         }
+            //                         else
+            //                         {
+            //                             start = buf + ps->afterSpace;
+            //                             len   = (i - ps->drop) - ps->afterSpace;
+            //                         }
 
-//                 if (ps->msgBuf != NULL)
-//                 {
-//                     if (natsBuf_Len(ps->msgBuf) >= ps->ma.size)
-//                     {
-//                         s = natsConn_processMsg(nc,
-//                                                 natsBuf_Data(ps->msgBuf),
-//                                                 natsBuf_Len(ps->msgBuf));
-//                         done = true;
-//                     }
-//                     else
-//                     {
-//                         // copy as much as we can to the buffer and skip ahead.
-//                         int toCopy = ps->ma.size - natsBuf_Len(ps->msgBuf);
-//                         int avail  = bufLen - i;
+            //                         s = _processMsgArgs(ps, nc, start, len);
+            //                         if (s == NATS_OK)
+            //                         {
+            //                             ps->drop        = 0;
+            //                             ps->afterSpace  = i+1;
+            //                             ps->state       = MSG_PAYLOAD;
 
-//                         if (avail < toCopy)
-//                             toCopy = avail;
+            //                             // jump ahead with the index. If this overruns
+            //                             // what is left we fall out and process split
+            //                             // buffer.
+            //                             i = ps->afterSpace + ps->ma.size - 1;
+            //                         }
+            //                         break;
+            //                     }
+            //                     default:
+            //                     {
+            //                         if (ps->argBuf != NULL)
+            //                             s = natsBuf_AppendByte(ps->argBuf, b);
+            //                         break;
+            //                     }
+            //                 }
+            //                 break;
+            //             }
+            //             case MSG_PAYLOAD:
+            //             {
+            //                 bool done = false;
 
-//                         if (toCopy > 0)
-//                         {
-//                             s = natsBuf_Append(ps->msgBuf, buf+i, toCopy);
-//                             if (s == NATS_OK)
-//                                 i += toCopy - 1;
-//                         }
-//                         else
-//                         {
-//                             s = natsBuf_AppendByte(ps->msgBuf, b);
-//                         }
-//                     }
-//                 }
-//                 else if (i-ps->afterSpace >= ps->ma.size)
-//                 {
-//                     uint8_t *start  = NULL;
-//                     size_t  len     = 0;
+            //                 if (ps->msgBuf != NULL)
+            //                 {
+            //                     if (natsBuf_Len(ps->msgBuf) >= ps->ma.size)
+            //                     {
+            //                         s = natsConn_processMsg(nc,
+            //                                                 natsBuf_Data(ps->msgBuf),
+            //                                                 natsBuf_Len(ps->msgBuf));
+            //                         done = true;
+            //                     }
+            //                     else
+            //                     {
+            //                         // copy as much as we can to the buffer and skip ahead.
+            //                         int toCopy = ps->ma.size - natsBuf_Len(ps->msgBuf);
+            //                         int avail  = bufLen - i;
 
-//                     start = buf + ps->afterSpace;
-//                     len   = (i - ps->afterSpace);
+            //                         if (avail < toCopy)
+            //                             toCopy = avail;
 
-//                     s = natsConn_processMsg(nc, start, len);
+            //                         if (toCopy > 0)
+            //                         {
+            //                             s = natsBuf_Append(ps->msgBuf, buf+i, toCopy);
+            //                             if (s == NATS_OK)
+            //                                 i += toCopy - 1;
+            //                         }
+            //                         else
+            //                         {
+            //                             s = natsBuf_AppendByte(ps->msgBuf, b);
+            //                         }
+            //                     }
+            //                 }
+            //                 else if (i-ps->afterSpace >= ps->ma.size)
+            //                 {
+            //                     uint8_t *start  = NULL;
+            //                     size_t  len     = 0;
 
-//                     done = true;
-//                 }
+            //                     start = buf + ps->afterSpace;
+            //                     len   = (i - ps->afterSpace);
 
-//                 if (done)
-//                 {
-//                     natsBuf_Destroy(ps->argBuf);
-//                     ps->argBuf = NULL;
-//                     natsBuf_Destroy(ps->msgBuf);
-//                     ps->msgBuf = NULL;
-//                     ps->state = MSG_END;
-//                 }
+            //                     s = natsConn_processMsg(nc, start, len);
 
-//                 break;
-//             }
-//             case MSG_END:
-//             {
-//                 switch (b)
-//                 {
-//                     case '\n':
-//                         ps->drop        = 0;
-//                         ps->afterSpace  = i+1;
-//                         ps->state       = OP_START;
-//                         break;
-//                     default:
-//                         continue;
-//                 }
-//                 break;
-//             }
-//             case OP_PLUS:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'O':
-//                     case 'o':
-//                         ps->state = OP_PLUS_O;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_PLUS_O:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'K':
-//                     case 'k':
-//                         ps->state = OP_PLUS_OK;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_PLUS_OK:
-//             {
-//                 switch (b)
-//                 {
-//                     case '\n':
-//                         natsConn_processOK(nc);
-//                         ps->drop  = 0;
-//                         ps->state = OP_START;
-//                         break;
-//                 }
-//                 break;
-//             }
-//             case OP_MINUS:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'E':
-//                     case 'e':
-//                         ps->state = OP_MINUS_E;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_MINUS_E:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'R':
-//                     case 'r':
-//                         ps->state = OP_MINUS_ER;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_MINUS_ER:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'R':
-//                     case 'r':
-//                         ps->state = OP_MINUS_ERR;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_MINUS_ERR:
-//             {
-//                 switch (b)
-//                 {
-//                     case ' ':
-//                     case '\t':
-//                         ps->state = OP_MINUS_ERR_SPC;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_MINUS_ERR_SPC:
-//             {
-//                 switch (b)
-//                 {
-//                     case ' ':
-//                     case '\t':
-//                         continue;
-//                     default:
-//                         ps->state       = MINUS_ERR_ARG;
-//                         ps->afterSpace  = i;
-//                         break;
-//                 }
-//                 break;
-//             }
-//             case MINUS_ERR_ARG:
-//             {
-//                 switch (b)
-//                 {
-//                     case '\r':
-//                         ps->drop = 1;
-//                         break;
-//                     case '\n':
-//                     {
-//                         // uint8_t *start = NULL;
-//                         // size_t  len    = 0;
+            //                     done = true;
+            //                 }
 
-//                         // if (ps->argBuf != NULL)
-//                         // {
-//                         //     start = natsBuf_Data(ps->argBuf);
-//                         //     len   = natsBuf_Len(ps->argBuf);
-//                         // }
-//                         // else
-//                         // {
-//                         //     start = buf + ps->afterSpace;
-//                         //     len   = (i - ps->drop) - ps->afterSpace;
-//                         // }
+            //                 if (done)
+            //                 {
+            //                     natsBuf_Destroy(ps->argBuf);
+            //                     ps->argBuf = NULL;
+            //                     natsBuf_Destroy(ps->msgBuf);
+            //                     ps->msgBuf = NULL;
+            //                     ps->state = MSG_END;
+            //                 }
 
-//                         // <>//<>
-//                         // natsConn_processErr(nc, start, len);
+            //                 break;
+            //             }
+            //             case MSG_END:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case '\n':
+            //                         ps->drop        = 0;
+            //                         ps->afterSpace  = i+1;
+            //                         ps->state       = OP_START;
+            //                         break;
+            //                     default:
+            //                         continue;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PLUS:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'O':
+            //                     case 'o':
+            //                         ps->state = OP_PLUS_O;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PLUS_O:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'K':
+            //                     case 'k':
+            //                         ps->state = OP_PLUS_OK;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PLUS_OK:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case '\n':
+            //                         natsConn_processOK(nc);
+            //                         ps->drop  = 0;
+            //                         ps->state = OP_START;
+            //                         break;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MINUS:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'E':
+            //                     case 'e':
+            //                         ps->state = OP_MINUS_E;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MINUS_E:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'R':
+            //                     case 'r':
+            //                         ps->state = OP_MINUS_ER;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MINUS_ER:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'R':
+            //                     case 'r':
+            //                         ps->state = OP_MINUS_ERR;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MINUS_ERR:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case ' ':
+            //                     case '\t':
+            //                         ps->state = OP_MINUS_ERR_SPC;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_MINUS_ERR_SPC:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case ' ':
+            //                     case '\t':
+            //                         continue;
+            //                     default:
+            //                         ps->state       = MINUS_ERR_ARG;
+            //                         ps->afterSpace  = i;
+            //                         break;
+            //                 }
+            //                 break;
+            //             }
+            //             case MINUS_ERR_ARG:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case '\r':
+            //                         ps->drop = 1;
+            //                         break;
+            //                     case '\n':
+            //                     {
+            //                         // uint8_t *start = NULL;
+            //                         // size_t  len    = 0;
 
-//                         ps->drop        = 0;
-//                         ps->afterSpace  = i+1;
-//                         ps->state       = OP_START;
+            //                         // if (ps->argBuf != NULL)
+            //                         // {
+            //                         //     start = natsBuf_Data(ps->argBuf);
+            //                         //     len   = natsBuf_Len(ps->argBuf);
+            //                         // }
+            //                         // else
+            //                         // {
+            //                         //     start = buf + ps->afterSpace;
+            //                         //     len   = (i - ps->drop) - ps->afterSpace;
+            //                         // }
 
-//                         if (ps->argBuf != NULL)
-//                         {
-//                             natsBuf_Destroy(ps->argBuf);
-//                             ps->argBuf = NULL;
-//                         }
+            //                         // <>//<>
+            //                         // natsConn_processErr(nc, start, len);
 
-//                         break;
-//                     }
-//                     default:
-//                     {
-//                         if (ps->argBuf != NULL)
-//                             s = natsBuf_AppendByte(ps->argBuf, b);
+            //                         ps->drop        = 0;
+            //                         ps->afterSpace  = i+1;
+            //                         ps->state       = OP_START;
 
-//                         break;
-//                     }
-//                 }
-//                 break;
-//             }
-//             case OP_P:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'I':
-//                     case 'i':
-//                         ps->state = OP_PI;
-//                         break;
-//                     case 'O':
-//                     case 'o':
-//                         ps->state = OP_PO;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_PO:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'N':
-//                     case 'n':
-//                         ps->state = OP_PON;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_PON:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'G':
-//                     case 'g':
-//                         ps->state = OP_PONG;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_PONG:
-//             {
-//                 switch (b)
-//                 {
-//                     case '\n':
-//                         // <>//<>
-//                         // natsConn_processPong(nc);
+            //                         if (ps->argBuf != NULL)
+            //                         {
+            //                             natsBuf_Destroy(ps->argBuf);
+            //                             ps->argBuf = NULL;
+            //                         }
 
-//                         ps->drop        = 0;
-//                         ps->afterSpace  = i+1;
-//                         ps->state       = OP_START;
-//                         break;
-//                 }
-//                 break;
-//             }
-//             case OP_PI:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'N':
-//                     case 'n':
-//                         ps->state = OP_PIN;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_PIN:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'G':
-//                     case 'g':
-//                         ps->state = OP_PING;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_PING:
-//             {
-//                 switch (b)
-//                 {
-//                     case '\n':
-//                         // <>//<>
-//                         // natsConn_processPing(nc);
+            //                         break;
+            //                     }
+            //                     default:
+            //                     {
+            //                         if (ps->argBuf != NULL)
+            //                             s = natsBuf_AppendByte(ps->argBuf, b);
 
-//                         ps->drop        = 0;
-//                         ps->afterSpace  = i+1;
-//                         ps->state       = OP_START;
-//                         break;
-//                 }
-//                 break;
-//             }
-//             case OP_I:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'N':
-//                     case 'n':
-//                         ps->state = OP_IN;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_IN:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'F':
-//                     case 'f':
-//                         ps->state = OP_INF;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_INF:
-//             {
-//                 switch (b)
-//                 {
-//                     case 'O':
-//                     case 'o':
-//                         ps->state = OP_INFO;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_INFO:
-//             {
-//                 switch (b)
-//                 {
-//                     case ' ':
-//                     case '\t':
-//                         ps->state = OP_INFO_SPC;
-//                         break;
-//                     default:
-//                         goto parseErr;
-//                 }
-//                 break;
-//             }
-//             case OP_INFO_SPC:
-//             {
-//                 switch (b)
-//                 {
-//                     case ' ':
-//                     case '\t':
-//                         continue;
-//                     default:
-//                         ps->state = INFO_ARG;
-//                         ps->afterSpace = i;
-//                         break;
-//                 }
-//                 break;
-//             }
-//             case INFO_ARG:
-//             {
-//                 switch (b)
-//                 {
-//                     case '\r':
-//                         ps->drop = 1;
-//                         break;
-//                     case '\n':
-//                     {
-//                         // uint8_t *start = NULL;
-//                         // size_t  len    = 0;
+            //                         break;
+            //                     }
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_P:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'I':
+            //                     case 'i':
+            //                         ps->state = OP_PI;
+            //                         break;
+            //                     case 'O':
+            //                     case 'o':
+            //                         ps->state = OP_PO;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PO:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'N':
+            //                     case 'n':
+            //                         ps->state = OP_PON;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PON:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'G':
+            //                     case 'g':
+            //                         ps->state = OP_PONG;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PONG:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case '\n':
+            //                         // <>//<>
+            //                         // natsConn_processPong(nc);
 
-//                         // if (ps->argBuf != NULL)
-//                         // {
-//                         //     start = natsBuf_Data(ps->argBuf);
-//                         //     len   = natsBuf_Len(ps->argBuf);
-//                         // }
-//                         // else
-//                         // {
-//                         //     start = buf + ps->afterSpace;
-//                         //     len   = (i - ps->drop) - ps->afterSpace;
-//                         // }
-//                         // <>//<>
-//                         // natsConn_processAsyncINFO(nc, start, len);
-//                         ps->drop        = 0;
-//                         ps->afterSpace  = i+1;
-//                         ps->state       = OP_START;
+            //                         ps->drop        = 0;
+            //                         ps->afterSpace  = i+1;
+            //                         ps->state       = OP_START;
+            //                         break;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PI:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'N':
+            //                     case 'n':
+            //                         ps->state = OP_PIN;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PIN:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case 'G':
+            //                     case 'g':
+            //                         ps->state = OP_PING;
+            //                         break;
+            //                     default:
+            //                         goto parseErr;
+            //                 }
+            //                 break;
+            //             }
+            //             case OP_PING:
+            //             {
+            //                 switch (b)
+            //                 {
+            //                     case '\n':
+            //                         // <>//<>
+            //                         // natsConn_processPing(nc);
 
-//                         if (ps->argBuf != NULL)
-//                         {
-//                             natsBuf_Destroy(ps->argBuf);
-//                             ps->argBuf = NULL;
-//                         }
-//                         break;
-//                     }
-//                     default:
-//                     {
-//                         if (ps->argBuf != NULL)
-//                             s = natsBuf_AppendByte(ps->argBuf, b);
-//                         break;
-//                     }
-//                 }
-//                 break;
-//             }
-//             default:
-//                 goto parseErr;
-//         }
-//     }
+            //                         ps->drop        = 0;
+            //                         ps->afterSpace  = i+1;
+            //                         ps->state       = OP_START;
+            //                         break;
+            //                 }
+            //                 break;
+            //             }
+        default:
+            goto parseErr;
+        }
+    }
 
-//     // Check for split buffer scenarios
-//     if ((s == NATS_OK)
-//         && ((ps->state == MSG_ARG)
-//                 || (ps->state == MINUS_ERR_ARG)
-//                 || (ps->state == INFO_ARG))
-//         && (ps->argBuf == NULL))
-//     {
-//         s = natsBuf_InitWith(&(ps->argBufRec),
-//                                     ps->scratch,
-//                                     0,
-//                                     sizeof(ps->scratch));
-//         if (s == NATS_OK)
-//         {
-//             ps->argBuf = &(ps->argBufRec);
-//             s = natsBuf_Append(ps->argBuf,
-//                                buf + ps->afterSpace,
-//                                (i - ps->drop) - ps->afterSpace);
-//         }
-//     }
-//     // Check for split msg
-//     if ((s == NATS_OK)
-//         && (ps->state == MSG_PAYLOAD) && (ps->msgBuf == NULL))
-//     {
-//         // We need to clone the msgArg if it is still referencing the
-//         // read buffer and we are not able to process the msg.
-//         if (ps->argBuf == NULL)
-//             s = _cloneMsgArg(nc);
+    //     // Check for split buffer scenarios
+    //     if ((s == NATS_OK)
+    //         && ((ps->state == MSG_ARG)
+    //                 || (ps->state == MINUS_ERR_ARG)
+    //                 || (ps->state == INFO_ARG))
+    //         && (ps->argBuf == NULL))
+    //     {
+    //         s = natsBuf_InitWith(&(ps->argBufRec),
+    //                                     ps->scratch,
+    //                                     0,
+    //                                     sizeof(ps->scratch));
+    //         if (s == NATS_OK)
+    //         {
+    //             ps->argBuf = &(ps->argBufRec);
+    //             s = natsBuf_Append(ps->argBuf,
+    //                                buf + ps->afterSpace,
+    //                                (i - ps->drop) - ps->afterSpace);
+    //         }
+    //     }
+    //     // Check for split msg
+    //     if ((s == NATS_OK)
+    //         && (ps->state == MSG_PAYLOAD) && (ps->msgBuf == NULL))
+    //     {
+    //         // We need to clone the msgArg if it is still referencing the
+    //         // read buffer and we are not able to process the msg.
+    //         if (ps->argBuf == NULL)
+    //             s = _cloneMsgArg(nc);
 
-//         if (s == NATS_OK)
-//         {
-//             size_t remainingInScratch;
-//             size_t toCopy;
+    //         if (s == NATS_OK)
+    //         {
+    //             size_t remainingInScratch;
+    //             size_t toCopy;
 
-// #ifdef _WIN32
-// // Suppresses the warning that ps->argBuf may be NULL.
-// // If ps->argBuf is NULL above, then _cloneMsgArg() will set it. If 's'
-// // is NATS_OK here, then ps->argBuf can't be NULL.
-// #pragma warning(suppress: 6011)
-// #endif
+    // #ifdef _WIN32
+    // // Suppresses the warning that ps->argBuf may be NULL.
+    // // If ps->argBuf is NULL above, then _cloneMsgArg() will set it. If 's'
+    // // is NATS_OK here, then ps->argBuf can't be NULL.
+    // #pragma warning(suppress: 6011)
+    // #endif
 
-//             // If we will overflow the scratch buffer, just create a
-//             // new buffer to hold the split message.
-//             remainingInScratch = sizeof(ps->scratch) - natsBuf_Len(ps->argBuf);
-//             toCopy = bufLen - ps->afterSpace;
+    //             // If we will overflow the scratch buffer, just create a
+    //             // new buffer to hold the split message.
+    //             remainingInScratch = sizeof(ps->scratch) - natsBuf_Len(ps->argBuf);
+    //             toCopy = bufLen - ps->afterSpace;
 
-//             if (ps->ma.size > remainingInScratch)
-//             {
-//                 s = natsBuf_CreateCalloc(&(ps->msgBuf), ps->ma.size);
-//             }
-//             else
-//             {
-//                 s = natsBuf_InitWith(&(ps->msgBufRec),
-//                                             ps->scratch + natsBuf_Len(ps->argBuf),
-//                                             0, remainingInScratch);
-//                 if (s == NATS_OK)
-//                     ps->msgBuf = &(ps->msgBufRec);
-//             }
-//             if (s == NATS_OK)
-//                 s = natsBuf_Append(ps->msgBuf,
-//                                    buf + ps->afterSpace,
-//                                    toCopy);
-//         }
-//     }
+    //             if (ps->ma.size > remainingInScratch)
+    //             {
+    //                 s = natsBuf_CreateCalloc(&(ps->msgBuf), ps->ma.size);
+    //             }
+    //             else
+    //             {
+    //                 s = natsBuf_InitWith(&(ps->msgBufRec),
+    //                                             ps->scratch + natsBuf_Len(ps->argBuf),
+    //                                             0, remainingInScratch);
+    //                 if (s == NATS_OK)
+    //                     ps->msgBuf = &(ps->msgBufRec);
+    //             }
+    //             if (s == NATS_OK)
+    //                 s = natsBuf_Append(ps->msgBuf,
+    //                                    buf + ps->afterSpace,
+    //                                    toCopy);
+    //         }
+    //     }
 
-//     if (s != NATS_OK)
-//     {
-//         // Let's clear all our pointers...
-//         natsBuf_Destroy(ps->argBuf);
-//         ps->argBuf = NULL;
-//         natsBuf_Destroy(ps->msgBuf);
-//         ps->msgBuf = NULL;
-//         natsBuf_Destroy(ps->ma.subject);
-//         ps->ma.subject = NULL;
-//         natsBuf_Destroy(ps->ma.reply);
-//         ps->ma.reply = NULL;
-//     }
+    //     if (s != NATS_OK)
+    //     {
+    //         // Let's clear all our pointers...
+    //         natsBuf_Destroy(ps->argBuf);
+    //         ps->argBuf = NULL;
+    //         natsBuf_Destroy(ps->msgBuf);
+    //         ps->msgBuf = NULL;
+    //         natsBuf_Destroy(ps->ma.subject);
+    //         ps->ma.subject = NULL;
+    //         natsBuf_Destroy(ps->ma.reply);
+    //         ps->ma.reply = NULL;
+    //     }
 
     return s;
 
-// parseErr:
-//     if (s == NATS_OK)
-//         s = NATS_PROTOCOL_ERROR;
+parseErr:
+    if (s == NATS_OK)
+        s = NATS_PROTOCOL_ERROR;
 
-//     snprintf(nc->errStr, sizeof(nc->errStr),
-//              "Parse Error [%u]: '%.*s'",
-//              ps->state,
-//              (int)(bufLen - i),
-//              buf + i);
+    snprintf(nc->errStr, sizeof(nc->errStr),
+             "Parse Error [%u]: '%.*s'",
+             ps->state,
+             (int)(bufLen - i),
+             buf + i);
 
-//     return s;
+    return s;
 }
 
 natsStatus
 natsParser_Create(natsParser **newParser)
 {
-    natsParser  *parser = (natsParser *) natsHeap_Alloc(sizeof(natsParser));
+    natsParser *parser = (natsParser *)natsHeap_Alloc(sizeof(natsParser));
 
     if (parser == NULL)
         return NATS_NO_MEMORY;
@@ -928,8 +945,7 @@ natsParser_Create(natsParser **newParser)
     return NATS_OK;
 }
 
-void
-natsParser_Destroy(natsParser *parser)
+void natsParser_Destroy(natsParser *parser)
 {
     if (parser == NULL)
         return;

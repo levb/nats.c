@@ -248,7 +248,7 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const natsStri
                 continue;
             case ',':
                 parser->state = JSON_STATE_VALUE;
-                s = _createField(&parser->field, parser->json->pool, (uint8_t*)"array", 5);
+                s = _createField(&parser->field, parser->json->pool, (uint8_t *)"array", 5);
                 continue;
             default:
                 parser->undoCh = ch;
@@ -844,7 +844,7 @@ _addValueToArray(natsJSONParser *parser)
 #define JSON_GET_AS(jt, t)                                \
     natsStatus s = NATS_OK;                               \
     nats_JSONField *field = NULL;                         \
-    s = nats_JSONGetField(json, fieldName, (jt), &field); \
+    s = nats_JSONRefField(json, fieldName, (jt), &field); \
     if ((s == NATS_OK) && (field == NULL))                \
     {                                                     \
         *value = 0;                                       \
@@ -892,10 +892,10 @@ _addValueToArray(natsJSONParser *parser)
     *arraySize = arr->size;                                              \
     return NATS_OK;
 
-#define JSON_GET_ARRAY(_t, _f)                                     \
+#define JSON_GET_ARRAY(_p, _t, _f)                                 \
     natsStatus s = NATS_OK;                                        \
     nats_JSONField *field = NULL;                                  \
-    s = nats_JSONGetArrayField(json, fieldName, (_t), &field);     \
+    s = nats_JSONRefArray(json, (_p), fieldName, (_t), &field);    \
     if ((s == NATS_OK) && (field == NULL))                         \
     {                                                              \
         *array = NULL;                                             \
@@ -907,7 +907,7 @@ _addValueToArray(natsJSONParser *parser)
     return NATS_UPDATE_ERR_STACK(s);
 
 natsStatus
-nats_JSONGetField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField)
+nats_JSONRefField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField)
 {
     nats_JSONField *field = NULL;
 
@@ -946,38 +946,38 @@ nats_JSONGetField(nats_JSON *json, const char *fieldName, int fieldType, nats_JS
     return NATS_OK;
 }
 
-// natsStatus
-// nats_JSONGetStr(nats_JSON *json, const char *fieldName, char **value)
-// {
-//     natsStatus s = NATS_OK;
-//     nats_JSONField *field = NULL;
+natsStatus
+nats_JSONGetStr(nats_JSON *json, natsPool *pool, const char *fieldName, char **value)
+{
+    natsStatus s = NATS_OK;
+    nats_JSONField *field = NULL;
 
-//     s = nats_JSONGetField(json, fieldName, TYPE_STR, &field);
-//     if (s == NATS_OK)
-//     {
-//         if ((field == NULL) || (field->value.vstr == NULL))
-//         {
-//             *value = NULL;
-//             return NATS_OK;
-//         }
-//         else
-//         {
-//             char *tmp = NATS_STRDUP(field->value.vstr);
-//             if (tmp == NULL)
-//                 return nats_setDefaultError(NATS_NO_MEMORY);
-//             *value = tmp;
-//         }
-//     }
-//     return NATS_UPDATE_ERR_STACK(s);
-// }
+    s = nats_JSONRefField(json, fieldName, TYPE_STR, &field);
+    if (s == NATS_OK)
+    {
+        if ((field == NULL) || (field->value.vstr == NULL))
+        {
+            *value = NULL;
+            return NATS_OK;
+        }
+        else
+        {
+            char *tmp = natsPool_StrdupC(pool, field->value.vstr);
+            if (tmp == NULL)
+                return nats_setDefaultError(NATS_NO_MEMORY);
+            *value = tmp;
+        }
+    }
+    return NATS_UPDATE_ERR_STACK(s);
+}
 
 natsStatus
-nats_JSONGetStrPtr(nats_JSON *json, const char *fieldName, const char **str)
+nats_JSONRefStr(nats_JSON *json, const char *fieldName, const char **str)
 {
     natsStatus s;
     nats_JSONField *field = NULL;
 
-    s = nats_JSONGetField(json, fieldName, TYPE_STR, &field);
+    s = nats_JSONRefField(json, fieldName, TYPE_STR, &field);
     if (s == NATS_OK)
     {
         if (field == NULL)
@@ -997,7 +997,7 @@ nats_JSONGetStrPtr(nats_JSON *json, const char *fieldName, const char **str)
 //     *value = NULL;
 //     *len = 0;
 
-//     s = nats_JSONGetStrPtr(json, fieldName, &str);
+//     s = nats_JSONRefStr(json, fieldName, &str);
 //     if ((s == NATS_OK) && (str != NULL))
 //         s = nats_Base64_Decode(str, value, len);
 //     return NATS_UPDATE_ERR_STACK(s);
@@ -1027,7 +1027,7 @@ nats_JSONGetBool(nats_JSON *json, const char *fieldName, bool *value)
     natsStatus s = NATS_OK;
     nats_JSONField *field = NULL;
 
-    s = nats_JSONGetField(json, fieldName, TYPE_BOOL, &field);
+    s = nats_JSONRefField(json, fieldName, TYPE_BOOL, &field);
     if (s == NATS_OK)
     {
         *value = (field == NULL ? false : field->value.vbool);
@@ -1060,7 +1060,7 @@ nats_JSONGetObject(nats_JSON *json, const char *fieldName, nats_JSON **value)
     natsStatus s = NATS_OK;
     nats_JSONField *field = NULL;
 
-    s = nats_JSONGetField(json, fieldName, TYPE_OBJECT, &field);
+    s = nats_JSONRefField(json, fieldName, TYPE_OBJECT, &field);
     if (s == NATS_OK)
     {
         *value = (field == NULL ? NULL : field->value.vobj);
@@ -1090,7 +1090,7 @@ nats_JSONGetObject(nats_JSON *json, const char *fieldName, nats_JSON **value)
 // }
 
 // natsStatus
-// nats_JSONGetArrayField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField)
+// nats_JSONRefArray(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField)
 // {
 //     nats_JSONField *field = NULL;
 
@@ -1121,47 +1121,32 @@ nats_JSONGetObject(nats_JSON *json, const char *fieldName, nats_JSON **value)
 //     return NATS_OK;
 // }
 
-// static natsStatus
-// _jsonArrayAsStrings(natsPool *pool, nats_JSONArray *arr, char ***array, int *arraySize)
-// {
-//     natsStatus s = NATS_OK;
-//     int i;
+static natsStatus
+_jsonArrayAsStrings(natsPool *pool, nats_JSONArray *arr, char ***array, int *arraySize)
+{
+    int i;
 
-//     char **values = natsPool_Alloc(pool, arr->size * arr->eltSize);
-//     if (values == NULL)
-//         return nats_setDefaultError(NATS_NO_MEMORY);
+    char **values = natsPool_Alloc(pool, arr->size * arr->eltSize);
+    if (values == NULL)
+        return NATS_UPDATE_ERR_STACK(nats_setDefaultError(NATS_NO_MEMORY));
 
-//     for (i = 0; i < arr->size; i++)
-//     {
-//         values[i] = NATS_STRDUP((char *)(arr->values[i]));
-//         if (values[i] == NULL)
-//         {
-//             s = nats_setDefaultError(NATS_NO_MEMORY);
-//             break;
-//         }
-//     }
-//     if (s != NATS_OK)
-//     {
-//         int j;
+    for (i = 0; i < arr->size; i++)
+    {
+        values[i] = natsPool_StrdupC(pool, (char *)(arr->values[i]));
+        if (values[i] == NULL)
+            return NATS_UPDATE_ERR_STACK(nats_setDefaultError(NATS_NO_MEMORY));
+    }
 
-//         for (j = 0; j < i; j++)
-//             NATS_FREE(values[i]);
+    *array = values;
+    *arraySize = arr->size;
+    return NATS_OK;
+}
 
-//         NATS_FREE(values);
-//     }
-//     else
-//     {
-//         *array = values;
-//         *arraySize = arr->size;
-//     }
-//     return NATS_UPDATE_ERR_STACK(s);
-// }
-
-// natsStatus
-// nats_JSONGetArrayStr(nats_JSON *json, const char *fieldName, char ***array, int *arraySize)
-// {
-//     JSON_GET_ARRAY(TYPE_STR, _jsonArrayAsStrings);
-// }
+natsStatus
+nats_JSONGetArrayStr(nats_JSON *json, natsPool *pool, const char *fieldName, char ***array, int *arraySize)
+{
+    JSON_GET_ARRAY(pool, TYPE_STR, _jsonArrayAsStrings);
+}
 
 // static natsStatus
 // _jsonArrayAsStringPtrs(natsPool *pool, nats_JSONArray *arr, const char ***array, int *arraySize)

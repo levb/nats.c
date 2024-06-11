@@ -80,16 +80,16 @@ natsStatus
 natsJSONParser_Parse(nats_JSON **jsonObj, natsJSONParser *parser, const natsString *buf, size_t *consumed);
 
 natsStatus
-nats_JSONGetField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
+nats_JSONRefField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
 
 natsStatus
-nats_JSONGetStr(nats_JSON *json, const char *fieldName, char **value);
+nats_JSONDupStr(nats_JSON *json, natsPool *pool, const char *fieldName, const char **value);
 
 natsStatus
-nats_JSONGetStrPtr(nats_JSON *json, const char *fieldName, const char **str);
+nats_JSONRefStr(nats_JSON *json, const char *fieldName, const char **str);
 
 natsStatus
-nats_JSONGetBytes(nats_JSON *json, const char *fieldName, unsigned char **value, int *len);
+nats_JSONDupBytes(nats_JSON *json, natsPool *pool, const char *fieldName, unsigned char **value, int *len);
 
 natsStatus
 nats_JSONGetInt(nats_JSON *json, const char *fieldName, int *value);
@@ -119,13 +119,10 @@ natsStatus
 nats_JSONGetTime(nats_JSON *json, const char *fieldName, int64_t *timeUTC);
 
 natsStatus
-nats_JSONGetArrayField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
+nats_JSONRefArray(nats_JSON *json, natsPool *pool, const char *fieldName, int fieldType, nats_JSONField **retField);
 
 natsStatus
-nats_JSONGetArrayStr(nats_JSON *json, const char *fieldName, char ***array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayStrPtr(nats_JSON *json, const char *fieldName, const char ***array, int *arraySize);
+nats_JSONDupStringArray(nats_JSON *json, natsPool *pool, const char *fieldName, const char ***array, int *arraySize);
 
 natsStatus
 nats_JSONArrayAsBools(nats_JSONArray *arr, bool **array, int *arraySize);

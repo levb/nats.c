@@ -47,7 +47,7 @@ typedef enum
     OP_INF,
     OP_INFO,
     OP_INFO_SPC,
-    INFO_ARG
+    INFO_ARG,
 
 } natsOp;
 
@@ -65,19 +65,20 @@ typedef struct __natsMsgArg
 
 #define MAX_CONTROL_LINE_SIZE   (4096)
 
+typedef natsStatus (*natsDispatchParsedCB)(struct __natsParser ps, natsConnection *nc, natsString *bufs, size_t numBufs);
+
 struct __natsParser
 {
     natsOp      state;
-    int         afterSpace;
-    int         drop;
-    int         hdr;
-    natsMsgArg  ma;
-    natsBuffer  argBufRec;
-    natsBuffer  *argBuf;
-    natsBuffer  msgBufRec;
-    natsBuffer  *msgBuf;
-    uint8_t     scratch[MAX_CONTROL_LINE_SIZE];
 
+    natsPool *pool;
+    int         hdr;
+
+    natsDispatchParsedCB okCB;
+    natsDispatchParsedCB errCB;
+    natsDispatchParsedCB infoCB;
+    natsDispatchParsedCB pingCB;
+    natsDispatchParsedCB pongCB;
 };
 
 // This is defined in natsp.h, natsp.h includes us. Alternatively, we can move
@@ -88,7 +89,7 @@ natsStatus
 natsParser_Create(natsParser **newParser);
 
 natsStatus
-natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen);
+natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen, size_t *consumed);
 
 void
 natsParser_Destroy(natsParser *parser);

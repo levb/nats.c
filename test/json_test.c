@@ -434,7 +434,7 @@ void Test_JSONStructure(void)
 
 //     test("Single field, string array: ");
 //     s = nats_JSONParse(&json, "{\"test\":[\"a\",\"b\",\"c\",\"d\",\"e\"]}", -1);
-//     IFOK(s, nats_JSONGetArrayStr(json, "test", &arrVal, &arrCount));
+//     IFOK(s, nats_JSONDupStringArray(json, "test", &arrVal, &arrCount));
 //     testCond((s == NATS_OK) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 1) && (arrCount == 5) && (strcmp(arrVal[0], "a") == 0) && (strcmp(arrVal[1], "b") == 0) && (strcmp(arrVal[2], "c") == 0) && (strcmp(arrVal[3], "d") == 0) && (strcmp(arrVal[4], "e") == 0));
 //     nats_JSONDestroy(json);
 //     json = NULL;
@@ -446,7 +446,7 @@ void Test_JSONStructure(void)
 
 //     test("Single field, null string array: ");
 //     s = nats_JSONParse(&json, "{\"test\": null}", -1);
-//     IFOK(s, nats_JSONGetArrayStr(json, "test", &arrVal, &arrCount));
+//     IFOK(s, nats_JSONDupStringArray(json, "test", &arrVal, &arrCount));
 //     testCond((s == NATS_OK) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 1) && (arrVal == NULL) && (arrCount == 0));
 //     nats_JSONDestroy(json);
 //     json = NULL;
@@ -570,11 +570,11 @@ void Test_JSONStructure(void)
 //     IFOK(s, nats_JSONGetInt(json, "int", &intVal));
 //     IFOK(s, nats_JSONGetLong(json, "long", &longVal));
 //     IFOK(s, nats_JSONGetDouble(json, "double", &doubleVal));
-//     IFOK(s, nats_JSONGetArrayStr(json, "array", &arrVal, &arrCount));
+//     IFOK(s, nats_JSONDupStringArray(json, "array", &arrVal, &arrCount));
 //     testCond((s == NATS_OK) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 6) && boolVal && (strcmp(strVal, "abc") == 0) && (intVal == 123) && (longVal == 456) && (doubleVal == (long double)1235.0 / 10.0) && (arrCount == 1) && (strcmp(arrVal[0], "a") == 0));
 //     test("Unknown field type: ");
 //     if (s == NATS_OK)
-//         s = nats_JSONGetField(json, "int", 255, &f);
+//         s = nats_JSONRefField(json, "int", 255, &f);
 //     testCond(s != NATS_OK);
 //     nats_JSONDestroy(json);
 //     json = NULL;
@@ -599,21 +599,21 @@ void Test_JSONStructure(void)
 
 //     test("Ask for wrong type (array): ");
 //     s = nats_JSONParse(&json, "{\"test\":[\"a\", \"b\"]}", -1);
-//     IFOK(s, nats_JSONGetArrayField(json, "test", TYPE_INT, &f));
+//     IFOK(s, nats_JSONRefArray(json, "test", TYPE_INT, &f));
 //     testCond((s != NATS_OK) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 1) && (arrCount == 0) && (arrVal == NULL));
 //     nats_JSONDestroy(json);
 //     json = NULL;
 
 //     test("Ask for unknown type: ");
 //     s = nats_JSONParse(&json, "{\"test\":true}", -1);
-//     IFOK(s, nats_JSONGetField(json, "test", 9999, &f));
+//     IFOK(s, nats_JSONRefField(json, "test", 9999, &f));
 //     testCond((s == NATS_INVALID_ARG) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 1));
 //     nats_JSONDestroy(json);
 //     json = NULL;
 
 //     test("Ask for unknown type (array): ");
 //     s = nats_JSONParse(&json, "{\"test\":true}", -1);
-//     IFOK(s, nats_JSONGetArrayField(json, "test", 9999, &f));
+//     IFOK(s, nats_JSONRefArray(json, "test", 9999, &f));
 //     testCond((s == NATS_INVALID_ARG) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 1));
 //     nats_JSONDestroy(json);
 //     json = NULL;
@@ -636,7 +636,7 @@ void Test_JSONStructure(void)
 //         IFOK(s, nats_JSONGetLong(json, "long", &longVal));
 //         IFOK(s, nats_JSONGetBool(json, "bool", &boolVal));
 //         IFOK(s, nats_JSONGetDouble(json, "bool", &doubleVal));
-//         IFOK(s, nats_JSONGetArrayStr(json, "array", &arrVal, &arrCount));
+//         IFOK(s, nats_JSONDupStringArray(json, "array", &arrVal, &arrCount));
 //         testCond((s == NATS_OK) && (strVal == NULL) && (boolVal == false) && (intVal == 0) && (longVal == 0) && (doubleVal == 0) && (arrCount == 0) && (arrVal == NULL));
 //         nats_JSONDestroy(json);
 //         json = NULL;
@@ -815,7 +815,7 @@ void Test_JSONStructure(void)
 
 //     test("GetStr bad type: ");
 //     s = nats_JSONParse(&json, "{\"test\":true}", -1);
-//     IFOK(s, nats_JSONGetStrPtr(json, "test", (const char **)&strVal));
+//     IFOK(s, nats_JSONRefStr(json, "test", (const char **)&strVal));
 //     testCond((s != NATS_OK) && (strVal == NULL));
 //     nats_clearLastError();
 //     nats_JSONDestroy(json);
@@ -823,7 +823,7 @@ void Test_JSONStructure(void)
 
 //     test("GetStr: ");
 //     s = nats_JSONParse(&json, "{\"test\":\"direct\"}", -1);
-//     IFOK(s, nats_JSONGetStrPtr(json, "test", (const char **)&strVal));
+//     IFOK(s, nats_JSONRefStr(json, "test", (const char **)&strVal));
 //     testCond((s == NATS_OK) && (strVal != NULL) && (strcmp(strVal, "direct") == 0));
 //     nats_JSONDestroy(json);
 //     json = NULL;
@@ -905,7 +905,7 @@ void Test_JSONStructure(void)
 //     testCond((s == NATS_OK) && (arrBoolVal == NULL) && (arrCount == 0));
 
 //     test("Get empty string array: ");
-//     s = nats_JSONGetArrayStr(json, "empty", &arrVal, &arrCount);
+//     s = nats_JSONDupStringArray(json, "empty", &arrVal, &arrCount);
 //     testCond((s == NATS_OK) && (arrVal == NULL) && (arrCount == 0));
 
 //     nats_JSONDestroy(json);
