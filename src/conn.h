@@ -137,6 +137,8 @@ struct __natsConnection
 
     natsPool *lifetimePool;
     natsPool *connectPool;
+    natsPool *opPool;
+
     natsSockCtx sockCtx;
     natsServers *servers;
     natsServerInfo *info;
@@ -147,10 +149,7 @@ struct __natsConnection
     natsStatus err;
     char errStr[256];
 
-    natsPool *opPool;
-    uint8_t * readbuf;
-    size_t readbufLen;
-    size_t readbufCap;
+    natsReadBuffer *readbuf;
     natsParser *ps;
 
     natsPongList pongs;

@@ -16,18 +16,20 @@
 #include "mem.h"
 #include "err.h"
 
-static size_t _poolPageSize = NATS_DEFAULT_POOL_PAGE_SIZE;
+static size_t _pageSize = NATS_DEFAULT_PAGE_SIZE;
+static size_t _chainSize = NATS_DEFAULT_PAGE_SIZE;
 
 // for testing
-void natsPool_setPageSize(size_t size) { _poolPageSize = size; }
+void natsPool_setPageSize(size_t size) { _pageSize = size; }
+void natsPool_setChainSize(size_t size) { _chainSize = size; }
 
 #define _numPages(c) \
     (((c) / nats_memPageSize() + 1) * nats_memPageSize())
 #define _roundUpCapacity(c) \
     (_numPages(c) * nats_memPageSize())
 
-static inline size_t _smallMax(natsPool *pool) { return pool->pageSize - sizeof(natsSmall); }
-static inline size_t _smallCap(natsPool *pool, natsSmall *small) { return pool->pageSize - small->len; }
+static inline size_t _smallMax(natsPool *pool) { return _pageSize - sizeof(natsSmall); }
+static inline size_t _smallCap(natsPool *pool, natsSmall *small) { return _pageSize - small->len; }
 static inline void *_smallGrab(natsSmall *small, size_t size)
 {
     void *mem = (uint8_t *)small + small->len;
@@ -103,6 +105,35 @@ _allocLarge(natsPool *pool, size_t size, natsLarge **newLarge DEV_MODE_ARGS)
     return large->mem;
 }
 
+natsChain *_addChain(natsPool *pool DEV_MODE_ARGS)
+{
+    if (pool -> readLast == NULL)
+    {
+        natsReadBuffer *buf = _allocSmall(NULL, pool, sizeof(natsReadBuffer) DEV_MODE_CTX);
+        if (buf == NULL)
+            return NULL;
+        pool->readLast = buf;
+        pool->readFirst = buf;
+    }
+
+
+    natsReadBuffer *buf = _allocSmall(NULL, pool, sizeof(natsReadBuffer) DEV_MODE_CTX);
+    if (buf == NULL)
+        return NULL;
+
+    buf->mem = natsHeap_Alloc(_chainSize);
+    if (buf->mem == NULL)
+    {
+        MEMLOGx(file, line, func, "FAILED to alloc in POOL '%s': read buffer %zu bytes", pool->name, _chainSize);
+        return NULL;
+    }
+
+    buf->data = buf->mem;
+    buf->len = 0;
+    MEMLOGx(file, line, func, "Alloc in POOL '%s': ReadBuffer, ptr:%p", pool->name, (void *)buf->mem);
+    return buf;
+}
+
 #ifdef DEV_MODE
 
 void *natsPool_log_alloc(natsPool *pool, size_t size DEV_MODE_ARGS)
@@ -139,6 +170,11 @@ natsStatus natsPool_log_create(natsPool **newPool, size_t pageSize, const char *
     return s;
 }
 
+natsReadBuffer *natsPool_log_getReadBuffer(natsPool *pool DEV_MODE_ARGS)
+{
+    return _getReadBuffer(pool, file, line, func);
+}
+
 #endif
 
 natsStatus
@@ -148,7 +184,7 @@ natsPool_create(natsPool **newPool, size_t pageSize, const char *name)
     natsSmall *small = NULL;
 
     if (pageSize == 0)
-        pageSize = _poolPageSize;
+        pageSize = _pageSize;
 
     const size_t required = sizeof(natsPool) + sizeof(natsSmall);
     if (required > pageSize)
@@ -173,6 +209,11 @@ void *natsPool_alloc(natsPool *pool, size_t size)
         return _allocLarge(pool, size, NULL DEV_MODE_CTX);
     else
         return _allocSmall(NULL, pool, size DEV_MODE_CTX);
+}
+
+natsReadBuffer *natsPool_getReadBuffer(natsPool *pool)
+{
+    return _getReadBuffer(pool DEV_MODE_CTX);
 }
 
 void natsPool_Destroy(natsPool *pool)

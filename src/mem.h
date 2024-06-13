@@ -92,8 +92,9 @@
 
 void natsPool_setPageSize(size_t size); // for testing
 
-#define NATS_DEFAULT_POOL_PAGE_SIZE 4096
+#define NATS_DEFAULT_PAGE_SIZE 4096
 #define NATS_DEFAULT_BUFFER_SIZE 256
+#define NATS_DEFAULT_CHAIN_SIZE (8 * NATS_DEFAULT_PAGE_SIZE)
 
 struct __natsSmall_s
 {
@@ -107,11 +108,16 @@ struct __natsLarge_s
     uint8_t *mem;
 };
 
+struct __natsChain_s
+{
+    struct __natsChain_s *next;
+    uint8_t *mem; // _chainSize
+    uint8_t *start;
+    uint8_t *end;
+};
+
 struct __natsPool_s
 {
-    // Each small is allocated of pageSize.
-    size_t pageSize;
-
     // small head is the first chunk allocated since that is where we attempt to
     // allocate first.
     natsSmall *small;
@@ -119,8 +125,7 @@ struct __natsPool_s
     // large head is the most recent large allocation, for simplicity.
     natsLarge *large;
 
-    uint8_t **iobufs;
-    int iobufsCount;
+    natsChain *chain;
 
 #ifdef DEV_MODE
     const char *name;
@@ -133,6 +138,7 @@ struct __natsPool_s
 natsStatus
 natsPool_create(natsPool **newPool, size_t pageSize, const char *name);
 void *natsPool_alloc(natsPool *pool, size_t size);
+natsChain *natsPool_addChain(natsPool *pool);
 
 static inline natsStatus natsPool_allocS(void **newMem, natsPool *pool, size_t size)
 {
@@ -151,13 +157,14 @@ void *natsPool_log_alloc(natsPool *pool, size_t size DEV_MODE_ARGS);
 #define natsPool_Create(_p, _s, _n) natsPool_log_create((_p), (_s), (_n)DEV_MODE_CTX)
 #define natsPool_Alloc(_p, _s) natsPool_log_alloc((_p), (_s)DEV_MODE_CTX)
 #define natsPool_AllocS(_n, _p, _s) natsPool_log_allocS((_n), (_p), (_s)DEV_MODE_CTX)
-#define natsPool_AllocIOBuf(_n, _p, _s) natsPool_log_allocS((_n), (_p), (_s)DEV_MODE_CTX)
+#define natsPool_AddChain(_p) natsPool_log_addChain((_p)DEV_MODE_CTX)
 
 #else
 
 #define natsPool_Create(_p, _s, _n) natsPool_create((_p), (_s), (_n))
 #define natsPool_Alloc(_p, _s) natsPool_alloc((_p), (_s))
 #define natsPool_AllocS(_n, _p, _s) natsPool_allocS((_n), (_p), (_s))
+#define natsPool_AddChain(_p) natsPool_addChain((_p))
 
 #endif
 

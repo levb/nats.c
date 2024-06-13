@@ -18,6 +18,7 @@
 typedef enum
 {
     OP_START = 0,
+    OP_END,
     OP_PLUS,
     OP_PLUS_O,
     OP_PLUS_OK,

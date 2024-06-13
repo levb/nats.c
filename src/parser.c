@@ -382,7 +382,7 @@ natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen
                 // natsConn_processAsyncINFO(nc, start, len);
                 ps->drop = 0;
                 ps->afterSpace = i + 1;
-                ps->state = OP_START;
+                ps->state = OP_END;
 
                 if (ps->argBuf != NULL)
                 {

@@ -220,22 +220,15 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
 
     if (nc->ps->state == OP_START)
     {
-        if (nc->opPool == NULL)
-        {
-            s = natsPool_Create(&(nc->opPool), 0, "op");
-            if (s != NATS_OK)
-                goto _processError;
-        }
-        if (nc->readbuf == NULL) 
-        {
-            s = natsPool_AllocS(&(nc->readbuf), nc->opPool, nc->opPool->pageSize);
-            if (s != NATS_OK)
-                goto _processError;
-            nc->readbufCap = nc->opPool->pageSize;
-            
-        }
+        s = _rotateOpPool(nc);
+        if (s != NATS_OK)
+            goto _processError;
     }
-    s = natsSock_Read(&(nc->sockCtx), nc->readbuf, nc->readbufCap, &n);
+
+    // Get a read chain with some space in it.
+    natsChain *chain = NULL;
+    s = natsPool_GetReadBuffer(&chain, nc->opPool);
+    s = natsSock_Read(&(nc->sockCtx), nc->readbuf->start, nc->readbuf->end-nc->readbuf->start, &n);
     if (s != NATS_OK)
         goto _processError;
 
@@ -247,7 +240,7 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
     s = natsParser_Parse(nc->ps, nc, nc->readbuf, n, &consumed, &doneOp);
     if (s != NATS_OK)
         goto _processError;
-    nc->readbuf += consumed;
+    nc->readbuf->start += consumed;
     nc->readbufCap -= consumed;
 
     if (doneOp)
