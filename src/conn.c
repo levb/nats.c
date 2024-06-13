@@ -180,24 +180,19 @@ _connectTCP(natsConnection *nc)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-static inline natsStatus _rotateOpPool(natsConnection *nc)
+natsStatus _startOp(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
-    natsPool *newOpPool = NULL;
-    uint8_t *newReadBuf = NULL;
+    natsPool *newOpPool = NULL;    
 
     s = natsPool_Create(&newOpPool, 0, "conn-op");
     if (s != NATS_OK)
         return NATS_UPDATE_ERR_STACK(s);
 
-    s = natsPool_AllocS((void **)&newReadBuf, newOpPool, newOpPool->pageSize);
-    if (s != NATS_OK)
-    {
-        natsPool_Destroy(newOpPool);
-        return NATS_UPDATE_ERR_STACK(s);
-    }
+    // If there was a chain in the previous pool and its data has not been
+    // exhausted, move the last link to the beginning of the new pool.
 
-    natsPool_Destroy(nc->opPool);
+    if ((nc->opPool != NULL) && (nc->opPool->chain))
     nc->opPool = newOpPool;
 
     return NATS_UPDATE_ERR_STACK(s);

@@ -16,8 +16,8 @@
 #include "mem.h"
 #include "err.h"
 
-size_t _pageSize = NATS_DEFAULT_PAGE_SIZE;
-size_t _chainSize = NATS_DEFAULT_PAGE_SIZE;
+size_t _pageSize = NATS_MEM_PAGE_SIZE;
+size_t _chainSize = NATS_MEM_PAGE_SIZE;
 
 // for testing
 void natsPool_setPageSize(size_t size) { _pageSize = size; }
@@ -35,6 +35,10 @@ static inline void *_smallGrab(natsSmall *small, size_t size)
     void *mem = (uint8_t *)small + small->len;
     small->len += size;
     return mem;
+}
+
+natsStatus natsPool_initChainFromPrevious(natsPool *pool, natsPool *prevPool)
+{
 }
 
 static void *_allocSmall(natsSmall **newOrFound, natsPool *pool, size_t size DEV_MODE_ARGS)
@@ -107,31 +111,33 @@ _allocLarge(natsPool *pool, size_t size, natsLarge **newLarge DEV_MODE_ARGS)
 
 natsChain *_addChain(natsPool *pool DEV_MODE_ARGS)
 {
-    if (pool -> readLast == NULL)
-    {
-        natsReadBuffer *buf = _allocSmall(NULL, pool, sizeof(natsReadBuffer) DEV_MODE_CTX);
-        if (buf == NULL)
-            return NULL;
-        pool->readLast = buf;
-        pool->readFirst = buf;
-    }
+    // If we have a current chain and it has enough space, return it.
+    if (pool->currentChain != NULL && natsChain_Available(pool->currentChain) >= NATS_MEM_CHAIN_MIN)
+        return pool->currentChain;
 
-
-    natsReadBuffer *buf = _allocSmall(NULL, pool, sizeof(natsReadBuffer) DEV_MODE_CTX);
-    if (buf == NULL)
+    // Don't have a chain or the current one is full, allocate a new one.
+    natsChain *chain = _allocSmall(NULL, pool, sizeof(natsChain) DEV_MODE_CTX);
+    if (chain == NULL)
         return NULL;
 
-    buf->mem = natsHeap_Alloc(_chainSize);
-    if (buf->mem == NULL)
-    {
-        MEMLOGx(file, line, func, "FAILED to alloc in POOL '%s': read buffer %zu bytes", pool->name, _chainSize);
+    chain->mem = natsHeap_Alloc(_chainSize);
+    if (chain->mem == NULL)
         return NULL;
-    }
+    chain->start = chain->mem;
+    chain->end = chain->mem;
 
-    buf->data = buf->mem;
-    buf->len = 0;
-    MEMLOGx(file, line, func, "Alloc in POOL '%s': ReadBuffer, ptr:%p", pool->name, (void *)buf->mem);
-    return buf;
+    if (pool->currentChain == NULL) 
+    {
+        // First chain
+        pool->chain = chain;
+        pool->currentChain = chain;
+    }
+    else
+    {
+        // Link it to the end of the chain.
+        pool->currentChain->next = chain;
+        pool->currentChain = chain;
+    }
 }
 
 #ifdef DEV_MODE
