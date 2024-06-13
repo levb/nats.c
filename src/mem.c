@@ -16,8 +16,8 @@
 #include "mem.h"
 #include "err.h"
 
-static size_t _pageSize = NATS_DEFAULT_PAGE_SIZE;
-static size_t _chainSize = NATS_DEFAULT_PAGE_SIZE;
+size_t _pageSize = NATS_DEFAULT_PAGE_SIZE;
+size_t _chainSize = NATS_DEFAULT_PAGE_SIZE;
 
 // for testing
 void natsPool_setPageSize(size_t size) { _pageSize = size; }

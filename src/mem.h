@@ -135,6 +135,10 @@ struct __natsPool_s
 #endif
 };
 
+#define natsChain_Available(_chain) ((_chain)->mem + _chainSize - (_chain)->end)
+#define natsChain_Len(_chain) ((_chain)->end - (_chain)->start)
+#define natsChain_Data(_chain) ((_chain)->start)
+
 natsStatus
 natsPool_create(natsPool **newPool, size_t pageSize, const char *name);
 void *natsPool_alloc(natsPool *pool, size_t size);

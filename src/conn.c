@@ -72,7 +72,7 @@ static bool _processOpError(natsConnection *nc, natsStatus s, bool initialConnec
 static void _freeConn(natsConnection *nc);
 
 #define _stateStart 0
-#define _expectInfo 1  // Expect INFO message
+#define _expectInfo 1 // Expect INFO message
 
 natsStatus
 natsConnection_Connect(natsConnection **newConn, natsOptions *options)
@@ -126,7 +126,7 @@ _createConnectionObject(natsConnection **newConn)
     natsConnection *nc = NULL;
 
     s = natsPool_Create(&pool, 0, "conn-lifetime");
-    IFOK(s, natsPool_AllocS((void **)&nc, pool, sizeof(natsConnection)));    
+    IFOK(s, natsPool_AllocS((void **)&nc, pool, sizeof(natsConnection)));
     IFOK(s, natsSock_Init(&nc->sockCtx));
     if (s != NATS_OK)
     {
@@ -197,7 +197,6 @@ static inline natsStatus _rotateOpPool(natsConnection *nc)
         return NATS_UPDATE_ERR_STACK(s);
     }
 
-
     natsPool_Destroy(nc->opPool);
     nc->opPool = newOpPool;
 
@@ -210,7 +209,6 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
     int n = 0;
     size_t consumed = 0;
     bool doneOp = false;
-
 
     if (!(nc->el.attached) || (nc->sockCtx.fd == NATS_SOCK_INVALID))
     {
@@ -227,8 +225,13 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
 
     // Get a read chain with some space in it.
     natsChain *chain = NULL;
-    s = natsPool_GetReadBuffer(&chain, nc->opPool);
-    s = natsSock_Read(&(nc->sockCtx), nc->readbuf->start, nc->readbuf->end-nc->readbuf->start, &n);
+    chain = natsPool_AddChain(nc->opPool);
+    if (chain == NULL)
+    {
+        s = nats_setDefaultError(NATS_NO_MEMORY);
+        goto _processError;
+    }
+    s = natsSock_Read(&(nc->sockCtx), natsChain_Data(chain), natsChain_Available(chain), &n);
     if (s != NATS_OK)
         goto _processError;
 
@@ -260,7 +263,6 @@ _processError:
     natsPool_Destroy(nc->opPool);
     nc->opPool = NULL;
     natsConn_release(nc);
-
 }
 
 // Main connect function. Will connect to the server
@@ -702,8 +704,8 @@ natsConn_processInfo(natsConnection *nc, nats_JSON *json)
     IFOK(s, nats_JSONGetBool(json, "tls_available", &(info->tlsAvailable)));
     IFOK(s, nats_JSONGetLong(json, "max_payload", &(info->maxPayload)));
     IFOK(s, nats_JSONDupStringArray(json, nc->lifetimePool, "connect_urls",
-                                 &(info->connectURLs),
-                                 &(info->connectURLsCount)));
+                                    &(info->connectURLs),
+                                    &(info->connectURLsCount)));
     IFOK(s, nats_JSONGetInt(json, "proto", &(info->proto)));
     IFOK(s, nats_JSONGetULong(json, "client_id", &(info->CID)));
     IFOK(s, nats_JSONRefStr(json, "nonce", &(info->nonce)));
@@ -1291,7 +1293,6 @@ _processOpError(natsConnection *nc, natsStatus s, bool initialConnect)
 
     // natsConn_Unlock(nc);
 
-
     CONNLOG("ERROR!");
     _close(nc, NATS_CONN_STATUS_CLOSED, false, true);
 
@@ -1544,7 +1545,6 @@ _sendPing(natsConnection *nc, natsPong *pong)
 
 //     // nc->pout = 0;
 // }
-
 
 static natsStatus
 _processUrlString(natsOptions *opts, const char *urls)
