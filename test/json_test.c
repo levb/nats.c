@@ -64,7 +64,7 @@ void Test_JSONStructure(void)
 
     natsPool *pool = NULL;
     test("Create memory pool: ");
-    s = natsPool_Create(&pool, 0, "json-test");
+    s = natsPool_Create(&pool, "json-test");
     testCond(s == NATS_OK);
 
     for (int i = 0; i < (int)(sizeof(tests) / sizeof(*tests)); i++)
@@ -73,11 +73,12 @@ void Test_JSONStructure(void)
         nats_JSON *json = NULL;
         size_t consumed = 0;
         TC tc = tests[i];
-        natsString data = NATS_STRC(tc.json);
         
         test(tc.name);
         s = natsJSONParser_Create(&parser, pool);
-        IFOK(s, natsJSONParser_Parse(&json, parser, &data, &consumed));
+        const uint8_t *data = (const uint8_t *)tc.json;
+        const uint8_t *end = (const uint8_t *)tc.json + strlen(tc.json);
+        IFOK(s, natsJSONParser_Parse(&json, parser, data, end, &consumed));
         testCond((s == NATS_OK) && (json != NULL) && (consumed == strlen(tc.json)));
     }
 
@@ -89,8 +90,9 @@ void Test_JSONStructure(void)
 
         test(tc.name);
         s = natsJSONParser_Create(&parser, pool);
-        natsString data = NATS_STRC(tc.json);
-        IFOK(s, natsJSONParser_Parse(&json, parser, &data, NULL));
+        const uint8_t *data = (const uint8_t *)tc.json;
+        const uint8_t *end = (const uint8_t *)tc.json + strlen(tc.json);
+        IFOK(s, natsJSONParser_Parse(&json, parser, data, end, NULL));
         testCond((s != NATS_OK) && (json == NULL));
     }
 

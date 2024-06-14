@@ -90,12 +90,13 @@
 //     |               |                        |               |
 //     +---------------+ page size              +---------------+ page size
 
-void natsPool_setPageSize(size_t size); // for testing
-
 #define NATS_MEM_PAGE_SIZE 4096
 #define NATS_MEM_DEFAULT_BUFFER_SIZE 256
 #define NATS_MEM_CHAIN_SIZE (8 * NATS_MEM_PAGE_SIZE)
 #define NATS_MEM_CHAIN_MIN 1024
+
+extern size_t nats_memPageSize;
+extern size_t nats_memChainSize;
 
 struct __natsSmall_s
 {
@@ -112,9 +113,9 @@ struct __natsLarge_s
 struct __natsChain_s
 {
     struct __natsChain_s *next;
-    uint8_t *mem; // _chainSize
-    uint8_t *start;
-    uint8_t *end;
+    uint8_t *mem; // of nats_memChainSize
+    uint8_t *readFrom;
+    uint8_t *appendTo;
 };
 
 struct __natsPool_s
@@ -137,15 +138,14 @@ struct __natsPool_s
 #endif
 };
 
-#define natsChain_Available(_chain) ((_chain)->mem + _chainSize - (_chain)->end)
-#define natsChain_Len(_chain) ((_chain)->end - (_chain)->start)
-#define natsChain_Data(_chain) ((_chain)->start)
+#define natsChain_Available(_chain) ((_chain)->mem + nats_memChainSize - (_chain)->appendTo)
+#define natsChain_Len(_chain) ((_chain)->appendTo - (_chain)->readFrom)
 
 natsStatus
-natsPool_create(natsPool **newPool, size_t pageSize, const char *name);
+natsPool_create(natsPool **newPool, const char *name);
 void *natsPool_alloc(natsPool *pool, size_t size);
-natsChain *natsPool_addChain(natsPool *pool);
-natsStatus natsPool_initChainFromPrevious(natsPool *pool, natsPool *previousPool);
+natsStatus natsPool_addChain(natsChain **chain, natsPool *pool);
+natsStatus natsPool_recycle(natsChain **chain, natsPool *pool);
 
 static inline natsStatus natsPool_allocS(void **newMem, natsPool *pool, size_t size)
 {
@@ -157,21 +157,22 @@ static inline natsStatus natsPool_allocS(void **newMem, natsPool *pool, size_t s
 
 #ifdef DEV_MODE
 
-natsStatus natsPool_log_create(natsPool **newPool, size_t pageSize, const char *name DEV_MODE_ARGS);
+natsStatus natsPool_log_create(natsPool **newPool, const char *name DEV_MODE_ARGS);
 natsStatus natsPool_log_allocS(void **newMem, natsPool *pool, size_t size DEV_MODE_ARGS);
+natsStatus natsPool_log_addChain(natsChain **newChain, natsPool *pool DEV_MODE_ARGS);
 void *natsPool_log_alloc(natsPool *pool, size_t size DEV_MODE_ARGS);
 
-#define natsPool_Create(_p, _s, _n) natsPool_log_create((_p), (_s), (_n)DEV_MODE_CTX)
+#define natsPool_Create(_p, _n) natsPool_log_create((_p), (_n)DEV_MODE_CTX)
 #define natsPool_Alloc(_p, _s) natsPool_log_alloc((_p), (_s)DEV_MODE_CTX)
 #define natsPool_AllocS(_n, _p, _s) natsPool_log_allocS((_n), (_p), (_s)DEV_MODE_CTX)
-#define natsPool_AddChain(_p) natsPool_log_addChain((_p)DEV_MODE_CTX)
+#define natsPool_AddChain(_c, _p) natsPool_log_addChain((_c), (_p)DEV_MODE_CTX)
 
 #else
 
-#define natsPool_Create(_p, _s, _n) natsPool_create((_p), (_s), (_n))
+#define natsPool_Create(_p, _n) natsPool_create((_p), (_n))
 #define natsPool_Alloc(_p, _s) natsPool_alloc((_p), (_s))
 #define natsPool_AllocS(_n, _p, _s) natsPool_allocS((_n), (_p), (_s))
-#define natsPool_AddChain(_p) natsPool_addChain((_p))
+#define natsPool_AddChain(_c, _p) natsPool_addChain((_c), (_p))
 
 #endif
 

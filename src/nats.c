@@ -34,6 +34,8 @@ typedef struct natsTLError
 
 typedef struct __natsLib
 {
+    natsPool *pool;
+
     bool sslInitialized;
     bool initialized;
     bool closed;
@@ -103,6 +105,12 @@ void natsLib_Release(void)
         _freeLib();
 }
 
+natsPool *natsLib_GlobalPool(void)
+{
+    nats_Open();
+    return gLib.pool;
+}
+
 natsStatus
 nats_Open(void)
 {
@@ -119,18 +127,15 @@ nats_Open(void)
     natsSys_Init();
     nats_Base32_Init();
 
-    if (s == NATS_OK)
-        s = natsCrypto_Init();
-    if (s == NATS_OK)
-        s = natsNUID_init();
-    // if (s == NATS_OK)
-    //     s = natsHash_Create(&gLib.all_services_to_callback, NULL, 8);
+    s = natsPool_Create(&(gLib.pool), "global");
+    IFOK(s, natsCrypto_Init());
+    IFOK(s, natsNUID_init());
+    // IFOK(s, natsHash_Create(&gLib.all_services_to_callback, NULL, 8));
+
     if (s == NATS_OK)
         gLib.initialized = true;
-
-    if (s != NATS_OK)
+    else
         _freeLib();
-
     return s;
 }
 

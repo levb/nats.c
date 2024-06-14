@@ -20,14 +20,13 @@ void Test_Pool(void)
     natsPool *pool = NULL;
 
     test("Create pool");
-    natsStatus s = natsPool_Create(&pool, 1234, "mem-test" );
+    natsStatus s = natsPool_Create(&pool, "mem-test" );
 
     size_t expectedLength = sizeof(natsPool) + sizeof(natsSmall);
     testCond((s == NATS_OK) &&
              (pool != NULL) &&
              (pool->small != NULL) &&
-             (pool->small->len == expectedLength) &&
-             (pool->pageSize == 1234));
+             (pool->small->len == expectedLength));
 
     test("Allocate some small blocks in the first chunk");
     uint8_t *ptr1 = natsPool_Alloc(pool, 10);

@@ -15,13 +15,11 @@
 #include <stdio.h>
 
 #include "natsp.h"
-#include "util.h"
-#include "mem.h"
+
 #include "url.h"
 #include "servers.h"
 #include "json.h"
-#include "mem.h"
-#include "parser.h"
+#include "conn.h"
 
 // cloneMsgArg is used when the split buffer scenario has the pubArg in the existing read buffer, but
 // we need to hold onto it into the next read.
@@ -226,27 +224,21 @@
 //     return s;
 // }
 
-static inline natsStatus
-_parseInfoData(natsParser *ps, natsConnection *nc, uint8_t **p, uint8_t *end)
-{
-    natsStatus s = NATS_OK;
-
-    return s;
-}
 
 // parse is the fast protocol parser engine.
 natsStatus
-natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen, size_t *consumed)
+natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consumed)
 {
     natsStatus s = NATS_OK;
     uint8_t *p = buf;
-    uint8_t *end = buf + bufLen;
     uint8_t b;
-    bool done = false;
 
     for (; (s == NATS_OK) && (p < end); p++)
     {
         b = *p;
+
+        if ((ps->skipWhitespace) && ((b == ' ') || (b == '\t')))
+            continue;
 
         switch (ps->state)
         {
@@ -279,6 +271,31 @@ natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen
             case 'I':
             case 'i':
                 ps->state = OP_I;
+                continue;
+            default:
+                goto parseErr;
+            }
+            continue;
+        }
+        case CRLF:
+        {
+            switch (b)
+            {
+            case '\r':
+                ps->state = CRLF_CR;
+                continue;
+            default:
+                goto parseErr;
+            }
+            continue;
+        }
+        case CRLF_CR:
+        {
+            switch (b)
+            {
+            case '\n':
+                ps->state = ps->nextState;
+                ps->nextState = 0;
                 continue;
             default:
                 goto parseErr;
@@ -343,62 +360,32 @@ natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen
             {
             case ' ':
             case '\t':
-                continue;
-            case '{':
-                s = _parseInfoData(ps, nc, &p, end, &done);
-                if (done)
-                    ps->state = OP_INFO_END;
+                // Once we have 1 whitespace, can pass the rest to JSON parser. 
+                s = natsJSONParser_Create(&(ps->jsonParser), nc->opPool);
+                if (s != NATS_OK)
+                    goto parseErr;
+                ps->json = NULL;
+                ps->state = INFO_ARG;
                 continue;
             default:
-            {
-                break;
+                goto parseErr;
             }
-            }
-            break;
+            continue;
         }
         case INFO_ARG:
         {
-            switch (b)
+            size_t consumedByJSON = 0;
+            s = natsJSONParser_Parse(&ps->json, ps->jsonParser, p, end, &consumedByJSON);
+            p += consumedByJSON;
+            if (s != NATS_OK)
+                goto parseErr;
+            
+            if (ps->json != NULL)
             {
-            case '\r':
-                // ps->drop = 1;
-                break;
-            case '\n':
-            {
-                // uint8_t *start = NULL;
-                // size_t  len    = 0;
-
-                // if (ps->argBuf != NULL)
-                // {
-                //     start = natsBuf_Data(ps->argBuf);
-                //     len   = natsBuf_Len(ps->argBuf);
-                // }
-                // else
-                // {
-                //     start = buf + ps->afterSpace;
-                //     len   = (i - ps->drop) - ps->afterSpace;
-                // }
-                // <>//<>
-                // natsConn_processAsyncINFO(nc, start, len);
-                ps->drop = 0;
-                ps->afterSpace = i + 1;
-                ps->state = OP_END;
-
-                if (ps->argBuf != NULL)
-                {
-                    natsBuf_Destroy(ps->argBuf);
-                    ps->argBuf = NULL;
-                }
-                break;
+                ps->state = CRLF;
+                ps->nextState = INFO_COMPLETE;
             }
-            default:
-            {
-                if (ps->argBuf != NULL)
-                    s = natsBuf_AppendByte(ps->argBuf, b);
-                break;
-            }
-            }
-            break;
+            continue;
         }
             //             case OP_H:
             //             {
@@ -835,6 +822,13 @@ natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen
             //                 }
             //                 break;
             //             }
+        case INFO_COMPLETE:
+            s = natsConn_processInfo(nc, ps->json);
+            if (s != NATS_OK)
+                goto parseErr;
+            ps->state = OP_START;
+            continue;
+
         default:
             goto parseErr;
         }
@@ -923,12 +917,7 @@ parseErr:
     if (s == NATS_OK)
         s = NATS_PROTOCOL_ERROR;
 
-    snprintf(nc->errStr, sizeof(nc->errStr),
-             "Parse Error [%u]: '%.*s'",
-             ps->state,
-             (int)(bufLen - i),
-             buf + i);
-
+    snprintf(nc->errStr, sizeof(nc->errStr), "Parse Error [%u]: '%.*s'", ps->state, (int)(end-p), p);
     return s;
 }
 
@@ -945,15 +934,3 @@ natsParser_Create(natsParser **newParser)
     return NATS_OK;
 }
 
-void natsParser_Destroy(natsParser *parser)
-{
-    if (parser == NULL)
-        return;
-
-    natsBuf_Destroy(&(parser->ma.subjectRec));
-    natsBuf_Destroy(&(parser->ma.replyRec));
-    natsBuf_Destroy(&(parser->argBufRec));
-    natsBuf_Destroy(&(parser->msgBufRec));
-
-    natsHeap_Free(parser);
-}

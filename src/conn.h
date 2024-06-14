@@ -15,6 +15,7 @@
 #define CONN_H_
 
 #include "comsock.h"
+#include "parser.h"
 
 #define _OK_OP_ "+OK"
 #define _ERR_OP_ "-ERR"
@@ -149,8 +150,7 @@ struct __natsConnection
     natsStatus err;
     char errStr[256];
 
-    natsReadBuffer *readbuf;
-    natsParser *ps;
+    natsParser ps;
 
     natsPongList pongs;
 
@@ -223,14 +223,13 @@ natsConn_processPong(natsConnection *nc);
 #define natsConn_queueSubscribe(sub, nc, subj, queue, cb, closure)                      natsConn_queueSubscribeWithTimeout((sub), (nc), (subj), (queue), 0, (cb), (closure))
 #define natsConn_queueSubscribeSync(sub, nc, subj, queue)                               natsConn_queueSubscribe((sub), (nc), (subj), (queue), NULL, NULL)
 
-void
-natsConn_processAsyncINFO(natsConnection *nc, char *buf, int len);
+natsStatus
+natsConn_processInfo(natsConnection *nc, nats_JSON *json);
 
-// natsStatus
-// natsConn_publish(natsConnection *nc, natsMsg *msg, const char *reply, bool directFlush);
+    // natsStatus
+    // natsConn_publish(natsConnection *nc, natsMsg *msg, const char *reply, bool directFlush);
 
-bool
-natsConn_srvVersionAtLeast(natsConnection *nc, int major, int minor, int update);
+bool natsConn_srvVersionAtLeast(natsConnection *nc, int major, int minor, int update);
 
 void
 natsConn_close(natsConnection *nc);

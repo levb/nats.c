@@ -57,17 +57,12 @@
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 //-----------------------------------------------------------------------------
-// Library
-
-void natsSys_Init(void);
-void natsLib_Retain(void);
-void natsLib_Release(void);
-int64_t nats_setTargetTime(int64_t timeout);
-
-//-----------------------------------------------------------------------------
 // Types
 
+typedef struct __nats_JSON_s nats_JSON;
+typedef struct __natsJSONParser_s natsJSONParser;
 typedef struct __natsBuffer_s natsBuffer;
+typedef struct __natsChain_s natsChain;
 typedef struct __natsHash natsHash;
 typedef struct __natsHashIter natsHashIter;
 typedef struct __natsLarge_s natsLarge;
@@ -75,7 +70,6 @@ typedef struct __natsParser natsParser;
 typedef struct __natsPong natsPong;
 typedef struct __natsPongList natsPongList;
 typedef struct __natsPool_s natsPool;
-typedef struct __natsChain_s natsChain;
 typedef struct __natsServer_s natsServer;
 typedef struct __natsServerInfo natsServerInfo;
 typedef struct __natsServers_s natsServers;
@@ -84,5 +78,22 @@ typedef struct __natsSockCtx natsSockCtx;
 typedef struct __natsStrHash natsStrHash;
 typedef struct __natsStrHashIter natsStrHashIter;
 typedef struct __natsString_s natsString;
+
+//-----------------------------------------------------------------------------
+// Library
+
+void natsSys_Init(void);
+void natsLib_Retain(void);
+void natsLib_Release(void);
+natsPool *natsLib_GlobalPool(void);
+int64_t nats_setTargetTime(int64_t timeout);
+
+//-----------------------------------------------------------------------------
+// Other includes
+
+#include "err.h"
+#include "status.h"
+#include "util.h"
+#include "mem.h"
 
 #endif /* NATSP_H_ */

@@ -20,9 +20,9 @@
 
 struct __natsOptions
 {
-    // All options values are allocated in this pool.
+    // All options values are allocated in this pool, which is passed into
+    // natsOpts_create.
     natsPool *pool;
-    bool    ownPool;
 
     // All fields that are not "simple" types must be declared before
     // __memcpy_from_here, and should be manually added to natsOptions_Clone()

@@ -33,6 +33,10 @@ extern int jsonMaxNested;
 #define TYPE_OBJECT     (8)
 #define TYPE_NULL       (9)
 
+// A long double memory size is larger (or equal to) u/int64_t, so use that
+// as the maximum size of a num element in an array.
+#define JSON_MAX_NUM_SIZE ((int)sizeof(long double))
+
 typedef struct
 {
     void    **values;
@@ -43,12 +47,12 @@ typedef struct
 
 } nats_JSONArray;
 
-typedef struct
+struct __nats_JSON_s
 {
     natsStrHash *fields;
     nats_JSONArray *array;
     natsPool *pool;
-} nats_JSON;
+};
 
 typedef struct
 {
@@ -68,8 +72,6 @@ typedef struct
 
 } nats_JSONField;
 
-typedef struct _natsJSONParser_s natsJSONParser;
-
 natsStatus
 natsJSONParser_Create(natsJSONParser **parser, natsPool *pool);
 
@@ -77,7 +79,7 @@ natsJSONParser_Create(natsJSONParser **parser, natsPool *pool);
 // errors, artial parsing returns NATS_OK, jsonObj set to NULL, and consumes the
 // entire buf. 
 natsStatus
-natsJSONParser_Parse(nats_JSON **jsonObj, natsJSONParser *parser, const natsString *buf, size_t *consumed);
+natsJSONParser_Parse(nats_JSON **jsonObj, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
 
 natsStatus
 nats_JSONRefField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
@@ -113,13 +115,13 @@ natsStatus
 nats_JSONGetDouble(nats_JSON *json, const char *fieldName, long double *value);
 
 natsStatus
-nats_JSONGetObject(nats_JSON *json, const char *fieldName, nats_JSON **value);
+nats_JSONRefObject(nats_JSON *json, const char *fieldName, nats_JSON **value);
 
 natsStatus
 nats_JSONGetTime(nats_JSON *json, const char *fieldName, int64_t *timeUTC);
 
 natsStatus
-nats_JSONRefArray(nats_JSON *json, natsPool *pool, const char *fieldName, int fieldType, nats_JSONField **retField);
+nats_JSONRefArray(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
 
 natsStatus
 nats_JSONDupStringArray(nats_JSON *json, natsPool *pool, const char *fieldName, const char ***array, int *arraySize);

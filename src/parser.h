@@ -14,7 +14,6 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
-
 typedef enum
 {
     OP_START = 0,
@@ -49,6 +48,9 @@ typedef enum
     OP_INFO,
     OP_INFO_SPC,
     INFO_ARG,
+    INFO_COMPLETE,
+    CRLF,
+    CRLF_CR,
 
 } natsOp;
 
@@ -71,28 +73,17 @@ typedef natsStatus (*natsDispatchParsedCB)(struct __natsParser ps, natsConnectio
 struct __natsParser
 {
     natsOp      state;
+    natsOp     nextState;
+    bool skipWhitespace;
 
-    natsPool *pool;
-    int         hdr;
-
-    natsDispatchParsedCB okCB;
-    natsDispatchParsedCB errCB;
-    natsDispatchParsedCB infoCB;
-    natsDispatchParsedCB pingCB;
-    natsDispatchParsedCB pongCB;
+    natsJSONParser *jsonParser;
+    nats_JSON *json;
 };
-
-// This is defined in natsp.h, natsp.h includes us. Alternatively, we can move
-// all the parser defines in natsp.h
-struct __natsConnection;
 
 natsStatus
 natsParser_Create(natsParser **newParser);
 
 natsStatus
-natsParser_Parse(natsParser *ps, natsConnection *nc, uint8_t *buf, size_t bufLen, size_t *consumed);
-
-void
-natsParser_Destroy(natsParser *parser);
+natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t*end, size_t *consumed);
 
 #endif /* PARSER_H_ */

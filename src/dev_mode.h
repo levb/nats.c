@@ -30,7 +30,7 @@
 
 // Comment/uncomment to enable debug logging and tracking in specific modules.
 #define DEV_MODE_CONN
-// #define DEV_MODE_MEM
+#define DEV_MODE_MEM
 #define DEV_MODE_JSON
 
 #define DEV_MODE_CTX , __SHORT_FILE__, __LINE__, __NATS_FUNCTION__

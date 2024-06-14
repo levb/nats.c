@@ -140,7 +140,6 @@ NATS_EXTERN natsStatus natsOptions_SetNoRandomize(natsOptions *opts, bool noRand
 NATS_EXTERN natsStatus natsOptions_SetServers(natsOptions *opts, const char **servers, int serversCount);
 NATS_EXTERN natsStatus natsOptions_SetURL(natsOptions *opts, const char *url);
 NATS_EXTERN natsStatus natsOptions_SetVerbose(natsOptions *opts, bool verbose);
-NATS_EXTERN void natsOptions_Destroy(natsOptions *opts);
 
 typedef void (*natsCallback_Connect)(natsConnection *nc);
 typedef void (*natsCallback_ConnectError)(natsStatus err, natsOptions *opts);

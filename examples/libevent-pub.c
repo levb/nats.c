@@ -72,7 +72,6 @@ int main(int argc, char **argv)
     event_base_dispatch(evLoop);
 
     natsConnection_Destroy(conn);
-    natsOptions_Destroy(opts);
 
     if (evLoop != NULL)
         event_base_free(evLoop);

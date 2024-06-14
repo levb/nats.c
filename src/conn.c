@@ -13,15 +13,11 @@
 
 #include "natsp.h"
 
-#include "mem.h"
-#include "conn.h"
-#include "err.h"
 #include "url.h"
 #include "servers.h"
-#include "opts.h"
-#include "util.h"
 #include "json.h"
-#include "parser.h"
+#include "conn.h"
+#include "opts.h"
 
 // CLIENT_PROTO_ZERO is the original client protocol from 2009.
 // http://nats.io/documentation/internals/nats-protocol/
@@ -62,11 +58,10 @@ static void _close(natsConnection *nc, natsConnStatus status, bool fromPublicClo
 // static natsStatus _sendConnect(natsConnection *nc);
 // static void _clearSSL(natsConnection *nc);
 static natsStatus _evStopPolling(natsConnection *nc);
-// static natsStatus _processInfo(natsConnection *nc, natsString *jsonData);
 // static natsStatus _checkForSecure(natsConnection *nc);
 // static natsStatus _connectProto(natsConnection *nc, char **proto);
 // static natsStatus _readProto(natsConnection *nc, natsBuffer **proto);
-static bool _processOpError(natsConnection *nc, natsStatus s, bool initialConnect);
+static bool _processOpError(natsConnection *nc, natsStatus s);
 
 // static void _clearServerInfo(natsServerInfo *si);
 static void _freeConn(natsConnection *nc);
@@ -125,7 +120,7 @@ _createConnectionObject(natsConnection **newConn)
     natsPool *pool = NULL;
     natsConnection *nc = NULL;
 
-    s = natsPool_Create(&pool, 0, "conn-lifetime");
+    s = natsPool_Create(&pool, "conn-lifetime");
     IFOK(s, natsPool_AllocS((void **)&nc, pool, sizeof(natsConnection)));
     IFOK(s, natsSock_Init(&nc->sockCtx));
     if (s != NATS_OK)
@@ -150,7 +145,7 @@ _connectTCP(natsConnection *nc)
     natsStatus s = NATS_OK;
 
     // Initialize the connect-time memory pool.
-    s = natsPool_Create(&(nc->connectPool), 0, "conn-connect");
+    s = natsPool_Create(&(nc->connectPool), "conn-connect");
     if (s != NATS_OK)
         return NATS_UPDATE_ERR_STACK(s);
 
@@ -180,30 +175,11 @@ _connectTCP(natsConnection *nc)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-natsStatus _startOp(natsConnection *nc)
-{
-    natsStatus s = NATS_OK;
-    natsPool *newOpPool = NULL;    
-
-    s = natsPool_Create(&newOpPool, 0, "conn-op");
-    if (s != NATS_OK)
-        return NATS_UPDATE_ERR_STACK(s);
-
-    // If there was a chain in the previous pool and its data has not been
-    // exhausted, move the last link to the beginning of the new pool.
-
-    if ((nc->opPool != NULL) && (nc->opPool->chain))
-    nc->opPool = newOpPool;
-
-    return NATS_UPDATE_ERR_STACK(s);
-}
-
 void natsConnection_ProcessReadEvent(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
-    int n = 0;
-    size_t consumed = 0;
-    bool doneOp = false;
+    natsChain *chain = NULL;
+    int received = 0;
 
     if (!(nc->el.attached) || (nc->sockCtx.fd == NATS_SOCK_INVALID))
     {
@@ -211,52 +187,45 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
     }
     _retain(nc);
 
-    if (nc->ps->state == OP_START)
+    if (nc->ps.state == OP_START)
     {
-        s = _rotateOpPool(nc);
-        if (s != NATS_OK)
-            goto _processError;
+        if (nc->opPool == NULL)
+            s = natsPool_Create(&nc->opPool, "conn-op");
+        else
+            s = natsPool_recycle(NULL, nc->opPool);
     }
 
-    // Get a read chain with some space in it.
-    natsChain *chain = NULL;
-    chain = natsPool_AddChain(nc->opPool);
-    if (chain == NULL)
+    // Get a chain with some space in it.
+    IFOK(s, natsPool_AddChain(&chain, nc->opPool));
+    if (s == NATS_OK)
     {
-        s = nats_setDefaultError(NATS_NO_MEMORY);
-        goto _processError;
+        s = natsSock_Read(&(nc->sockCtx), chain->appendTo, natsChain_Available(chain), &received);
+        chain->appendTo += received; // received == 0 on error
     }
-    s = natsSock_Read(&(nc->sockCtx), natsChain_Data(chain), natsChain_Available(chain), &n);
-    if (s != NATS_OK)
-        goto _processError;
 
     // Do not try to read again here on success. If more than one connection
     // is attached to the same loop, and there is a constant stream of data
     // coming for the first connection, this would starve the second connection.
     // So return and we will be called back later by the event loop.
 
-    s = natsParser_Parse(nc->ps, nc, nc->readbuf, n, &consumed, &doneOp);
-    if (s != NATS_OK)
-        goto _processError;
-    nc->readbuf->start += consumed;
-    nc->readbufCap -= consumed;
-
-    if (doneOp)
+    while( (s == NATS_OK) && (natsChain_Len(chain) > 0))
     {
-        natsPool *newOpPool = NULL;
-        s = natsPool_Create(&newOpPool, 0, "conn-op");
-        natsPool_Destroy(nc->opPool);
+        size_t consumedByParser = 0;
+
+        s = natsParser_ParseOp(&nc->ps, nc, chain->readFrom, chain->appendTo, &consumedByParser);
+        // Mark what we have consumed, regardless of the status.
+        chain->readFrom += consumedByParser; // a no-op on error.
+
+        if ((s == NATS_OK) && (nc->ps.state == OP_START))
+        {
+            s = natsPool_recycle(&chain, nc->opPool);
+        }
     }
 
-    CONNLOGf("<>/<> ============= Read %d bytes", n);
-    CONNLOGf("<>/<> ============= Read %.*s", n, buffer);
-
-    return;
-
-_processError:
-    _processOpError(nc, s, false);
-    natsPool_Destroy(nc->opPool);
-    nc->opPool = NULL;
+    if (s != NATS_OK)
+    {
+        _processOpError(nc, s);
+    }
     natsConn_release(nc);
 }
 
@@ -464,7 +433,7 @@ void natsConnection_ProcessWriteEvent(natsConnection *nc)
     }
 
     if (s != NATS_OK)
-        _processOpError(nc, s, false);
+        _processOpError(nc, s);
 
     (void)NATS_UPDATE_ERR_STACK(s);
 }
@@ -677,9 +646,9 @@ _unpackSrvVersion(natsConnection *nc)
 //     return ok;
 // }
 
-// _processInfo is used to parse the info messages sent from the server. This
+// natsCon_processInfo is used to parse the info messages sent from the server. This
 // function may update the server pool.
-static natsStatus
+natsStatus
 natsConn_processInfo(natsConnection *nc, nats_JSON *json)
 {
     natsStatus s = NATS_OK;
@@ -1203,7 +1172,7 @@ _evStopPolling(natsConnection *nc)
 // _processOpError handles errors from reading or parsing the protocol.
 // The lock should not be held entering this function.
 static bool
-_processOpError(natsConnection *nc, natsStatus s, bool initialConnect)
+_processOpError(natsConnection *nc, natsStatus s)
 {
     // natsConn_Lock(nc);
 
@@ -1677,14 +1646,9 @@ _freeConn(natsConnection *nc)
     if (nc == NULL)
         return;
 
-    natsPool_Destroy(nc->lifetimePool);
+    natsPool_Destroy(nc->opPool);
     natsPool_Destroy(nc->connectPool);
-    natsParser_Destroy(nc->ps);
-    natsOptions_Destroy(nc->opts);
-    natsHeap_Free(nc->el.buffer);
-
-    natsHeap_Free(nc);
-
+    natsPool_Destroy(nc->lifetimePool); // will free nc itself
     natsLib_Release();
 }
 

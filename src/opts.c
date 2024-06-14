@@ -11,15 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "natsp.h"
-
 #include <string.h>
 
-#include "mem.h"
+#include "natsp.h"
 #include "conn.h"
-#include "util.h"
 #include "opts.h"
-#include "err.h"
 
 natsStatus
 natsOptions_SetURL(natsOptions *opts, const char *url)
@@ -1334,35 +1330,20 @@ natsOptions_SetMessageBufferPadding(natsOptions *opts, int paddingSize)
     return NATS_OK;
 }
 
-static void
-_freeOptions(natsOptions *opts)
-{
-    if (opts == NULL)
-        return;
-
-    natsPool_Destroy(opts->pool);
-}
-
 natsStatus
 natsOptions_create(natsOptions **newOpts, natsPool *pool)
 {
     natsStatus s;
     natsOptions *opts = NULL;
-    bool ownPool = (pool == NULL);
 
     // Ensure the library is loaded
     s = nats_Open();
-    if (ownPool)
-        IFOK(s, natsPool_Create(&pool, 0, "options"));
     IFOK(s, natsPool_AllocS((void**)&opts, pool, sizeof(natsOptions)));
+    
     if (s != NATS_OK)
-    {
-        if (ownPool)
-            natsPool_Destroy(pool);
         return s;
-    }
+
     opts->pool = pool;
-    opts->ownPool = ownPool;
 
     opts->allowReconnect = true;
     opts->secure = false;
@@ -1386,7 +1367,7 @@ natsOptions_create(natsOptions **newOpts, natsPool *pool)
 natsStatus
 natsOptions_Create(natsOptions **newOpts)
 {
-    return natsOptions_create(newOpts, NULL);
+    return natsOptions_create(newOpts, natsLib_GlobalPool());
 }
 
 natsStatus
@@ -1395,7 +1376,7 @@ natsOptions_clone(natsOptions **newOptions, natsPool *pool, natsOptions *opts)
     natsStatus s = NATS_OK;
     natsOptions *cloned = NULL;
 
-    if ((s = natsOptions_Create(&cloned)) != NATS_OK)
+    if ((s = natsOptions_create(&cloned, pool)) != NATS_OK)
         return NATS_UPDATE_ERR_STACK(s);
 
     // Make a blind copy first...
@@ -1431,19 +1412,10 @@ natsOptions_clone(natsOptions **newOptions, natsPool *pool, natsOptions *opts)
 
     if (s != NATS_OK)
     {
-        _freeOptions(cloned);
         cloned = NULL;
         NATS_UPDATE_ERR_STACK(s);
     }
 
     *newOptions = cloned;
     return NATS_OK;
-}
-
-void natsOptions_Destroy(natsOptions *opts)
-{
-    if (opts == NULL)
-        return;
-
-    _freeOptions(opts);
 }
