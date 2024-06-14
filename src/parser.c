@@ -224,6 +224,12 @@
 //     return s;
 // }
 
+static natsStatus _completeINFO(natsParser *ps, natsConnection *nc)
+{
+    natsStatus s = natsConn_processInfo(nc, ps->json);
+    CONNLOGf("ParseOp: completed INFO: %s", (s == NATS_OK ? "OK" : "ERROR"));
+    return s;
+}
 
 // parse is the fast protocol parser engine.
 natsStatus
@@ -233,7 +239,7 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
     uint8_t *p = buf;
     uint8_t b;
 
-    for (; (s == NATS_OK) && (p < end); p++)
+    for (; (s == NATS_OK) && (p < end) && (ps->state != OP_END); p++)
     {
         b = *p;
 
@@ -244,6 +250,7 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
         {
         case OP_START:
         {
+            ps->skipWhitespace = false;
             switch (b)
             {
             // case 'M':
@@ -273,7 +280,7 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
                 ps->state = OP_I;
                 continue;
             default:
-                goto parseErr;
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected an operation, got: '%c'", b);
             }
             continue;
         }
@@ -285,7 +292,7 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
                 ps->state = CRLF_CR;
                 continue;
             default:
-                goto parseErr;
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a CRLF, got: '%x'", b);
             }
             continue;
         }
@@ -298,7 +305,7 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
                 ps->nextState = 0;
                 continue;
             default:
-                goto parseErr;
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a CRLF, got: '%x'", b);
             }
             continue;
         }
@@ -309,11 +316,11 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
             case 'N':
             case 'n':
                 ps->state = OP_IN;
-                break;
+                continue;
             default:
-                goto parseErr;
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected INFO, got: '%c'", b);
             }
-            break;
+            continue;
         }
         case OP_IN:
         {
@@ -322,53 +329,42 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
             case 'F':
             case 'f':
                 ps->state = OP_INF;
-                break;
+                continue;
             default:
-                goto parseErr;
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected INFO, got: '%c'", b);
             }
-            break;
+            continue;
         }
         case OP_INF:
         {
+            CONNLOGf("ParseOp OP_INF: '%c'", b);
             switch (b)
             {
             case 'O':
             case 'o':
                 ps->state = OP_INFO;
-                break;
+                continue;
             default:
-                goto parseErr;
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected INFO, got: '%c'", b);
             }
-            break;
+            continue;
         }
         case OP_INFO:
         {
+            CONNLOGf("ParseOp OP_INFO: '%c'", b);
             switch (b)
             {
             case ' ':
             case '\t':
-                ps->state = OP_INFO_SPC;
-                break;
-            default:
-                goto parseErr;
-            }
-            break;
-        }
-        case OP_INFO_SPC:
-        {
-            switch (b)
-            {
-            case ' ':
-            case '\t':
-                // Once we have 1 whitespace, can pass the rest to JSON parser. 
                 s = natsJSONParser_Create(&(ps->jsonParser), nc->opPool);
                 if (s != NATS_OK)
-                    goto parseErr;
+                    continue;
                 ps->json = NULL;
                 ps->state = INFO_ARG;
+                ps->skipWhitespace = true;
                 continue;
             default:
-                goto parseErr;
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a space, got: '%c'", b);
             }
             continue;
         }
@@ -378,12 +374,13 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
             s = natsJSONParser_Parse(&ps->json, ps->jsonParser, p, end, &consumedByJSON);
             p += consumedByJSON;
             if (s != NATS_OK)
-                goto parseErr;
-            
+                continue;
+
             if (ps->json != NULL)
             {
                 ps->state = CRLF;
-                ps->nextState = INFO_COMPLETE;
+                ps->completef = _completeINFO;
+                ps->nextState = OP_END;
             }
             continue;
         }
@@ -822,15 +819,8 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
             //                 }
             //                 break;
             //             }
-        case INFO_COMPLETE:
-            s = natsConn_processInfo(nc, ps->json);
-            if (s != NATS_OK)
-                goto parseErr;
-            ps->state = OP_START;
-            continue;
-
         default:
-            goto parseErr;
+            s = nats_setError(NATS_PROTOCOL_ERROR, "(unreachable) invalid state: %d", ps->state);
         }
     }
 
@@ -911,14 +901,20 @@ natsParser_ParseOp(natsParser *ps, natsConnection *nc, uint8_t *buf, uint8_t *en
     //         ps->ma.reply = NULL;
     //     }
 
-    return s;
+    if (consumed != NULL)
+        *consumed = p - buf;
 
-parseErr:
-    if (s == NATS_OK)
-        s = NATS_PROTOCOL_ERROR;
+    if ((s == NATS_OK) && (ps->state == OP_END) && (ps->completef != NULL))
+    {
+        s = ps->completef(ps, nc);
+        ps->state = OP_START;
+    }
 
-    snprintf(nc->errStr, sizeof(nc->errStr), "Parse Error [%u]: '%.*s'", ps->state, (int)(end-p), p);
-    return s;
+    if (s != NATS_OK)
+    {
+        snprintf(nc->errStr, sizeof(nc->errStr), "Parse Error [%u]: '%.*s'", ps->state, (int)(end - p), p);
+    }
+    return NATS_UPDATE_ERR_STACK(s);
 }
 
 natsStatus
@@ -933,4 +929,3 @@ natsParser_Create(natsParser **newParser)
 
     return NATS_OK;
 }
-

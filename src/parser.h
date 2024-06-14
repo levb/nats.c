@@ -46,9 +46,7 @@ typedef enum
     OP_IN,
     OP_INF,
     OP_INFO,
-    OP_INFO_SPC,
     INFO_ARG,
-    INFO_COMPLETE,
     CRLF,
     CRLF_CR,
 
@@ -75,6 +73,8 @@ struct __natsParser
     natsOp      state;
     natsOp     nextState;
     bool skipWhitespace;
+
+    natsStatus (*completef)(natsParser *ps, natsConnection *nc);
 
     natsJSONParser *jsonParser;
     nats_JSON *json;

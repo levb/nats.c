@@ -208,7 +208,7 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
     // coming for the first connection, this would starve the second connection.
     // So return and we will be called back later by the event loop.
 
-    while( (s == NATS_OK) && (natsChain_Len(chain) > 0))
+    while ((s == NATS_OK) && (chain != NULL) && (natsChain_Len(chain) > 0))
     {
         size_t consumedByParser = 0;
 
@@ -218,6 +218,7 @@ void natsConnection_ProcessReadEvent(natsConnection *nc)
 
         if ((s == NATS_OK) && (nc->ps.state == OP_START))
         {
+            // may change/reset chain
             s = natsPool_recycle(&chain, nc->opPool);
         }
     }
