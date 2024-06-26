@@ -44,10 +44,10 @@
 #define STILL_OK(_s) ((_s) == NATS_OK)
 #define NOT_OK(_s) ((_s) != NATS_OK)
 #define ALWAYS_OK(_e) ((_e), NATS_OK)
-#define IFOK(s, c)  \
+#define IFOK(s, c)   \
     if (STILL_OK(s)) \
-    {               \
-        s = (c);    \
+    {                \
+        s = (c);     \
     }
 #define IFNULL(_e, _err) ((_e) == NULL ? (_err) : NATS_OK)
 #define CHECK_NO_MEMORY(_e) IFNULL((_e), NATS_NO_MEMORY)
@@ -94,22 +94,24 @@ void nats_sysInit(void);
 #include "util.h"
 #include "mem.h"
 
-#define _CRLF_ "\r\n"
-#define _SPC_ " "
+#define NATS_CRLF "\r\n"
+#define NATS_SPACE " "
+#define NATS_HPUB "HPUB"
+#define NATS_PING "PING"
+#define NATS_PONG "PONG"
+#define NATS_PUB "PUB"
+#define NATS_SUB "SUB"
+#define NATS_UNSUB "SUB"
+#define NATS_MINUS_ERR "-ERR"
 
-#define _CRLF_LEN_ (sizeof(_CRLF_) - 1)
-#define _SPC_LEN_ (sizeof(_SPC_) - 1)
+#define NATS_CRLF_LEN (sizeof(NATS_CRLF) - 1)
+#define NATS_SPACE_LEN (sizeof(NATS_SPACE) - 1)
+#define NATS_HPUB_LEN (sizeof(NATS_HPUB) - 1)
+#define NATS_PUB_LEN (sizeof(NATS_PUB) - 1)
+#define NATS_SUB_LEN (sizeof(NATS_SUB) - 1)
+#define NATS_UNSUB_LEN (sizeof(NATS_UNSUB) - 1)
+#define NATS_MINUS_ERR_LEN (sizeof(NATS_MINUS_ERR) - 1)
 
 // These depend on mem.h but are used elsewhere, so define here.
-static const natsString nats_CRLF = NATS_STR(_CRLF_);
-static const natsString nats_SPACE = NATS_STR(_SPC_);
-// static const natsString nats_OK = NATS_STR("+OK");
-static const natsString nats_ERR = NATS_STR("-ERR");
-// static const natsString nats_MSG = NATS_STR("MSG");
-static const natsString nats_PING_CRLF = NATS_STR("PING" _CRLF_);
-static const natsString nats_PONG_CRLF = NATS_STR("PONG" _CRLF_);
-// static const natsString nats_INFO = NATS_STR("INFO");
-static const natsString nats_PUB = NATS_STR("PUB");
-static const natsString nats_HPUB = NATS_STR("HPUB");
 
 #endif /* NATSP_H_ */

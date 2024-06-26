@@ -75,6 +75,7 @@ struct __natsConnection
     natsPool *opPool;
 
     natsConnStatus state;
+    uint64_t nextSID;
 
     natsStatus err;
     char errStr[256];
@@ -140,16 +141,10 @@ natsStatus
 natsConn_sendPing(natsConnection *nc);
 natsStatus
 natsConn_sendConnect(natsConnection *nc);
-
-#define natsConn_subscribeNoPool(sub, nc, subj, cb, closure) natsConn_subscribeImpl((sub), (nc), true, (subj), NULL, 0, (cb), (closure), true, NULL)
-#define natsConn_subscribeNoPoolNoLock(sub, nc, subj, cb, closure) natsConn_subscribeImpl((sub), (nc), false, (subj), NULL, 0, (cb), (closure), true, NULL)
-#define natsConn_subscribeSyncNoPool(sub, nc, subj) natsConn_subscribeNoPool((sub), (nc), (subj), NULL, NULL)
-#define natsConn_subscribeWithTimeout(sub, nc, subj, timeout, cb, closure) natsConn_subscribeImpl((sub), (nc), true, (subj), NULL, (timeout), (cb), (closure), false, NULL)
-#define natsConn_subscribe(sub, nc, subj, cb, closure) natsConn_subscribeWithTimeout((sub), (nc), (subj), 0, (cb), (closure))
-#define natsConn_subscribeSync(sub, nc, subj) natsConn_subscribe((sub), (nc), (subj), NULL, NULL)
-#define natsConn_queueSubscribeWithTimeout(sub, nc, subj, queue, timeout, cb, closure) natsConn_subscribeImpl((sub), (nc), true, (subj), (queue), (timeout), (cb), (closure), false, NULL)
-#define natsConn_queueSubscribe(sub, nc, subj, queue, cb, closure) natsConn_queueSubscribeWithTimeout((sub), (nc), (subj), (queue), 0, (cb), (closure))
-#define natsConn_queueSubscribeSync(sub, nc, subj, queue) natsConn_queueSubscribe((sub), (nc), (subj), (queue), NULL, NULL)
+natsStatus
+nats_sendSubscribe(natsConnection *nc, uint64_t *sid, const char *subject, const char *queueGroup);
+natsStatus
+nats_sendUnsubscribe(natsConnection *nc, uint64_t sid, uint64_t afterNMessagesReceived);
 
 #ifdef DEV_MODE_CONN
 #define CONNTRACEf(fmt, ...) DEVTRACEf("CONN", fmt, __VA_ARGS__)

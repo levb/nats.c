@@ -35,8 +35,12 @@ static void reportAndDisconnect(natsConnection *nc, natsMessage *m, void *closur
 
 static void connected(natsConnection *nc, void *closure)
 {
-    natsStatus s;
+    natsStatus s = NATS_OK;
+    uint64_t sid = 0;
     natsString payload;
+
+    // Subscribe to messages with a wildcard.
+    s = nats_Subscribe(nc, &sid, "XXX", NULL);
 
     // Send a simple message with static data. Publish-and-forget.
     payload = nats_ToString("Hello, NATS!");
@@ -45,77 +49,79 @@ static void connected(natsConnection *nc, void *closure)
     if (s == NATS_OK)
         s = nats_SetMessagePayload(msg1, payload.data, payload.len);
     if (s == NATS_OK)
+        s = nats_SetMessageReplySubject(msg1, "XXX");
+    if (s == NATS_OK)
         s = nats_AsyncPublishNoCopy(nc, msg1);
     if (s == NATS_OK)
         printf("Message enqueued, text: %.*s\n", (int)payload.len, payload.data);
     nats_ReleaseMessage(msg1);
 
-    payload = nats_ToString(strdup("Hello, NATS! "
-                                   "I was allocated on the heap, "
-                                   "my bytes were copied into another buffer, "
-                                   "and I was freed immediately by the app."));
-    natsMessage *msg2 = NULL;
-    if (s == NATS_OK)
-        s = nats_CreateMessage(&msg2, nc, subj);
-    if (s == NATS_OK)
-        s = nats_SetMessagePayload(msg2, payload.data, payload.len);
-    if (s == NATS_OK)
-        s = nats_AsyncPublish(nc, msg2);
-    if (s == NATS_OK)
-        printf("Message enqueued as a copy, freeing the data now: %.*s\n",
-               (int)nats_GetMessageDataLen(msg2), nats_GetMessageData(msg2));
-    free(payload.data);
-    nats_ReleaseMessage(msg2);
+    // payload = nats_ToString(strdup("Hello, NATS! "
+    //                                "I was allocated on the heap, "
+    //                                "my bytes were copied into another buffer, "
+    //                                "and I was freed immediately by the app."));
+    // natsMessage *msg2 = NULL;
+    // if (s == NATS_OK)
+    //     s = nats_CreateMessage(&msg2, nc, subj);
+    // if (s == NATS_OK)
+    //     s = nats_SetMessagePayload(msg2, payload.data, payload.len);
+    // if (s == NATS_OK)
+    //     s = nats_AsyncPublish(nc, msg2);
+    // if (s == NATS_OK)
+    //     printf("Message enqueued as a copy, freeing the data now: %.*s\n",
+    //            (int)nats_GetMessageDataLen(msg2), nats_GetMessageData(msg2));
+    // free(payload.data);
+    // nats_ReleaseMessage(msg2);
 
-    // Send a message using nats_AsyncPublishNoCopy, will NOT make a copy of the
-    // message so we need to free our memory once the message has been published.
-    payload = nats_ToString(strdup("Hello, NATS! "
-                                   "I was allocated on the heap, "
-                                   "my bytes were NOT copied, "
-                                   "and I was freed by a cusom 'message published' callback"));
-    natsMessage *msg3 = NULL;
-    if (s == NATS_OK)
-        s = nats_CreateMessage(&msg3, nc, subj);
-    if (s == NATS_OK)
-        s = nats_SetMessagePayload(msg3, payload.data, payload.len);
-    if (s == NATS_OK)
-        s = nats_SetOnMessagePublished(msg3, reportAndFreeData, payload.data);
-    if (s == NATS_OK)
-        s = nats_AsyncPublishNoCopy(nc, msg3);
-    if (s == NATS_OK)
-        printf("Message enqueued, text: %.*s\n", (int)payload.len, payload.data);
-    nats_ReleaseMessage(msg3);
+    // // Send a message using nats_AsyncPublishNoCopy, will NOT make a copy of the
+    // // message so we need to free our memory once the message has been published.
+    // payload = nats_ToString(strdup("Hello, NATS! "
+    //                                "I was allocated on the heap, "
+    //                                "my bytes were NOT copied, "
+    //                                "and I was freed by a cusom 'message published' callback"));
+    // natsMessage *msg3 = NULL;
+    // if (s == NATS_OK)
+    //     s = nats_CreateMessage(&msg3, nc, subj);
+    // if (s == NATS_OK)
+    //     s = nats_SetMessagePayload(msg3, payload.data, payload.len);
+    // if (s == NATS_OK)
+    //     s = nats_SetOnMessagePublished(msg3, reportAndFreeData, payload.data);
+    // if (s == NATS_OK)
+    //     s = nats_AsyncPublishNoCopy(nc, msg3);
+    // if (s == NATS_OK)
+    //     printf("Message enqueued, text: %.*s\n", (int)payload.len, payload.data);
+    // nats_ReleaseMessage(msg3);
 
-    // Same, but there is a shortcut if we don't need a full "done" callback,
-    // just need to free the buffer.
-    payload = nats_ToString(strdup("Hello, NATS! "
-                                   "I was allocated on the heap, "
-                                   "my bytes were NOT copied, "
-                                   "and I was 'free'-ed by the cleanup, no custom callback needed."));
-    natsMessage *msg4 = NULL;
-    if (s == NATS_OK)
-        s = nats_CreateMessage(&msg4, nc, subj);
-    if (s == NATS_OK)
-        s = nats_SetMessagePayload(msg4, payload.data, payload.len);
-    if (s == NATS_OK)
-        s = nats_SetOnMessageCleanup(msg4, free, payload.data);
-    if (s == NATS_OK)
-        s = nats_AsyncPublishNoCopy(nc, msg4);
-    if (s == NATS_OK)
-        printf("Message enqueued, text: %.*s\n", (int)payload.len, payload.data);
-    nats_ReleaseMessage(msg4);
+    // // Same, but there is a shortcut if we don't need a full "done" callback,
+    // // just need to free the buffer.
+    // payload = nats_ToString(strdup("Hello, NATS! "
+    //                                "I was allocated on the heap, "
+    //                                "my bytes were NOT copied, "
+    //                                "and I was 'free'-ed by the cleanup, no custom callback needed."));
+    // natsMessage *msg4 = NULL;
+    // if (s == NATS_OK)
+    //     s = nats_CreateMessage(&msg4, nc, subj);
+    // if (s == NATS_OK)
+    //     s = nats_SetMessagePayload(msg4, payload.data, payload.len);
+    // if (s == NATS_OK)
+    //     s = nats_SetOnMessageCleanup(msg4, free, payload.data);
+    // if (s == NATS_OK)
+    //     s = nats_AsyncPublishNoCopy(nc, msg4);
+    // if (s == NATS_OK)
+    //     printf("Message enqueued, text: %.*s\n", (int)payload.len, payload.data);
+    // nats_ReleaseMessage(msg4);
 
     // Send the last message and quit once done. This demonstrates how to set a
     // "written" callback on a message.
-    natsMessage *msgFinal = NULL;
-    if (s == NATS_OK)
-        s = nats_CreateMessage(&msgFinal, nc, subj);
-    if (s == NATS_OK)
-        s = nats_SetOnMessagePublished(msgFinal, reportAndDisconnect, NULL);
-    if (s == NATS_OK)
-        s = nats_AsyncPublish(nc, msgFinal);
-    if (s == NATS_OK)
-        printf("FINAL message enqueued, text: %.*s\n", (int)payload.len, payload.data);
+    // natsMessage *msgFinal = NULL;
+    // if (s == NATS_OK)
+    //     s = nats_CreateMessage(&msgFinal, nc, subj);
+    // if (s == NATS_OK)
+    //     s = nats_SetOnMessagePublished(msgFinal, reportAndDisconnect, NULL);
+    // if (s == NATS_OK)
+    //     s = nats_AsyncPublish(nc, msgFinal);
+    // if (s == NATS_OK)
+    //     printf("FINAL message enqueued, text: %.*s\n", (int)payload.len, payload.data);
 }
 
 void closedConnection(natsConnection *nc, void *closure)

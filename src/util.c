@@ -165,8 +165,8 @@ nats_NormalizeErr(char *error)
     int len   = (int) strlen(error);
     int i;
 
-    if (natsString_equalC(&nats_ERR, error))
-        start = nats_ERR.len;
+    if (strncmp(error, NATS_MINUS_ERR, NATS_MINUS_ERR_LEN) == 0)
+        start = NATS_MINUS_ERR_LEN;
 
     for (i=start; i<len; i++)
     {

@@ -175,7 +175,8 @@ natsConn_processInfo(natsConnection *nc, nats_JSON *json)
 
 natsStatus natsConn_processPing(natsConnection *nc)
 {
-    return natsConn_asyncWrite(nc, &nats_PONG_CRLF, NULL, NULL);
+    natsString buf = NATS_STR(NATS_PONG NATS_CRLF);
+    return natsConn_asyncWrite(nc, &buf, NULL, NULL);
 }
 
 natsStatus natsConn_processPong(natsConnection *nc)

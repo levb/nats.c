@@ -288,7 +288,7 @@ natsStatus nats_marshalConnect(natsString **out, natsConnection *nc, const char 
                         nats_GetBoolStr(!nc->opts->proto.noEcho),
                         nats_GetBoolStr(hdrs),
                         nats_GetBoolStr(noResponders),
-                        _CRLF_);
+                        NATS_CRLF);
         need++; // For '\0'
     }
 

@@ -46,8 +46,7 @@ void nats_ProcessWriteEvent(natsConnection *nc)
         natsWriteBuffer *wbuf = natsWriteChain_get(&nc->writeChain);
         natsString written = {
             .data = wbuf->buf.data + wbuf->written,
-            .len = wbuf->buf.len - wbuf->written
-        };
+            .len = wbuf->buf.len - wbuf->written};
 
         s = natsSock_Write(&(nc->sockCtx), &written, &written.len);
         if (s != NATS_OK)
@@ -215,7 +214,8 @@ _connectProto(natsString **proto, natsConnection *nc)
 natsStatus
 natsConn_sendPing(natsConnection *nc)
 {
-    natsStatus s = natsConn_asyncWrite(nc, &nats_PING_CRLF, NULL, NULL);
+    natsString buf = NATS_STR(NATS_PING NATS_CRLF);
+    natsStatus s = natsConn_asyncWrite(nc, &buf, NULL, NULL);
     if (STILL_OK(s))
         nc->pingsOut++;
     return NATS_UPDATE_ERR_STACK(s);
@@ -233,3 +233,105 @@ natsConn_sendConnect(natsConnection *nc)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
+static void _freePool(natsConnection *nc, uint8_t *buffer, void *closure)
+{
+    natsPool *pool = (natsPool *)closure;
+    nats_releasePool(pool);
+}
+
+natsStatus
+nats_sendSubscribe(natsConnection *nc, uint64_t *sid, const char *subject, const char *queueGroup)
+{
+    natsStatus s = NATS_OK;
+    natsPool *pool = NULL;
+    char *buf;
+    size_t len;
+    natsString sbuf = NATS_EMPTY_STR;
+
+    // We need a temporary buffer for the duration of this function to build the protocol message. Use the connection's Op pool, it mu
+
+    if ((nc == NULL) || (sid == NULL))
+        return nats_setDefaultError(NATS_INVALID_ARG);
+    if (!nats_isSubjectValid((const uint8_t *)subject, nats_strlen(subject), true))
+        return nats_setDefaultError(NATS_INVALID_SUBJECT);
+    if (natsConn_isClosed(nc))
+        return nats_setDefaultError(NATS_CONNECTION_CLOSED);
+    if (natsConn_isDrainingSubs(nc))
+        return nats_setDefaultError(NATS_DRAINING);
+    if (nc->opPool == NULL)
+        return nats_setDefaultError(NATS_ILLEGAL_STATE);
+
+    if (nats_isCStringEmpty(queueGroup))
+        len = snprintf(NULL, 0, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, NATS_CRLF);
+    else
+        len = snprintf(NULL, 0, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, NATS_CRLF);
+    len++; // For '\0'
+
+    IFOK(s, nats_createPool(&pool, &nc->opts->mem, "subscribe"));
+    IFOK(s, CHECK_NO_MEMORY(buf = nats_palloc(pool, len)));
+    if (STILL_OK(s))
+    {
+        if (nats_isCStringEmpty(queueGroup))
+            snprintf(buf, len, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, NATS_CRLF);
+        else
+            snprintf(buf, len, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, NATS_CRLF);
+        sbuf.data = (uint8_t *)buf;
+        sbuf.len = len - 1; // Do not include '\0'
+    }
+    IFOK(s, natsConn_asyncWrite(nc, &sbuf, _freePool, pool));
+
+    if (!STILL_OK(s))
+    {
+        nats_releasePool(pool);
+        return NATS_UPDATE_ERR_STACK(s);
+    }
+    nc->nextSID++;
+    nc->stats.subscribes++;
+    return NATS_OK;
+}
+
+natsStatus
+nats_sendUnsubscribe(natsConnection *nc, uint64_t sid, uint64_t afterNMessagesReceived)
+{
+    natsStatus s = NATS_OK;
+    natsPool *pool = NULL;
+    char *buf;
+    size_t len;
+    natsString sbuf = NATS_EMPTY_STR;
+
+    // We need a temporary buffer for the duration of this function to build the protocol message. Use the connection's Op pool, it mu
+
+    if (nc == NULL)
+        return nats_setDefaultError(NATS_INVALID_ARG);
+    if (natsConn_isClosed(nc))
+        return nats_setDefaultError(NATS_CONNECTION_CLOSED);
+    if (nc->opPool == NULL)
+        return nats_setDefaultError(NATS_ILLEGAL_STATE);
+
+    if (afterNMessagesReceived > 0)
+        len = snprintf(NULL, 0, "%s %" PRIu64 " %" PRIu64 "%s", NATS_UNSUB, sid, afterNMessagesReceived, NATS_CRLF);
+    else
+        len = snprintf(NULL, 0, "%s %" PRIu64 "%s", NATS_UNSUB, sid, NATS_CRLF);
+
+    IFOK(s, nats_createPool(&pool, &nc->opts->mem, "subscribe"));
+    IFOK(s, CHECK_NO_MEMORY(buf = nats_palloc(pool, len)));
+    if (STILL_OK(s))
+    {
+        if (afterNMessagesReceived > 0)
+            snprintf(buf, len, "%s %" PRIu64 " %" PRIu64 "%s", NATS_UNSUB, sid, afterNMessagesReceived, NATS_CRLF);
+        else
+            snprintf(buf, len, "%s %" PRIu64 "%s", NATS_UNSUB, sid, NATS_CRLF);
+        sbuf.data = (uint8_t *)buf;
+        sbuf.len = len;
+    }
+    IFOK(s, natsConn_asyncWrite(nc, &sbuf, _freePool, pool));
+
+    if (!STILL_OK(s))
+    {
+        nats_releasePool(pool);
+        return NATS_UPDATE_ERR_STACK(s);
+    }
+    nc->nextSID++;
+    nc->stats.subscribes++;
+    return NATS_OK;
+}

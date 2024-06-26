@@ -21,15 +21,18 @@
 NATS_EXTERN natsStatus nats_AsyncPublish(natsConnection *nc, natsMessage *msg);
 NATS_EXTERN natsStatus nats_AsyncPublishNoCopy(natsConnection *nc, natsMessage *msg);
 NATS_EXTERN natsStatus nats_CreateMessage(natsMessage **newm, natsConnection *nc, const char *subj);
-NATS_EXTERN natsStatus nats_RetainMessage(natsMessage *msg);
 NATS_EXTERN natsStatus nats_SetMessageHeader(natsMessage *m, const char *key, const char *value);
 NATS_EXTERN natsStatus nats_SetMessagePayload(natsMessage *m, const void *data, size_t dataLen);
-NATS_EXTERN natsStatus nats_SetMessageReplyTo(natsMessage *m, const char *reply);
+NATS_EXTERN natsStatus nats_SetMessageReplySubject(natsMessage *m, const char *reply);
 NATS_EXTERN natsStatus nats_SetOnMessageCleanup(natsMessage *m, void (*f)(void *), void *closure);
 NATS_EXTERN natsStatus nats_SetOnMessagePublished(natsMessage *m, natsOnMessagePublishedF, void *closure);
+
+natsStatus nats_Subscribe(natsConnection *nc, uint64_t *sid, const char *subject, const char *queueGroup);
+
 NATS_EXTERN const uint8_t *nats_GetMessageData(natsMessage *msg);
 NATS_EXTERN size_t nats_GetMessageDataLen(natsMessage *msg);
 
-    NATS_EXTERN void nats_ReleaseMessage(natsMessage *msg);
+NATS_EXTERN natsStatus nats_RetainMessage(natsMessage *msg);
+NATS_EXTERN void nats_ReleaseMessage(natsMessage *msg);
 
 #endif /* NATS_MESSAGE_H_ */

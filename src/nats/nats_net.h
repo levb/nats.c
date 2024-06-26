@@ -29,10 +29,14 @@ typedef struct __natsEventLoop_s natsEventLoop;
 
 typedef struct
 {
+    uint32_t subscribes;
+    uint32_t unsubscribes;
+    uint64_t inMsgBytes;
     uint64_t inMsgs;
+    uint64_t inTotalBytes;
+    uint64_t outMsgBytes;
     uint64_t outMsgs;
-    uint64_t inBytes;
-    uint64_t outBytes;
+    uint64_t outTotalBytes;
     uint64_t reconnects;
 } natsConnectionStatistics;
 

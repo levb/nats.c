@@ -197,7 +197,7 @@ natsStatus natsPool_getReadBuffer(natsReadBuffer **rbuf, natsPool *pool);
 #define natsBuf_capacity(b) ((b)->cap)
 #define natsBuf_data(b) ((b)->buf.data)
 #define natsBuf_len(b) ((b)->buf.len)
-#define natsBuf_string(b) ((natsString *)(b))
+#define natsBuf_string(b) (&(b)->buf)
 
 natsStatus natsPool_getFixedBuf(natsBuf **newBuf, natsPool *pool, size_t cap);
 natsStatus natsPool_getGrowableBuf(natsBuf **newBuf, natsPool *pool, size_t initialCap);
@@ -213,6 +213,12 @@ natsBuf_addCString(natsBuf *buf, const char *str)
     if (nats_isCStringEmpty(str))
         return NATS_OK;
     return natsBuf_addBB(buf, (const uint8_t *)str, strlen(str)); // don't use nats_strlen, no need.
+}
+
+static inline natsStatus
+natsBuf_addCBB(natsBuf *buf, const char *str, size_t len)
+{
+    return natsBuf_addBB(buf, (const uint8_t *)str, len);
 }
 
 static inline natsStatus

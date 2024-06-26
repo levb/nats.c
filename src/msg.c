@@ -42,7 +42,7 @@ int natsMessageHeader_encodedLen(natsMessage *msg)
     if (msg->headers == NULL)
         return 0;
 
-    hl = nats_NATS10.len + _CRLF_LEN_;
+    hl = nats_NATS10.len + NATS_CRLF_LEN;
     natsStrHashIter_Init(&iter, msg->headers);
     while (natsStrHashIter_Next(&iter, &key, &p))
     {
@@ -52,11 +52,11 @@ int natsMessageHeader_encodedLen(natsMessage *msg)
         for (c = v; c != NULL; c = c->next)
         {
             hl += (int)strlen(key) + 2; // 2 for ": "
-            hl += (int)strlen(c->value) + _CRLF_LEN_;
+            hl += (int)strlen(c->value) + NATS_CRLF_LEN;
         }
     }
     natsStrHashIter_Done(&iter);
-    hl += _CRLF_LEN_;
+    hl += NATS_CRLF_LEN;
 
     return hl;
 }
@@ -81,7 +81,7 @@ natsMessageHeader_encode(natsBuf *buf, natsMessage *msg)
         return nats_setError(NATS_ERR, "%s", "trying to encode headers while there is none");
 
     IFOK(s, natsBuf_addString(buf, &nats_NATS10));
-    IFOK(s, natsBuf_addString(buf, &nats_CRLF));
+    IFOK(s, natsBuf_addCBB(buf, NATS_CRLF, NATS_CRLF_LEN));
     IFOK(s, ALWAYS_OK(natsStrHashIter_Init(&iter, msg->headers)));
     while ((STILL_OK(s)) && natsStrHashIter_Next(&iter, &key, &p))
     {
@@ -110,11 +110,11 @@ natsMessageHeader_encode(natsBuf *buf, natsMessage *msg)
                     }
                 }
             }
-            IFOK(s, natsBuf_addString(buf, &nats_CRLF));
+            IFOK(s, natsBuf_addCBB(buf, NATS_CRLF, NATS_CRLF_LEN));
         }
     }
     natsStrHashIter_Done(&iter);
-    IFOK(s, natsBuf_addString(buf, &nats_CRLF));
+    IFOK(s, natsBuf_addCBB(buf, NATS_CRLF, NATS_CRLF_LEN));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -738,6 +738,20 @@ natsStatus nats_SetMessagePayload(natsMessage *m, const void *data, size_t dataL
         return nats_setDefaultError(NATS_NO_MEMORY);
     m->out->data = (uint8_t*) data;
     m->out->len = dataLen;
+
+    return NATS_OK;
+}
+
+natsStatus nats_SetMessageReplySubject(natsMessage *m, const char *reply)
+{
+    if (m == NULL)
+        return nats_setDefaultError(NATS_INVALID_ARG);
+    if (m->reply != NULL)
+        return nats_setError(NATS_ILLEGAL_STATE, "%s", "reply subject already set");
+
+    m->reply = nats_pstrdupU(m->pool, reply);
+    if (m->reply == NULL)
+        return nats_setDefaultError(NATS_NO_MEMORY);
 
     return NATS_OK;
 }
