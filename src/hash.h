@@ -17,7 +17,7 @@
 typedef struct __natsStrHashEntry
 {
     uint32_t hk;
-    char *key;
+    natsString key;
     void *data;
     struct __natsStrHashEntry *next;
 } natsStrHashEntry;
@@ -50,20 +50,20 @@ natsStatus
 natsStrHash_Create(natsStrHash **newHash, natsPool *pool, int initialSize);
 
 uint32_t
-natsStrHash_Hash(const char *data, int dataLen);
+natsStrHash_Hash(natsString *s);
 
 natsStatus
-natsStrHash_Set(natsStrHash *hash, char *key, void *data);
+natsStrHash_Set(natsStrHash *hash, natsString *key, void *data);
 
 void *
-natsStrHash_Get(natsStrHash *hash, char *key, int keyLen);
+natsStrHash_Get(natsStrHash *hash, natsString *key);
 
 //
 // Iterator for Hash char*
 //
 void natsStrHashIter_Init(natsStrHashIter *iter, natsStrHash *hash);
 
-bool natsStrHashIter_Next(natsStrHashIter *iter, char **key, void **value);
+bool natsStrHashIter_Next(natsStrHashIter *iter, natsString *key, void **value);
 
 void natsStrHashIter_Done(natsStrHashIter *iter);
 

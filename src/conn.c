@@ -190,7 +190,7 @@ _close(natsConnection *nc, natsConnStatus state, bool fromPublicClose, bool doCB
 // The lock should not be held entering this function.
 bool natsConn_processOpError(natsConnection *nc, natsStatus s)
 {
-    CONNERROR("ERROR!");
+    CONNDEBUGf("ERROR! %d\n\t'%s'\n\t%s\n", s, nats_GetConnectionError(nc), nats_GetLastError(NULL));
     _close(nc, NATS_CONN_STATUS_CLOSED, false, true);
 
     return false;

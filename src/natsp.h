@@ -66,6 +66,7 @@ typedef struct __natsJSONParser_s natsJSONParser;
 typedef struct __natsHash natsHash;
 typedef struct __natsHashIter natsHashIter;
 typedef struct __natsParser natsParser;
+typedef struct __natsMessageParser_s natsMessageParser;
 typedef struct __natsServer_s natsServer;
 typedef struct __natsServerInfo natsServerInfo;
 typedef struct __natsServers_s natsServers;

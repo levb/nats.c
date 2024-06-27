@@ -44,7 +44,6 @@ static inline bool natsString_equalC(const natsString *str1, const char *lit)
            (strncmp((const char *)str1->data, lit, str1->len) == 0);
 }
 
-
 static inline bool nats_isCStringEmpty(const char *p) { return (p == NULL) || (*p == '\0'); }
 
 #define nats_toLower(c) (uint8_t)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
@@ -76,6 +75,17 @@ static inline size_t nats_strarray_remove(char **array, int count, const char *s
         array[j - 1] = array[j];
 
     return count - 1;
+}
+
+natsStatus nats_strtoUint64(uint64_t *result, const uint8_t *d, size_t len);
+
+static inline natsStatus nats_strtoSizet(size_t *result, const uint8_t *d, size_t len)
+{
+    uint64_t v = 0;
+    natsStatus s = nats_strtoUint64(&v, d, len);
+    if (result != NULL)
+        *result = (size_t)v;
+    return s;
 }
 
 #endif /* MEM_STRING_H_ */

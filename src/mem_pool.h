@@ -119,6 +119,14 @@ struct __natsPool_s
     const char *name; // stored as a pointer, not copied.
 };
 
+static inline natsPool *nats_retainPool(natsPool *pool)
+{
+    pool->refs++;
+    return pool;
+}
+void *nats_log_palloc(natsPool *pool, size_t size DEV_MODE_ARGS);
+void nats_log_releasePool(natsPool *pool DEV_MODE_ARGS);
+natsStatus nats_log_recyclePool(natsPool **pool, natsReadBuffer **rbuf DEV_MODE_ARGS);
 natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const char *name DEV_MODE_ARGS);
 
 #ifdef DEV_MODE_MEM_POOL
@@ -128,9 +136,10 @@ natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const c
 
 #if defined(DEV_MODE) && !defined(MEM_POOL_C_)
 // avoid using public functions internally, they don't pass the log context
+#define nats_RetailPool(_p) USE_nats_retailPool_INSTEAD
 #define nats_ReleasePool(_p) USE_nats_releasePool_INSTEAD
 #define nats_CreatePool(_p, _h) USE_nats_createPool_INSTEAD
-#define nats_Palloc(_p, _s) USE_natsPool_alloc_INSTEAD
+#define nats_Palloc(_p, _s) USE_nats_palloc_INSTEAD
 #endif
 
 #else // DEV_MODE_MEM_POOL
@@ -152,19 +161,15 @@ natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const c
 #define nats_pstrdupS(_p, _str) (natsString_isEmpty(_str) ? NULL : nats_pstrdupn((_p), (_str)->data, (_str)->len))
 #define nats_pstrdupU(_p, _s) (nats_pstrdupn((_p), (const uint8_t *)(_s), nats_strlen(_s)))
 
-void *nats_log_palloc(natsPool *pool, size_t size DEV_MODE_ARGS);
-void nats_log_releasePool(natsPool *pool DEV_MODE_ARGS);
-natsStatus nats_log_recyclePool(natsPool **pool, natsReadBuffer **rbuf DEV_MODE_ARGS);
-
 static inline char *nats_log_pdupnC(natsPool *pool, const uint8_t *data, size_t len DEV_MODE_ARGS)
 {
     if ((data == NULL) || (len == 0))
         return NULL;
-    char *dup = nats_log_palloc(pool, len DEV_MODE_PASSARGS);
+    char *dup = nats_log_palloc(pool, len + 1 DEV_MODE_PASSARGS); // +1 for the terminating 0
     if (dup == NULL)
         return NULL;
     memcpy(dup, data, len);
-    POOLTRACEx("!!!", "%s: allocated string '%s'", pool->name, natsString_debugPrintableN(data, len, 64));
+    POOLTRACEx("=s", "%s: allocated string '%s'", pool->name, natsString_debugPrintableN(data, len, 64));
     return dup;
 }
 

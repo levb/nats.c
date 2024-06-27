@@ -16,7 +16,6 @@
 #include <string.h>
 
 #include "conn.h"
-#include "msg.h"
 
 natsStatus nats_Subscribe(natsConnection *nc, uint64_t *sid, const char *subject, const char *queueGroup)
 {

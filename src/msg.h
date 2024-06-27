@@ -42,23 +42,36 @@ static const natsString nats_NATS10 = NATS_STR("NATS/1.0");
 
 struct __natsMessage
 {
-    natsString *subject;
-
+    natsString subject;
     natsPool *pool;
     natsString *reply;
     natsStrHash *headers;
 
-    natsString *out;
-    natsReadBuffer *in;
-
-    natsOnMessagePublishedF donef;
-    void *doneClosure;
-
-    void (*freef)(void *);
-    void *freeClosure;
-
     int flags;
     int64_t time;
+
+    union
+    {
+        struct
+        {
+            // stores the entire message that has been read in, including the protocol line and the headers
+            natsReadBuffer *buf;
+            // points at the "NATS/1.0" part of the protocol line
+            size_t headerStart;
+            // points at the last byte of the header (after the last LF of CRLF CRLF)
+            size_t headerEnd;
+
+            uint64_t ssid;
+        } in;
+        struct
+        {
+            natsString *buf;
+            natsOnMessagePublishedF donef;
+            void *doneClosure;
+            void (*freef)(void *);
+            void *freeClosure;
+        } out;
+    } x;
 };
 
 struct __natsHeaderValue;
@@ -73,5 +86,9 @@ typedef struct __natsHeaderValue
 
 int natsMessageHeader_encodedLen(natsMessage *msg);
 natsStatus natsMessageHeader_encode(natsBuf *buf, natsMessage *msg);
+
+natsStatus nats_createMessage(natsMessage **newm, natsPool *pool, const char *subj);
+natsStatus nats_createMessageParser(natsMessageParser **newParser, natsPool *pool, bool expectHeaders);
+natsStatus nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
 
 #endif /* MSG_H_ */

@@ -19,7 +19,6 @@
 
 #include "hash.h"
 #include "conn.h"
-#include "msg.h"
 
 int natsMessageHeader_encodedLen(natsMessage *msg)
 {
@@ -672,27 +671,39 @@ natsMessage_GetTime(natsMessage *msg)
 }
 
 natsStatus
-nats_CreateMessage(natsMessage **newm, natsConnection *nc, const char *subj)
+nats_createMessage(natsMessage **newm, natsPool *pool, const char *subj)
 {
-    size_t subjLen = nats_strlen(subj);
-    if (!nats_isSubjectValid((const uint8_t *)subj, subjLen, false))
-        return nats_setDefaultError(NATS_INVALID_ARG);
-
     natsStatus s = NATS_OK;
+    size_t subjLen = nats_strlen(subj);
     natsMessage *m = NULL;
-    natsPool *pool = NULL;
 
-    s = nats_createPool(&pool, &nc->opts->mem, "msg");
     IFOK(s, CHECK_NO_MEMORY(m = nats_palloc(pool, sizeof(natsMessage))));
-    IFOK(s, CHECK_NO_MEMORY(m->subject = nats_pstrdupU(pool, subj)));
+
+    if (!nats_isCStringEmpty(subj))
+        IFOK(s, CHECK_NO_MEMORY(m->subject.data = (uint8_t *)nats_pstrdupnC(pool, (const uint8_t *)subj, subjLen)));
     if (NOT_OK(s))
-    {
-        nats_releasePool(pool);
         return NATS_UPDATE_ERR_STACK(s);
-    }
-    m->pool = pool;
+
+    m->subject.len = subjLen;
+    m->pool = nats_retainPool(pool);
     *newm = m;
     return NATS_OK;
+}
+
+natsStatus
+nats_CreateMessage(natsMessage **newm, natsConnection *nc, const char *subj)
+{
+    natsStatus s = NATS_OK;
+    natsPool *pool = NULL;
+    size_t subjLen = nats_strlen(subj);
+    if ((newm == NULL) || !nats_isSubjectValid((const uint8_t *)subj, subjLen, false))
+        return nats_setDefaultError(NATS_INVALID_ARG);
+
+    s = nats_createPool(&pool, &nc->opts->mem, "msg");
+    IFOK(s, nats_createMessage(newm, pool, subj));
+    // Always release the pool, the message will hold on to it.
+    nats_releasePool(pool);
+    return nats_setDefaultError(s);
 }
 
 bool natsMessage_IsNoResponders(natsMessage *m)
@@ -709,8 +720,8 @@ natsStatus nats_SetOnMessageCleanup(natsMessage *m, void (*f)(void *), void *clo
     if (m == NULL)
         return nats_setError(NATS_INVALID_ARG, "%s", "message cannot be NULL");
 
-    m->freef = f;
-    m->freeClosure = closure;
+    m->x.out.freef = f;
+    m->x.out.freeClosure = closure;
 
     return NATS_OK;
 }
@@ -720,8 +731,8 @@ natsStatus nats_SetOnMessagePublished(natsMessage *m, natsOnMessagePublishedF f,
     if (m == NULL)
         return nats_setError(NATS_INVALID_ARG, "%s", "message cannot be NULL");
 
-    m->donef = f;
-    m->doneClosure = closure;
+    m->x.out.donef = f;
+    m->x.out.doneClosure = closure;
 
     return NATS_OK;
 }
@@ -730,14 +741,16 @@ natsStatus nats_SetMessagePayload(natsMessage *m, const void *data, size_t dataL
 {
     if ((m == NULL) || (dataLen == 0) || (data == NULL))
         return nats_setDefaultError(NATS_INVALID_ARG);
-    if ((m->out != NULL) || (m->pool == NULL))
+    if (!natsMessage_isOutgoing(m))
+        return nats_setError(NATS_ILLEGAL_STATE, "%s", "attemped to change the payload of an incoming message");
+    if ((m->x.out.buf != NULL) || (m->pool == NULL))
         return nats_setError(NATS_ILLEGAL_STATE, "%s", "message payload already set");
 
-    m->out = nats_palloc(m->pool, sizeof(natsString));
-    if (m->out == NULL)
+    m->x.out.buf = nats_palloc(m->pool, sizeof(natsString));
+    if (m->x.out.buf == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
-    m->out->data = (uint8_t*) data;
-    m->out->len = dataLen;
+    m->x.out.buf->data = (uint8_t *)data;
+    m->x.out.buf->len = dataLen;
 
     return NATS_OK;
 }
@@ -766,16 +779,61 @@ void nats_ReleaseMessage(natsMessage *m)
 
 const uint8_t *nats_GetMessageData(natsMessage *msg)
 {
-    if ((msg == NULL) || (msg->out == NULL))
+    if ((msg == NULL) || nats_IsStringEmpty(msg->x.out.buf))
         return NULL;
 
-    return (const uint8_t *)msg->out->data;
+    return (const uint8_t *)msg->x.out.buf->data;
 }
 
 size_t nats_GetMessageDataLen(natsMessage *msg)
 {
-    if ((msg == NULL) || (msg->out == NULL))
+    if ((msg == NULL) || nats_IsStringEmpty(msg->x.out.buf))
         return 0;
 
-    return msg->out->len;
+    return msg->x.out.buf->len;
+}
+
+natsStatus nats_setMessageHeader(natsMessage *m, natsString *key, natsString *value)
+{
+    natsStatus s = NATS_OK;
+    natsHeaderValue *v = NULL;
+
+    if (m->headers == NULL)
+    {
+        s = natsStrHash_Create(&(m->headers), m->pool, 4);
+        if (s != NATS_OK)
+            return s;
+    }
+
+    s = natsHeaderValue_create(&v, (const char *)value->data, true);
+    if (s != NATS_OK)
+        return s;
+
+    void *p = NULL;
+    s = natsStrHash_Set(m->headers, (char *)key->data, true, (void *)v, &p);
+    if (s != NATS_OK)
+        natsHeaderValue_free(v, false);
+    else if (p != NULL)
+    {
+        natsHeaderValue *old = (natsHeaderValue *)p;
+        natsHeaderValue_free(old, true);
+    }
+
+    return s;
+}
+
+natsStatus nats_SetMessageHeader(natsMessage *m, const char *key, const char *value)
+{
+    natsStatus s = NATS_OK;
+    natsString *k = NULL, *v = NULL;
+
+    if ((m == NULL) || (m->pool == NULL) || nats_IsStringEmpty(key))
+        return nats_setDefaultError(NATS_INVALID_ARG);
+
+    // Duplicate the key and value into the message pool.
+    IFOK(s, CHECK_NO_MEMORY(k = nats_pstrdupn(m->pool, key, strlen(key))));
+    if (!nats_isCStringEmpty(value))
+        IFOK(s, CHECK_NO_MEMORY(v = nats_pstrdup(m->pool, value)));
+
+    return nats_setMessageHeader(m, (const uint8_t *)key, (const uint8_t *)value);
 }

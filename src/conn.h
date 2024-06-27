@@ -16,6 +16,7 @@
 
 #include "comsock.h"
 #include "conn_write.h"
+#include "msg.h"
 
 // CLIENT_PROTO_ZERO is the original client protocol from 2009.
 // http://nats.io/documentation/internals/nats-protocol/
@@ -59,7 +60,6 @@ struct __natsServerInfo
     bool lameDuckMode;
     bool headers;
 };
-
 struct __natsConnection
 {
     natsOptions *opts;

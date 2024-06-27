@@ -56,11 +56,11 @@ struct __nats_JSON_s
 
 typedef struct
 {
-    char *name;
+    natsString field_name;
     int typ;
     union
     {
-        char *vstr;
+        natsString *vstr;
         bool vbool;
         uint64_t vuint;
         int64_t vint;
@@ -73,13 +73,13 @@ typedef struct
 } nats_JSONField;
 
 natsStatus
-natsJSONParser_Create(natsJSONParser **parser, natsPool *pool);
+nats_createJSONParser(natsJSONParser **parser, natsPool *pool);
 
 // Should be called repeatedly until newJSON is initialized. If there are no
 // errors, artial parsing returns NATS_OK, jsonObj set to NULL, and consumes the
 // entire buf.
 natsStatus
-natsJSONParser_Parse(nats_JSON **jsonObj, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
+nats_parseJSON(nats_JSON **jsonObj, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
 
 natsStatus
 nats_JSONRefField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
@@ -91,7 +91,7 @@ natsStatus
 nats_JSONDupStrIfDiff(nats_JSON *json, natsPool *pool, const char *fieldName, const char **value);
 
 natsStatus
-nats_JSONRefStr(nats_JSON *json, const char *fieldName, const char **str);
+nats_JSONRefStr(nats_JSON *json, const char *fieldName, natsString **str);
 
 natsStatus
 nats_JSONDupBytes(nats_JSON *json, natsPool *pool, const char *fieldName, unsigned char **value, int *len);
@@ -171,7 +171,7 @@ nats_JSONArrayAsArrays(nats_JSONArray *arr, nats_JSONArray ***array, int *arrayS
 natsStatus
 nats_JSONGetArrayArray(nats_JSON *json, const char *fieldName, nats_JSONArray ***array, int *arraySize);
 
-typedef natsStatus (*jsonRangeCB)(void *userInfo, const char *fieldName, nats_JSONField *f);
+typedef natsStatus (*jsonRangeCB)(void *userInfo, natsString *fieldName, nats_JSONField *f);
 
 natsStatus
 nats_JSONRange(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo);

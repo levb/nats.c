@@ -69,6 +69,25 @@ nats_cpystrn(uint8_t *dst, uint8_t *src, size_t n)
     return dst;
 }
 
+natsStatus nats_strtoUint64(uint64_t *result, const uint8_t *d, size_t len)
+{
+    uint64_t v = 0;
+
+    for (int i = 0; i < len; i++)
+    {
+        if ((d[i] < '0') || (d[i] > '9'))
+        {
+            return nats_setError(NATS_ERR, "invalid number: %.*s", (int)len, d);
+        }
+
+        v = v * 10 + (d[i] - '0');
+    }
+
+    if (result != NULL)
+        *result = v;
+    return NATS_OK;
+}
+
 #ifdef DEV_MODE
 
 static char _printbuf[128];

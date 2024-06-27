@@ -85,8 +85,9 @@ natsStatus
 nats_JSONRefField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField)
 {
     nats_JSONField *field = NULL;
+    natsString key = NATS_STRC(fieldName);
 
-    field = (nats_JSONField *)natsStrHash_Get(json->fields, (char *)fieldName, nats_strlen(fieldName));
+    field = (nats_JSONField *)natsStrHash_Get(json->fields, &key);
     if ((field == NULL) || (field->typ == TYPE_NULL))
     {
         *retField = NULL;
@@ -101,21 +102,21 @@ nats_JSONRefField(nats_JSON *json, const char *fieldName, int fieldType, nats_JS
     case TYPE_DOUBLE:
         if (field->typ != TYPE_NUM)
             return nats_setError(NATS_INVALID_ARG,
-                                 "Asked for field '%s' as type %d, but got type %d when parsing",
-                                 field->name, fieldType, field->typ);
+                                 "Asked for field '%.*s' as type %d, but got type %d when parsing",
+                                 (int)field->field_name.len, field->field_name.data, fieldType, field->typ);
         break;
     case TYPE_BOOL:
     case TYPE_STR:
     case TYPE_OBJECT:
         if (field->typ != fieldType)
             return nats_setError(NATS_INVALID_ARG,
-                                 "Asked for field '%s' as type %d, but got type %d when parsing",
-                                 field->name, fieldType, field->typ);
+                                 "Asked for field '%.*s' as type %d, but got type %d when parsing",
+                                 (int)field->field_name.len, field->field_name.data, fieldType, field->typ);
         break;
     default:
         return nats_setError(NATS_INVALID_ARG,
-                             "Asked for field '%s' as type %d, but this type does not exist",
-                             field->name, fieldType);
+                             "Asked for field '%.*s' as type %d, but this type does not exist",
+                             (int)field->field_name.len, field->field_name.data, fieldType);
     }
     *retField = field;
     return NATS_OK;
@@ -134,10 +135,10 @@ nats_JSONDupStrIfDiff(nats_JSON *json, natsPool *pool, const char *fieldName, co
         return NATS_UPDATE_ERR_STACK(s);
     }
 
-    if ((*value != NULL) && (strcmp(*value, field->value.vstr) == 0))
+    if ((*value != NULL) && natsString_equalC(field->value.vstr, *value))
         return NATS_OK;
 
-    char *tmp = nats_pstrdupC(pool, field->value.vstr);
+    char *tmp = nats_pstrdupnC(pool, field->value.vstr->data, field->value.vstr->len);
     if (tmp == NULL)
         s = nats_setDefaultError(NATS_NO_MEMORY);
     else
@@ -159,7 +160,7 @@ nats_JSONDupStr(nats_JSON *json, natsPool *pool, const char *fieldName, const ch
         return NATS_UPDATE_ERR_STACK(s);
     }
 
-    char *tmp = nats_pstrdupC(pool, field->value.vstr);
+    char *tmp = nats_pstrdupnC(pool, field->value.vstr->data, field->value.vstr->len);
     if (tmp == NULL)
         s = nats_setDefaultError(NATS_NO_MEMORY);
     else
@@ -169,7 +170,7 @@ nats_JSONDupStr(nats_JSON *json, natsPool *pool, const char *fieldName, const ch
 }
 
 natsStatus
-nats_JSONRefStr(nats_JSON *json, const char *fieldName, const char **str)
+nats_JSONRefStr(nats_JSON *json, const char *fieldName, natsString **str)
 {
     natsStatus s;
     nats_JSONField *field = NULL;
@@ -290,8 +291,9 @@ natsStatus
 nats_JSONRefArray(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField)
 {
     nats_JSONField *field = NULL;
+    natsString key = NATS_STRC(fieldName);
 
-    field = (nats_JSONField *)natsStrHash_Get(json->fields, (char *)fieldName, nats_strlen(fieldName));
+    field = (nats_JSONField *)natsStrHash_Get(json->fields, &key);
     if ((field == NULL) || (field->typ == TYPE_NULL))
     {
         *retField = NULL;
@@ -301,8 +303,8 @@ nats_JSONRefArray(nats_JSON *json, const char *fieldName, int fieldType, nats_JS
     // Check parsed type matches what is being asked.
     if (field->typ != TYPE_ARRAY)
         return nats_setError(NATS_INVALID_ARG,
-                             "Field '%s' is not an array, it has type: %d",
-                             field->name, field->typ);
+                             "Field '%.*s' is not an array, it has type: %d",
+                             (int)field->field_name.len, field->field_name.data, field->typ);
     // If empty array, return NULL/OK
     if (field->value.varr->typ == TYPE_NULL)
     {
@@ -311,8 +313,8 @@ nats_JSONRefArray(nats_JSON *json, const char *fieldName, int fieldType, nats_JS
     }
     if (fieldType != field->value.varr->typ)
         return nats_setError(NATS_INVALID_ARG,
-                             "Asked for field '%s' as an array of type: %d, but it is an array of type: %d",
-                             field->name, fieldType, field->typ);
+                             "Asked for field '%.*s' as an array of type: %d, but it is an array of type: %d",
+                             (int)field->field_name.len, field->field_name.data, fieldType, field->typ);
 
     *retField = field;
     return NATS_OK;
@@ -467,23 +469,22 @@ natsStatus
 nats_JSONRange(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo)
 {
     natsStrHashIter iter;
-    char *fname = NULL;
     void *val = NULL;
     natsStatus s = NATS_OK;
 
     natsStrHashIter_Init(&iter, json->fields);
-    while ((STILL_OK(s)) && natsStrHashIter_Next(&iter, &fname, &val))
+    while ((STILL_OK(s)) && natsStrHashIter_Next(&iter, NULL, &val))
     {
         nats_JSONField *f = (nats_JSONField *)val;
 
         if (f->typ != expectedType)
-            s = nats_setError(NATS_ERR, "field '%s': expected value type of %d, got %d",
-                              f->name, expectedType, f->typ);
+            s = nats_setError(NATS_ERR, "field '%.*s': expected value type of %d, got %d",
+                              (int)f->field_name.len, f->field_name.data, expectedType, f->typ);
         else if ((f->typ == TYPE_NUM) && (f->numTyp != expectedNumType))
-            s = nats_setError(NATS_ERR, "field '%s': expected numeric type of %d, got %d",
-                              f->name, expectedNumType, f->numTyp);
+            s = nats_setError(NATS_ERR, "field '%.*s': expected numeric type of %d, got %d",
+                              (int)f->field_name.len, f->field_name.data, expectedNumType, f->numTyp);
         else
-            s = cb(userInfo, (const char *)f->name, f);
+            s = cb(userInfo, &f->field_name, f);
     }
     natsStrHashIter_Done(&iter);
     return NATS_UPDATE_ERR_STACK(s);

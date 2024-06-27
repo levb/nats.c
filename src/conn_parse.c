@@ -16,209 +16,6 @@
 #include "json.h"
 #include "conn.h"
 
-// cloneMsgArg is used when the split buffer scenario has the pubArg in the existing read buffer, but
-// we need to hold onto it into the next read.
-// static natsStatus
-// _cloneMsgArg(natsConnection *nc)
-// {
-//     natsStatus  s;
-//     natsParser  *ps = nc->ps;
-//     int         subjLen = natsBuf_len(ps->ma.subject);
-
-//     s = natsBuf_InitWith(&(ps->argBufRec),
-//                                 ps->scratch,
-//                                 0,
-//                                 sizeof(ps->scratch));
-//     if (STILL_OK(s))
-//     {
-//         ps->argBuf = &(ps->argBufRec);
-
-//         s = natsBuf_Append(ps->argBuf,
-//                            natsBuf_data(ps->ma.subject),
-//                            natsBuf_len(ps->ma.subject));
-//         if (STILL_OK(s))
-//         {
-//             natsBuf_Destroy(ps->ma.subject);
-//             ps->ma.subject = NULL;
-
-//             s = natsBuf_InitWith(&(ps->ma.subjectRec),
-//                                         ps->scratch,
-//                                         subjLen,
-//                                         subjLen);
-//             if (STILL_OK(s))
-//                 ps->ma.subject = &(ps->ma.subjectRec);
-//         }
-//     }
-//     if ((STILL_OK(s)) && (ps->ma.reply != NULL))
-//     {
-//         s = natsBuf_Append(ps->argBuf,
-//                            natsBuf_data(ps->ma.reply),
-//                            natsBuf_len(ps->ma.reply));
-//         if (STILL_OK(s))
-//         {
-//             int replyLen = natsBuf_len(ps->ma.reply);
-
-//             natsBuf_Destroy(ps->ma.reply);
-//             ps->ma.reply = NULL;
-
-//             s = natsBuf_InitWith(&(ps->ma.replyRec),
-//                                         ps->scratch + subjLen,
-//                                         replyLen,
-//                                         replyLen);
-//             if (STILL_OK(s))
-//                 ps->ma.reply = &(ps->ma.replyRec);
-//         }
-//     }
-
-//     return s;
-// }
-
-// struct slice
-// {
-//     uint8_t *start;
-//     int     len;
-// };
-
-// static natsStatus
-// _processMsgArgs(natsParser *ps, natsConnection *nc, uint8_t *buf, int bufLen)
-// {
-//     natsStatus      s       = NATS_OK;
-//     int             start   = -1;
-//     int             index   = 0;
-//     int             i;
-//     uint8_t         b;
-//     struct slice    slices[5];
-//     char            errTxt[256];
-//     int             indexLimit = 3;
-//     int             minArgs    = 3;
-//     int             maxArgs    = 4;
-//     bool            hasHeaders = (ps->hdr >= 0 ? true : false);
-
-//     // If headers, the content should be:
-//     // <subject> <sid> [reply] <hdr size> <overall size>
-//     // otherwise:
-//     // <subject> <sid> [reply] <overall size>
-//     if (hasHeaders)
-//     {
-//         indexLimit = 4;
-//         minArgs    = 4;
-//         maxArgs    = 5;
-//     }
-
-//     for (i = 0; i < bufLen; i++)
-//     {
-//         b = buf[i];
-
-//         if (((b == ' ') || (b == '\t') || (b == '\r') || (b == '\n')))
-//         {
-//             if (start >=0)
-//             {
-//                 if (index > indexLimit)
-//                 {
-//                     s = NATS_PROTOCOL_ERROR;
-//                     break;
-//                 }
-//                 slices[index].start = buf + start;
-//                 slices[index].len   = i - start;
-//                 index++;
-//                 start = -1;
-//             }
-//         }
-//         else if (start < 0)
-//         {
-//             start = i;
-//         }
-//     }
-//     if ((STILL_OK(s)) && (start >= 0))
-//     {
-//         if (index > indexLimit)
-//         {
-//             s = NATS_PROTOCOL_ERROR;
-//         }
-//         else
-//         {
-//             slices[index].start = buf + start;
-//             slices[index].len   = i - start;
-//             index++;
-//         }
-//     }
-//     if ((STILL_OK(s)) && ((index == minArgs) || (index == maxArgs)))
-//     {
-//         int maSizeIndex  = index-1; // position of size is always last.
-//         int hdrSizeIndex = index-2; // position of hdr size is always before last.
-
-//         s = natsBuf_InitWith(&(ps->ma.subjectRec),
-//                                     slices[0].start,
-//                                     slices[0].len,
-//                                     slices[0].len);
-//         if (STILL_OK(s))
-//         {
-//             ps->ma.subject = &(ps->ma.subjectRec);
-
-//             ps->ma.sid   = nats_ParseInt64((const char *)slices[1].start, slices[1].len);
-
-//             if (index == minArgs)
-//             {
-//                 ps->ma.reply = NULL;
-//             }
-//             else
-//             {
-//                 s = natsBuf_InitWith(&(ps->ma.replyRec),
-//                                             slices[2].start,
-//                                             slices[2].len,
-//                                             slices[2].len);
-//                 if (STILL_OK(s))
-//                 {
-//                     ps->ma.reply = &(ps->ma.replyRec);
-//                 }
-//             }
-//         }
-//         if (STILL_OK(s))
-//         {
-//             if (hasHeaders)
-//             {
-//                 ps->ma.hdr = (int) nats_ParseInt64((const char*)slices[hdrSizeIndex].start,
-//                                                        slices[hdrSizeIndex].len);
-//             }
-//             ps->ma.size = (int) nats_ParseInt64((const char*)slices[maSizeIndex].start,
-//                                                     slices[maSizeIndex].len);
-//         }
-//     }
-//     else
-//     {
-//         snprintf(errTxt, sizeof(errTxt), "%s", "processMsgArgs Parse Error: wrong number of arguments");
-//         s = NATS_PROTOCOL_ERROR;
-//     }
-//     if (ps->ma.sid < 0)
-//     {
-//         snprintf(errTxt, sizeof(errTxt), "processMsgArgs Bad or Missing Sid: '%.*s'",
-//                  bufLen, buf);
-//         s = NATS_PROTOCOL_ERROR;
-//     }
-//     if (ps->ma.size < 0)
-//     {
-//         snprintf(errTxt, sizeof(errTxt), "processMsgArgs Bad or Missing Size: '%.*s'",
-//                  bufLen, buf);
-//         s = NATS_PROTOCOL_ERROR;
-//     }
-//     if (hasHeaders && ((ps->ma.hdr < 0) || (ps->ma.hdr > ps->ma.size)))
-//     {
-//         snprintf(errTxt, sizeof(errTxt), "processMsgArgs Bad or Missing Header Size: '%.*s'",
-//                  bufLen, buf);
-//         s = NATS_PROTOCOL_ERROR;
-//     }
-
-//     if (s != NATS_OK)
-//     {
-//         // natsConn_Lock(nc); <>//<>
-//         snprintf(nc->errStr, sizeof(nc->errStr), "%s", errTxt);
-//         nc->err = s;
-//         // natsConn_Unlock(nc);
-//     }
-
-//     return s;
-// }
-
 typedef enum
 {
     OP_START = 0,
@@ -237,8 +34,6 @@ typedef enum
     OP_MSG,
     OP_MSG_SPC,
     MSG_ARG,
-    MSG_PAYLOAD,
-    MSG_END,
     OP_H,
     OP_P,
     OP_PI,
@@ -250,8 +45,8 @@ typedef enum
     OP_INF,
     OP_INFO,
     INFO_ARG,
-    CRLF,
-    CRLF_CR,
+    END_LINE,
+    END_LINE_CR,
 
 } natsOp;
 
@@ -259,12 +54,25 @@ struct __natsParser
 {
     natsOp state;
     natsOp nextState;
+
     bool skipWhitespace;
+    bool expectHeadersInMessage;
 
     natsStatus (*completef)(natsParser *ps, natsConnection *nc);
 
-    natsJSONParser *jsonParser;
-    nats_JSON *json;
+    union
+    {
+        struct
+        {
+            natsJSONParser *parser;
+            nats_JSON *obj;
+        } json;
+        struct
+        {
+            natsMessageParser *parser;
+            natsMessage *msg;
+        } msg;
+    } args;
 };
 
 natsStatus natsConn_createParser(natsParser **ps, natsPool *pool)
@@ -280,9 +88,17 @@ bool natsConn_expectingNewOp(natsParser *ps)
 
 static natsStatus _completeINFO(natsParser *ps, natsConnection *nc)
 {
-    natsStatus s = natsConn_processInfo(nc, ps->json);
+    natsStatus s = natsConn_processInfo(nc, ps->args.json.obj);
     CONNTRACEf("ParseOp: completed INFO: %s", (STILL_OK(s) ? "OK" : "ERROR"));
     return s;
+}
+
+static natsStatus _completeMessage(natsParser *ps, natsConnection *nc)
+{
+    natsStatus s = NATS_OK;
+    // natsStatus s = natsConn_processInfo(nc, ps->args.json.obj);
+    CONNTRACEf("ParseOp: completed [H]MSG but don't know what to do with it yet: %s", (STILL_OK(s) ? "OK" : "ERROR"));
+    return NATS_OK;
 }
 
 static natsStatus _completePONG(natsParser *ps, natsConnection *nc)
@@ -322,18 +138,16 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
             ps->skipWhitespace = false;
             switch (b)
             {
-            // case 'M':
-            // case 'm':
-            //     ps->state = OP_M;
-            //     ps->hdr = -1;
-            //     ps->ma.hdr = -1;
-            //     break;
-            // case 'H':
-            // case 'h':
-            //     ps->state = OP_H;
-            //     ps->hdr = 0;
-            //     ps->ma.hdr = 0;
-            //     break;
+            case 'M':
+            case 'm':
+                ps->expectHeadersInMessage = false;
+                ps->state = OP_M;
+                break;
+            case 'H':
+            case 'h':
+                ps->expectHeadersInMessage = true;
+                ps->state = OP_H;
+                break;
             case 'P':
             case 'p':
                 ps->state = OP_P;
@@ -353,19 +167,19 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
             }
             continue;
         }
-        case CRLF:
+        case END_LINE:
         {
             switch (b)
             {
             case '\r':
-                ps->state = CRLF_CR;
+                ps->state = END_LINE_CR;
                 continue;
             default:
                 s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a CRLF, got: '%x'", b);
             }
             continue;
         }
-        case CRLF_CR:
+        case END_LINE_CR:
         {
             switch (b)
             {
@@ -423,10 +237,10 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
             {
             case ' ':
             case '\t':
-                s = natsJSONParser_Create(&(ps->jsonParser), nc->opPool);
+                s = nats_createJSONParser(&(ps->args.json.parser), nc->opPool);
                 if (s != NATS_OK)
                     continue;
-                ps->json = NULL;
+                ps->args.json.obj = NULL;
                 ps->state = INFO_ARG;
                 ps->skipWhitespace = true;
                 continue;
@@ -438,355 +252,94 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
         case INFO_ARG:
         {
             size_t consumedByJSON = 0;
-            s = natsJSONParser_Parse(&ps->json, ps->jsonParser, p, end, &consumedByJSON);
+            s = nats_parseJSON(&ps->args.json.obj, ps->args.json.parser, p, end, &consumedByJSON);
             p += consumedByJSON;
             if (s != NATS_OK)
                 continue;
 
-            if (ps->json != NULL)
+            if (ps->args.json.obj != NULL)
             {
-                ps->state = CRLF;
+                ps->state = END_LINE;
                 ps->completef = _completeINFO;
                 ps->nextState = OP_END;
             }
             continue;
         }
-            //             case OP_H:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'M':
-            //                     case 'm':
-            //                         ps->state = OP_M;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_M:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'S':
-            //                     case 's':
-            //                         ps->state = OP_MS;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MS:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'G':
-            //                     case 'g':
-            //                         ps->state = OP_MSG;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MSG:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case ' ':
-            //                     case '\t':
-            //                         ps->state = OP_MSG_SPC;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MSG_SPC:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case ' ':
-            //                     case '\t':
-            //                         continue;
-            //                     default:
-            //                         ps->state      = MSG_ARG;
-            //                         ps->afterSpace = i;
-            //                         break;
-            //                 }
-            //                 break;
-            //             }
-            //             case MSG_ARG:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case '\r':
-            //                         ps->drop = 1;
-            //                         break;
-            //                     case '\n':
-            //                     {
-            //                         uint8_t *start = NULL;
-            //                         size_t  len    = 0;
+        case OP_H:
+        {
+            switch (b)
+            {
+            case 'M':
+            case 'm':
+                ps->state = OP_M;
+                continue;
+            default:
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a [H]MSG, got: '%c'", b);
+            }
+            continue;
+        }
+        case OP_M:
+        {
+            switch (b)
+            {
+            case 'S':
+            case 's':
+                ps->state = OP_MS;
+                continue;
+                ;
+            default:
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a [H]MSG, got: '%c'", b);
+            }
+            continue;
+        }
+        case OP_MS:
+        {
+            switch (b)
+            {
+            case 'G':
+            case 'g':
+                ps->state = OP_MSG;
+                continue;
+                ;
+            default:
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a HMSG, got: '%c'", b);
+            }
+            continue;
+        }
+        case OP_MSG:
+        {
+            switch (b)
+            {
+            case ' ':
+            case '\t':
+                s = nats_createMessageParser(&(ps->args.msg.parser), nc->opPool, ps->expectHeadersInMessage);
+                if (s != NATS_OK)
+                    continue;
+                ps->args.msg.msg = NULL;
+                ps->state = MSG_ARG;
+                ps->skipWhitespace = true;
+                continue;
+            default:
+                s = nats_setError(NATS_PROTOCOL_ERROR, "Expected a space, got: '%c'", b);
+            }
+            continue;
+        }
+        case MSG_ARG:
+        {
+            size_t consumedByMsg = 0;
+            s = nats_parseMessage(&ps->args.msg.msg, ps->args.msg.parser, p, end, &consumedByMsg);
+            p += consumedByMsg;
+            if (s != NATS_OK)
+                continue;
 
-            //                         if (ps->argBuf != NULL)
-            //                         {
-            //                             start = natsBuf_data(ps->argBuf);
-            //                             len   = natsBuf_len(ps->argBuf);
-            //                         }
-            //                         else
-            //                         {
-            //                             start = buf + ps->afterSpace;
-            //                             len   = (i - ps->drop) - ps->afterSpace;
-            //                         }
-
-            //                         s = _processMsgArgs(ps, nc, start, len);
-            //                         if (STILL_OK(s))
-            //                         {
-            //                             ps->drop        = 0;
-            //                             ps->afterSpace  = i+1;
-            //                             ps->state       = MSG_PAYLOAD;
-
-            //                             // jump ahead with the index. If this overruns
-            //                             // what is left we fall out and process split
-            //                             // buffer.
-            //                             i = ps->afterSpace + ps->ma.size - 1;
-            //                         }
-            //                         break;
-            //                     }
-            //                     default:
-            //                     {
-            //                         if (ps->argBuf != NULL)
-            //                             s = natsBuf_addB(ps->argBuf, b);
-            //                         break;
-            //                     }
-            //                 }
-            //                 break;
-            //             }
-            //             case MSG_PAYLOAD:
-            //             {
-            //                 bool done = false;
-
-            //                 if (ps->msgBuf != NULL)
-            //                 {
-            //                     if (natsBuf_len(ps->msgBuf) >= ps->ma.size)
-            //                     {
-            //                         s = natsConn_processMsg(nc,
-            //                                                 natsBuf_data(ps->msgBuf),
-            //                                                 natsBuf_len(ps->msgBuf));
-            //                         done = true;
-            //                     }
-            //                     else
-            //                     {
-            //                         // copy as much as we can to the buffer and skip ahead.
-            //                         int toCopy = ps->ma.size - natsBuf_len(ps->msgBuf);
-            //                         int avail  = bufLen - i;
-
-            //                         if (avail < toCopy)
-            //                             toCopy = avail;
-
-            //                         if (toCopy > 0)
-            //                         {
-            //                             s = natsBuf_Append(ps->msgBuf, buf+i, toCopy);
-            //                             if (STILL_OK(s))
-            //                                 i += toCopy - 1;
-            //                         }
-            //                         else
-            //                         {
-            //                             s = natsBuf_addB(ps->msgBuf, b);
-            //                         }
-            //                     }
-            //                 }
-            //                 else if (i-ps->afterSpace >= ps->ma.size)
-            //                 {
-            //                     uint8_t *start  = NULL;
-            //                     size_t  len     = 0;
-
-            //                     start = buf + ps->afterSpace;
-            //                     len   = (i - ps->afterSpace);
-
-            //                     s = natsConn_processMsg(nc, start, len);
-
-            //                     done = true;
-            //                 }
-
-            //                 if (done)
-            //                 {
-            //                     natsBuf_Destroy(ps->argBuf);
-            //                     ps->argBuf = NULL;
-            //                     natsBuf_Destroy(ps->msgBuf);
-            //                     ps->msgBuf = NULL;
-            //                     ps->state = MSG_END;
-            //                 }
-
-            //                 break;
-            //             }
-            //             case MSG_END:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case '\n':
-            //                         ps->drop        = 0;
-            //                         ps->afterSpace  = i+1;
-            //                         ps->state       = OP_START;
-            //                         break;
-            //                     default:
-            //                         continue;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_PLUS:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'O':
-            //                     case 'o':
-            //                         ps->state = OP_PLUS_O;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_PLUS_O:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'K':
-            //                     case 'k':
-            //                         ps->state = OP_PLUS_OK;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_PLUS_OK:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case '\n':
-            //                         natsConn_processOK(nc);
-            //                         ps->drop  = 0;
-            //                         ps->state = OP_START;
-            //                         break;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MINUS:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'E':
-            //                     case 'e':
-            //                         ps->state = OP_MINUS_E;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MINUS_E:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'R':
-            //                     case 'r':
-            //                         ps->state = OP_MINUS_ER;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MINUS_ER:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case 'R':
-            //                     case 'r':
-            //                         ps->state = OP_MINUS_ERR;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MINUS_ERR:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case ' ':
-            //                     case '\t':
-            //                         ps->state = OP_MINUS_ERR_SPC;
-            //                         break;
-            //                     default:
-            //                         goto parseErr;
-            //                 }
-            //                 break;
-            //             }
-            //             case OP_MINUS_ERR_SPC:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case ' ':
-            //                     case '\t':
-            //                         continue;
-            //                     default:
-            //                         ps->state       = MINUS_ERR_ARG;
-            //                         ps->afterSpace  = i;
-            //                         break;
-            //                 }
-            //                 break;
-            //             }
-            //             case MINUS_ERR_ARG:
-            //             {
-            //                 switch (b)
-            //                 {
-            //                     case '\r':
-            //                         ps->drop = 1;
-            //                         break;
-            //                     case '\n':
-            //                     {
-            //                         // uint8_t *start = NULL;
-            //                         // size_t  len    = 0;
-
-            //                         // if (ps->argBuf != NULL)
-            //                         // {
-            //                         //     start = natsBuf_data(ps->argBuf);
-            //                         //     len   = natsBuf_len(ps->argBuf);
-            //                         // }
-            //                         // else
-            //                         // {
-            //                         //     start = buf + ps->afterSpace;
-            //                         //     len   = (i - ps->drop) - ps->afterSpace;
-            //                         // }
-
-            //                         // <>//<>
-            //                         // natsConn_processErr(nc, start, len);
-
-            //                         ps->drop        = 0;
-            //                         ps->afterSpace  = i+1;
-            //                         ps->state       = OP_START;
-
-            //                         if (ps->argBuf != NULL)
-            //                         {
-            //                             natsBuf_Destroy(ps->argBuf);
-            //                             ps->argBuf = NULL;
-            //                         }
-
-            //                         break;
-            //                     }
-            //                     default:
-            //                     {
-            //                         if (ps->argBuf != NULL)
-            //                             s = natsBuf_addB(ps->argBuf, b);
-
-            //                         break;
-            //                     }
-            //                 }
-            //                 break;
-            //             }
+            if (ps->args.msg.msg != NULL)
+            {
+                s = _completeMessage(ps, nc);
+            }
+            nats_ReleaseMessage(ps->args.msg.msg); // release the message even in error
+            ps->state = OP_END;
+            continue;
+        }
         case OP_P:
         {
             switch (b)
@@ -824,7 +377,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
             {
             case 'G':
             case 'g':
-                ps->state = CRLF;
+                ps->state = END_LINE;
                 ps->completef = _completePONG;
                 ps->nextState = OP_END;
                 continue;
@@ -852,7 +405,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
             {
             case 'G':
             case 'g':
-                ps->state = CRLF;
+                ps->state = END_LINE;
                 ps->completef = _completePING;
                 ps->nextState = OP_END;
                 continue;
@@ -865,83 +418,6 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
             s = nats_setError(NATS_PROTOCOL_ERROR, "(unreachable) invalid state: %d", ps->state);
         }
     }
-
-    //     // Check for split buffer scenarios
-    //     if ((STILL_OK(s))
-    //         && ((ps->state == MSG_ARG)
-    //                 || (ps->state == MINUS_ERR_ARG)
-    //                 || (ps->state == INFO_ARG))
-    //         && (ps->argBuf == NULL))
-    //     {
-    //         s = natsBuf_InitWith(&(ps->argBufRec),
-    //                                     ps->scratch,
-    //                                     0,
-    //                                     sizeof(ps->scratch));
-    //         if (STILL_OK(s))
-    //         {
-    //             ps->argBuf = &(ps->argBufRec);
-    //             s = natsBuf_Append(ps->argBuf,
-    //                                buf + ps->afterSpace,
-    //                                (i - ps->drop) - ps->afterSpace);
-    //         }
-    //     }
-    //     // Check for split msg
-    //     if ((STILL_OK(s))
-    //         && (ps->state == MSG_PAYLOAD) && (ps->msgBuf == NULL))
-    //     {
-    //         // We need to clone the msgArg if it is still referencing the
-    //         // read buffer and we are not able to process the msg.
-    //         if (ps->argBuf == NULL)
-    //             s = _cloneMsgArg(nc);
-
-    //         if (STILL_OK(s))
-    //         {
-    //             size_t remainingInScratch;
-    //             size_t toCopy;
-
-    // #ifdef _WIN32
-    // // Suppresses the warning that ps->argBuf may be NULL.
-    // // If ps->argBuf is NULL above, then _cloneMsgArg() will set it. If 's'
-    // // is NATS_OK here, then ps->argBuf can't be NULL.
-    // #pragma warning(suppress: 6011)
-    // #endif
-
-    //             // If we will overflow the scratch buffer, just create a
-    //             // new buffer to hold the split message.
-    //             remainingInScratch = sizeof(ps->scratch) - natsBuf_len(ps->argBuf);
-    //             toCopy = bufLen - ps->afterSpace;
-
-    //             if (ps->ma.size > remainingInScratch)
-    //             {
-    //                 s = natsBuf_CreateCalloc(&(ps->msgBuf), ps->ma.size);
-    //             }
-    //             else
-    //             {
-    //                 s = natsBuf_InitWith(&(ps->msgBufRec),
-    //                                             ps->scratch + natsBuf_len(ps->argBuf),
-    //                                             0, remainingInScratch);
-    //                 if (STILL_OK(s))
-    //                     ps->msgBuf = &(ps->msgBufRec);
-    //             }
-    //             if (STILL_OK(s))
-    //                 s = natsBuf_Append(ps->msgBuf,
-    //                                    buf + ps->afterSpace,
-    //                                    toCopy);
-    //         }
-    //     }
-
-    //     if (s != NATS_OK)
-    //     {
-    //         // Let's clear all our pointers...
-    //         natsBuf_Destroy(ps->argBuf);
-    //         ps->argBuf = NULL;
-    //         natsBuf_Destroy(ps->msgBuf);
-    //         ps->msgBuf = NULL;
-    //         natsBuf_Destroy(ps->ma.subject);
-    //         ps->ma.subject = NULL;
-    //         natsBuf_Destroy(ps->ma.reply);
-    //         ps->ma.reply = NULL;
-    //     }
 
     if (consumed != NULL)
         *consumed = p - buf;

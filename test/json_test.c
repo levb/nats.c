@@ -72,10 +72,10 @@ void Test_JSONStructure(void)
         TC tc = tests[i];
         
         test(tc.name);
-        s = natsJSONParser_Create(&parser, pool);
+        s = nats_createJSONParser(&parser, pool);
         const uint8_t *data = (const uint8_t *)tc.json;
         const uint8_t *end = (const uint8_t *)tc.json + strlen(tc.json);
-        IFOK(s, natsJSONParser_Parse(&json, parser, data, end, &consumed));
+        IFOK(s, nats_parseJSON(&json, parser, data, end, &consumed));
         testCond((STILL_OK(s)) && (json != NULL) && (consumed == strlen(tc.json)));
     }
 
@@ -86,10 +86,10 @@ void Test_JSONStructure(void)
         TC tc = errorTests[i];
 
         test(tc.name);
-        s = natsJSONParser_Create(&parser, pool);
+        s = nats_createJSONParser(&parser, pool);
         const uint8_t *data = (const uint8_t *)tc.json;
         const uint8_t *end = (const uint8_t *)tc.json + strlen(tc.json);
-        IFOK(s, natsJSONParser_Parse(&json, parser, data, end, NULL));
+        IFOK(s, nats_parseJSON(&json, parser, data, end, NULL));
         testCond((s != NATS_OK) && (json == NULL));
     }
 

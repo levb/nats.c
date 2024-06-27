@@ -16,7 +16,6 @@
 #include <string.h>
 
 #include "conn.h"
-#include "msg.h"
 #include "nuid.h"
 
 static const char *digits = "0123456789";
@@ -79,7 +78,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
 
     if ((nc == NULL) || (msg == NULL))
         return nats_setDefaultError(NATS_INVALID_ARG);
-    if (nats_IsStringEmpty(msg->subject) || !nats_isSubjectValid(msg->subject->data, msg->subject->len, false))
+    if (nats_IsStringEmpty(&msg->subject) || !nats_isSubjectValid(msg->subject.data, msg->subject.len, false))
         return nats_setDefaultError(NATS_INVALID_SUBJECT);
     if (natsConn_isClosed(nc))
         return nats_setDefaultError(NATS_CONNECTION_CLOSED);
@@ -126,7 +125,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
 
     // We include the NATS headers in the message header scratch.
     headerLineLen = protoLen + 1;
-    headerLineLen += msg->subject->len + 1;
+    headerLineLen += msg->subject.len + 1;
     if (!nats_IsStringEmpty(msg->reply))
         headerLineLen += msg->reply->len + 1;
     if (headerLen > 0)
@@ -137,7 +136,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
     s = natsPool_getFixedBuf(&scratch, msg->pool, headerLineLen);
     IFOK(s, natsBuf_addCBB(scratch, proto, protoLen));
     IFOK(s, natsBuf_addCBB(scratch, NATS_SPACE, NATS_SPACE_LEN));
-    IFOK(s, natsBuf_addString(scratch, msg->subject));
+    IFOK(s, natsBuf_addString(scratch, &msg->subject));
     IFOK(s, natsBuf_addCBB(scratch, NATS_SPACE, NATS_SPACE_LEN));
     if (!nats_IsStringEmpty(msg->reply))
     {

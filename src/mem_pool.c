@@ -103,9 +103,10 @@ void nats_ReleasePool(natsPool *pool)
     nats_log_releasePool(pool DEV_MODE_CTX);
 }
 
-void nats_RetainPool(natsPool *pool)
+natsPool *nats_RetainPool(natsPool *pool)
 {
-    pool->refs++;
+    nats_retainPool(pool);
+    return pool;
 }
 
 void *_allocSmall(natsSmall **newOrFound, natsPool *pool, size_t size DEV_MODE_ARGS)

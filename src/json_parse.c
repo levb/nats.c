@@ -13,29 +13,30 @@
 
 #include "natsp.h"
 
-// #include <ctype.h>
-
 #include "hash.h"
 #include "json.h"
 
 int jsonMaxNested = JSON_MAX_NEXTED;
 
-#define JSON_STATE_START (0)
-#define JSON_STATE_END (1)
-#define JSON_STATE_FIELDS (2)
-#define JSON_STATE_ELEMENTS (3)
-#define JSON_STATE_COLON (4)
-#define JSON_STATE_STRING (5)
-#define JSON_STATE_STRING_ESCAPE (6)
-#define JSON_STATE_STRING_UTF16 (7)
-#define JSON_STATE_VALUE (8)
-#define JSON_STATE_VALUE_STRING (9)
-#define JSON_STATE_VALUE_TRUE (10)
-#define JSON_STATE_VALUE_FALSE (11)
-#define JSON_STATE_VALUE_NULL (12)
-#define JSON_STATE_VALUE_ARRAY (13)
-#define JSON_STATE_VALUE_OBJECT (14)
-#define JSON_STATE_VALUE_NUMERIC (15)
+typedef enum
+{
+    stateStart = 0,
+    stateFields,
+    stateElements,
+    stateColon,
+    stateString,
+    stateStringEscape,
+    stateStringUTF16,
+    stateValue,
+    stateStringValue,
+    stateTrueValue,
+    stateFalseValue,
+    stateNullValue,
+    stateArrayValue,
+    stateObjectValue,
+    stateNumericValue,
+    stateEnd
+} state;
 
 struct __natsJSONParser_s
 {
@@ -90,7 +91,7 @@ static natsStatus _decodeUTF16(const uint8_t *data, char *val);
 
 static inline natsStatus _addFieldToObject(natsJSONParser *parser)
 {
-    return natsStrHash_Set(parser->json->fields, parser->field->name, (void *)parser->field);
+    return natsStrHash_Set(parser->json->fields, &parser->field->field_name, (void *)parser->field);
 }
 
 static inline void _resetScratch(natsJSONParser *parser)
@@ -125,13 +126,13 @@ static inline natsStatus _createArrayParser(natsJSONParser **newParser, natsPool
 }
 
 natsStatus
-natsJSONParser_Create(natsJSONParser **newParser, natsPool *pool)
+nats_createJSONParser(natsJSONParser **newParser, natsPool *pool)
 {
     return _createParser(newParser, pool, false, NULL);
 }
 
 natsStatus
-natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed)
+nats_parseJSON(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed)
 {
     nats_JSON *json = NULL;
     natsStatus s = NATS_OK;
@@ -141,17 +142,18 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
 
 #define _jsonError(_f, ...) \
     nats_setError(NATS_ERR, "JSON parsing error line %d, pos %d: " _f, parser->line + 1, parser->pos, __VA_ARGS__)
+
     JSONDEBUGf("Parsing JSON: '%.*s'", (int)(end - remaining), remaining);
 
-    while ((STILL_OK(s)) && (parser->state != JSON_STATE_END))
+    while ((STILL_OK(s)) && (parser->state != stateEnd))
     {
         // Some states don't need to consume a character, process them first.
         switch (parser->state)
         {
-        case JSON_STATE_VALUE_OBJECT:
-        case JSON_STATE_VALUE_ARRAY:
+        case stateObjectValue:
+        case stateArrayValue:
             json = NULL;
-            s = natsJSONParser_Parse(&json, parser->nested, remaining, end, &cNested);
+            s = nats_parseJSON(&json, parser->nested, remaining, end, &cNested);
             if (s != NATS_OK)
                 continue;
             if (json != NULL)
@@ -195,87 +197,87 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
 
         switch (parser->state)
         {
-        case JSON_STATE_START:
+        case stateStart:
             if ((parser->json->array != NULL) && (ch == '['))
             {
-                parser->state = JSON_STATE_ELEMENTS;
+                parser->state = stateElements;
             }
             else if ((parser->json->fields != NULL) && (ch == '{'))
             {
-                parser->state = JSON_STATE_FIELDS;
+                parser->state = stateFields;
             }
             else
             {
                 s = _jsonError("invalid character '%c', expected '{' or '[' at the start of JSON", ch);
             }
-            continue; // JSON_STATE_START
+            continue; // stateStart
 
-        case JSON_STATE_FIELDS:
+        case stateFields:
             switch (ch)
             {
             case '}':
-                parser->state = JSON_STATE_END;
+                parser->state = stateEnd;
                 parser->skipWhitespace = false; // Do not skip whitespace after the final '}'
                 continue;
             case ',':
                 // Ignore all commas between fields, nothing to do.
                 continue;
             case '"':
-                _startString(parser, JSON_STATE_COLON);
+                _startString(parser, stateColon);
                 continue;
             default:
                 s = _jsonError("invalid character '%c', expected start of a named field", ch);
                 continue;
             }
-            continue; // JSON_STATE_FIELDS
+            continue; // stateFields
 
-        case JSON_STATE_ELEMENTS:
+        case stateElements:
             switch (ch)
             {
             case ']':
-                parser->state = JSON_STATE_END;
+                parser->state = stateEnd;
                 parser->skipWhitespace = false; // Do not skip whitespace after the final '}'
                 continue;
             case ',':
-                parser->state = JSON_STATE_VALUE;
+                parser->state = stateValue;
                 s = _createField(&parser->field, parser->json->pool, (uint8_t *)"array", 5);
                 continue;
             default:
                 parser->undoCh = ch;
-                parser->state = JSON_STATE_VALUE;
+                parser->state = stateValue;
                 s = _createField(&parser->field, parser->json->pool, (uint8_t *)"array", 5);
                 continue;
             }
-            continue; // JSON_STATE_ELEMENTS
+            continue; // stateElements
 
-        case JSON_STATE_COLON:
+        case stateColon:
             switch (ch)
             {
             case ':':
                 s = _createField(&parser->field, parser->json->pool, natsBuf_data(parser->strBuf), natsBuf_len(parser->strBuf));
-                parser->state = JSON_STATE_VALUE;
+                parser->state = stateValue;
                 continue;
             default:
                 s = _jsonError("invalid character '%c', expected a ':'", ch);
                 continue;
             }
-            continue; // JSON_STATE_COLON
+            continue; // stateColon
 
-        case JSON_STATE_VALUE:
+        case stateValue:
             switch (ch)
             {
             case '"':
-                _startString(parser, JSON_STATE_VALUE_STRING);
+                _startString(parser, stateStringValue);
                 parser->field->typ = TYPE_STR;
                 continue;
             case 'n':
-                _startValue(parser, JSON_STATE_VALUE_NULL, TYPE_NULL, ch);
+                _startValue(parser, stateNullValue, TYPE_NULL, ch);
                 continue;
             case 't':
-                _startValue(parser, JSON_STATE_VALUE_TRUE, TYPE_BOOL, ch);
+                _startValue(parser, stateTrueValue, TYPE_BOOL, ch);
                 continue;
             case 'f':
-                _startValue(parser, JSON_STATE_VALUE_FALSE, TYPE_BOOL, ch);
+                _startValue(parser, stateFalseValue, TYPE_BOOL, ch);
                 continue;
             case '0':
             case '1':
@@ -290,17 +292,17 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
             case '-':
             case '+':
             case '.':
-                _startValue(parser, JSON_STATE_VALUE_NUMERIC, TYPE_NUM, ch);
+                _startValue(parser, stateNumericValue, TYPE_NUM, ch);
                 parser->field->numTyp = ((ch == '-') || (ch == '+')) ? TYPE_INT : TYPE_UINT;
                 continue;
             case '[':
-                parser->state = JSON_STATE_VALUE_ARRAY;
+                parser->state = stateArrayValue;
                 // Create a new parser for the nested object. It will consume
                 // starting with the next character.
                 s = _createArrayParser(&(parser->nested), parser->json->pool, parser);
                 continue;
             case '{':
-                parser->state = JSON_STATE_VALUE_OBJECT;
+                parser->state = stateObjectValue;
                 // Create a new parser for the nested object. It will consume
                 // starting with the next character.
                 s = _createObjectParser(&(parser->nested), parser->json->pool, parser);
@@ -309,9 +311,9 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = _jsonError("invalid character '%c', expected a start of a value", ch);
                 continue;
             }
-            continue; // JSON_STATE_VALUE
+            continue; // stateValue
 
-        case JSON_STATE_VALUE_NULL:
+        case stateNullValue:
             switch (ch)
             {
             case 'u':
@@ -332,9 +334,9 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = _jsonError("invalid character '%c', expected 'null'", ch);
                 continue;
             }
-            continue; // JSON_STATE_VALUE_NULL
+            continue; // stateNullValue
 
-        case JSON_STATE_VALUE_TRUE:
+        case stateTrueValue:
             switch (ch)
             {
             case 'r':
@@ -348,9 +350,9 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = _jsonError("invalid character '%c', expected 'true'", ch);
                 continue;
             }
-            continue; // JSON_STATE_VALUE_TRUE
+            continue; // stateTrueValue
 
-        case JSON_STATE_VALUE_FALSE:
+        case stateFalseValue:
             switch (ch)
             {
             case 'a':
@@ -364,9 +366,9 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = _jsonError("invalid character '%c', expected 'false'", ch);
                 continue;
             }
-            continue; // JSON_STATE_VALUE_FALSE
+            continue; // stateFalseValue
 
-        case JSON_STATE_VALUE_NUMERIC:
+        case stateNumericValue:
             switch (ch)
             {
             case '0':
@@ -427,9 +429,9 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = _finishNumericValue(parser);
                 continue;
             }
-            continue; // JSON_STATE_VALUE_NUMERIC
+            continue; // stateNumericValue
 
-        case JSON_STATE_STRING:
+        case stateString:
             switch (ch)
             {
             case '"':
@@ -437,18 +439,18 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = _finishString(parser);
                 continue;
             case '\\':
-                parser->state = JSON_STATE_STRING_ESCAPE;
+                parser->state = stateStringEscape;
                 continue;
             default:
                 s = natsBuf_addB(parser->strBuf, ch);
                 continue;
             }
-            continue; // JSON_STATE_STRING
+            continue; // stateString
 
-        case JSON_STATE_STRING_ESCAPE:
+        case stateStringEscape:
             // Whatever character comes, the next one will not be escaped;
             // except UTF16 handled separately below.
-            parser->state = JSON_STATE_STRING;
+            parser->state = stateString;
 
             switch (ch)
             {
@@ -468,7 +470,7 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = natsBuf_addB(parser->strBuf, '\t');
                 continue;
             case 'u':
-                parser->state = JSON_STATE_STRING_UTF16;
+                parser->state = stateStringUTF16;
                 memset(parser->scratchBuf, 0, sizeof(parser->scratchBuf));
                 parser->scratch.len = 0;
                 continue;
@@ -481,9 +483,9 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                 s = _jsonError("error parsing string '%s': invalid control character", ch);
                 continue;
             }
-            continue; // JSON_STATE_STRING_ESCAPE
+            continue; // stateStringEscape
 
-        case JSON_STATE_STRING_UTF16:
+        case stateStringUTF16:
             if (parser->scratch.len < sizeof("ABCD")) // hex number
             {
                 _addByteToScratch(parser, ch);
@@ -497,12 +499,12 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
                         continue;
                     }
                     s = natsBuf_addB(parser->strBuf, val);
-                    parser->state = JSON_STATE_STRING;
+                    parser->state = stateString;
                     memset(parser->scratchBuf, 0, sizeof(parser->scratchBuf));
                     parser->scratch.len = 0;
                 }
             }
-            continue; // JSON_STATE_STRING_UTF16
+            continue; // stateStringUTF16
 
         default:
             s = _jsonError("invalid state %d", parser->state);
@@ -510,7 +512,7 @@ natsJSONParser_Parse(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t 
         }
     }
 
-    if ((STILL_OK(s)) && (parser->state == JSON_STATE_END))
+    if ((STILL_OK(s)) && (parser->state == stateEnd))
     {
         if (consumed != NULL)
             *consumed = c;
@@ -551,7 +553,7 @@ _createParser(natsJSONParser **newParser, natsPool *pool, bool isArray, natsJSON
 
     json->pool = pool;
     parser->json = json;
-    parser->state = (nestedLevel == 0 ? JSON_STATE_START : (isArray ? JSON_STATE_ELEMENTS : JSON_STATE_FIELDS));
+    parser->state = (nestedLevel == 0 ? stateStart : (isArray ? stateElements : stateFields));
     parser->skipWhitespace = true;
     parser->nestedLevel = nestedLevel;
 
@@ -585,8 +587,8 @@ _createField(nats_JSONField **newField, natsPool *pool, const uint8_t *fieldName
     if (field == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    field->name = nats_palloc(pool, len + 1);
-    if (field->name == NULL)
+    field->field_name = nats_palloc(pool, len + 1);
+    if (field->field_namename == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
     memcpy(field->name, fieldName, len);
@@ -627,7 +629,7 @@ _decodeUTF16(const uint8_t *data, char *val)
 static void _startString(natsJSONParser *parser, int nextState)
 {
     _resetString(parser);
-    parser->state = JSON_STATE_STRING;
+    parser->state = stateString;
     parser->nextState = nextState;
     parser->skipWhitespace = false;
 }
@@ -653,7 +655,7 @@ static natsStatus _finishString(natsJSONParser *parser)
     // TODO: <>/<> Not clean to do this here, but will suffice for now
     switch (parser->nextState)
     {
-    case JSON_STATE_VALUE_STRING:
+    case stateStringValue:
         parser->field->value.vstr = nats_pstrdupC(parser->json->pool, (char *)natsBuf_data(parser->strBuf));
         JSONDEBUGf("added field: (string) \"%s\":\"%s\"", parser->field->name, parser->field->value.vstr);
         return _finishValue(parser);
@@ -675,7 +677,7 @@ static natsStatus _finishValue(natsJSONParser *parser)
         return s;
 
     parser->field = NULL;
-    parser->state = isArray ? JSON_STATE_ELEMENTS : JSON_STATE_FIELDS;
+    parser->state = isArray ? stateElements : stateFields;
     parser->skipWhitespace = true;
     return NATS_OK;
 }
@@ -720,7 +722,7 @@ static natsStatus _finishNestedValue(natsJSONParser *parser, nats_JSON *obj)
 {
     switch (parser->state)
     {
-    case JSON_STATE_VALUE_ARRAY:
+    case stateArrayValue:
         if (obj->array == NULL)
             return nats_setError(NATS_ERR, "%s", "unexpected error parsing array");
         if (obj->array->typ == TYPE_NOT_SET)
@@ -729,7 +731,7 @@ static natsStatus _finishNestedValue(natsJSONParser *parser, nats_JSON *obj)
         parser->field->value.varr = obj->array;
         JSONDEBUGf("added array value: %d elements, type %d", obj->array->size, obj->array->typ);
         break;
-    case JSON_STATE_VALUE_OBJECT:
+    case stateObjectValue:
         if (obj->fields == NULL)
             return nats_setError(NATS_ERR, "%s", "unexpected error parsing object");
         parser->field->typ = TYPE_OBJECT;

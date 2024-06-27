@@ -71,7 +71,7 @@ struct __natsHeap_s
 typedef struct __natsPool_s natsPool;
 
 NATS_EXTERN natsStatus nats_CreatePool(natsPool **newPool, natsOptions *opts);
-NATS_EXTERN void nats_RetainPool(natsPool *pool);
+NATS_EXTERN natsPool *nats_RetainPool(natsPool *pool);
 NATS_EXTERN void nats_ReleasePool(natsPool *pool);
 NATS_EXTERN void *nats_Palloc(natsPool *pool, size_t size);
 
