@@ -56,8 +56,6 @@ static void _onMessagePublished(natsConnection *nc, uint8_t *buffer, void *closu
     nats_releasePool(m->pool); // will free the message
 }
 
-natsString _crlf = NATS_STR(NATS_CRLF);
-
 static natsStatus
 nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
 {
@@ -66,19 +64,19 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
     int headerLen = 0;
     const char *proto = NATS_PUB;
     size_t protoLen = NATS_PUB_LEN;
-    natsString headerLenStr = NATS_EMPTY_STR;
-    natsString dataLenStr = NATS_EMPTY_STR;
+    natsBytes headerLenStr = NATS_EMPTY_BYTES;
+    natsBytes dataLenStr = NATS_EMPTY_BYTES;
     size_t headerLineLen = 0;
     char dlb[BYTES_SIZE_MAX];
     int dli = BYTES_SIZE_MAX;
     char hlb[BYTES_SIZE_MAX];
     int hli = BYTES_SIZE_MAX;
     natsBuf *scratch = NULL;
-    natsString *liftedHeader = NULL;
+    natsBytes *liftedHeader = NULL;
 
     if ((nc == NULL) || (msg == NULL))
         return nats_setDefaultError(NATS_INVALID_ARG);
-    if (nats_IsStringEmpty(&msg->subject) || !nats_isSubjectValid(msg->subject.data, msg->subject.len, false))
+    if (!nats_isSubjectValid(msg->subject.text, false))
         return nats_setDefaultError(NATS_INVALID_SUBJECT);
     if (natsConn_isClosed(nc))
         return nats_setDefaultError(NATS_CONNECTION_CLOSED);
@@ -96,7 +94,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
         if (headerLen > 0)
         {
             GETBYTES_SIZE(headerLen, hlb, hli)
-            headerLenStr.data = (uint8_t *)(hlb + hli);
+            headerLenStr.bytes = (uint8_t *)(hlb + hli);
             headerLenStr.len = (BYTES_SIZE_MAX - hli);
             proto = NATS_HPUB;
             protoLen = NATS_HPUB_LEN;
@@ -110,7 +108,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
     }
 
     // This will represent headers + data
-    totalLen = headerLen + nats_StringLen(msg->x.out.buf);
+    totalLen = headerLen + msg->x.out.buf.len;
 
     if (natsConn_initialConnectDone(nc) && ((int64_t)totalLen > nc->info->maxPayload))
         return nats_setErrorf(NATS_MAX_PAYLOAD, "Payload %d greater than maximum allowed: %zu", totalLen, nc->info->maxPayload);
@@ -120,36 +118,36 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
     // connection we should limit it also.
 
     GETBYTES_SIZE(totalLen, dlb, dli)
-    dataLenStr.data = (uint8_t *)(dlb + dli);
+    dataLenStr.bytes = (uint8_t *)(dlb + dli);
     dataLenStr.len = (BYTES_SIZE_MAX - dli);
 
     // We include the NATS headers in the message header scratch.
     headerLineLen = protoLen + 1;
     headerLineLen += msg->subject.len + 1;
-    if (!nats_IsStringEmpty(msg->reply))
-        headerLineLen += msg->reply->len + 1;
+    if (!nats_IsStringEmpty(&msg->reply))
+        headerLineLen += msg->reply.len + 1;
     if (headerLen > 0)
         headerLineLen += headerLenStr.len + 1 + headerLen;
     headerLineLen += dataLenStr.len;
-    headerLineLen += NATS_CRLF_LEN;
+    headerLineLen += CRLF_BYTES.len;
 
     s = nats_getFixedBuf(&scratch, msg->pool, headerLineLen);
-    IFOK(s, natsBuf_addCBB(scratch, proto, protoLen));
-    IFOK(s, natsBuf_addCBB(scratch, NATS_SPACE, NATS_SPACE_LEN));
-    IFOK(s, natsBuf_addString(scratch, &msg->subject));
-    IFOK(s, natsBuf_addCBB(scratch, NATS_SPACE, NATS_SPACE_LEN));
-    if (!nats_IsStringEmpty(msg->reply))
+    IFOK(s, nats_appendC(scratch, proto, protoLen));    // [H]MSG
+    IFOK(s, nats_appendB(scratch, NATS_SPACEB));
+    IFOK(s, nats_appendString(scratch, &msg->subject)); // Subject
+    IFOK(s, nats_appendB(scratch, NATS_SPACEB));
+    if (!nats_IsStringEmpty(&msg->reply))   // Reply-to
     {
-        IFOK(s, natsBuf_addString(scratch, msg->reply));
-        IFOK(s, natsBuf_addCBB(scratch, NATS_SPACE, NATS_SPACE_LEN));
+        IFOK(s, nats_appendString(scratch, &msg->reply));
+        IFOK(s, nats_appendB(scratch, NATS_SPACEB));
     }
-    if (headerLen > 0)
+    if (headerLen > 0) // Header length
     {
-        IFOK(s, natsBuf_addString(scratch, &headerLenStr));
-        IFOK(s, natsBuf_addCBB(scratch, NATS_SPACE, NATS_SPACE_LEN));
+        IFOK(s, nats_appendBytes(scratch, &headerLenStr));
+        IFOK(s, nats_appendB(scratch, NATS_SPACEB));
     }
-    IFOK(s, natsBuf_addString(scratch, &dataLenStr));
-    IFOK(s, natsBuf_addCBB(scratch, NATS_CRLF, NATS_CRLF_LEN));
+    IFOK(s, nats_appendBytes(scratch, &dataLenStr)); // Message length
+    IFOK(s, nats_appendBytes(scratch, &CRLF_BYTES));
     if (headerLen > 0)
     {
         if (liftedHeader == NULL)
@@ -158,26 +156,26 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
         }
         else
         {
-            IFOK(s, natsBuf_addString(scratch, liftedHeader));
+            IFOK(s, nats_appendBytes(scratch, liftedHeader));
         }
     }
 
-    IFOK(s, natsConn_asyncWrite(nc, natsBuf_string(scratch), NULL, NULL));
+    IFOK(s, natsConn_asyncWrite(nc, &scratch->buf, NULL, NULL));
 
-    if (!nats_IsStringEmpty(msg->x.out.buf))
+    if (msg->x.out.buf.len > 0)
     {
-        uint8_t *data = msg->x.out.buf->data;
+        uint8_t *data = msg->x.out.buf.bytes;
         if (copyData)
         {
-            IFOK(s, CHECK_NO_MEMORY(data = nats_palloc(msg->pool, msg->x.out.buf->len)));
-            IFOK(s, ALWAYS_OK(memcpy(data, msg->x.out.buf->data, msg->x.out.buf->len)));
+            IFOK(s, CHECK_NO_MEMORY(data = nats_palloc(msg->pool, msg->x.out.buf.len)));
+            IFOK(s, ALWAYS_OK(memcpy(data, msg->x.out.buf.bytes, msg->x.out.buf.len)));
         }
-        IFOK(s, natsConn_asyncWrite(nc, msg->x.out.buf, NULL, NULL));
+        IFOK(s, natsConn_asyncWrite(nc, &msg->x.out.buf, NULL, NULL));
     }
 
     // Final write, add the callback
     IFOK(s, ALWAYS_OK(nats_RetainPool(msg->pool)));
-    IFOK(s, natsConn_asyncWrite(nc, &_crlf, _onMessagePublished, msg));
+    IFOK(s, natsConn_asyncWrite(nc, &CRLF_BYTES, _onMessagePublished, msg));
 
     if (STILL_OK(s))
     {

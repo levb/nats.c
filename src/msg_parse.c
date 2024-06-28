@@ -36,6 +36,7 @@ typedef enum
     stateHeaderName,
     stateHeaderValue,
     stateEndHeaderLine,
+    stateEndHeader,
     stateEnd
 } state;
 
@@ -68,7 +69,7 @@ struct __natsMessageParser_s
     // Besides the subject and sid which we can immediately store in the
     // message, we need to buffer up to 3 args and parse them depending on the
     // total number of args.
-    natsString varargs[3];
+    natsBytes varargs[3];
     int numVarargs;
 
     natsString headerName; // (a copy of) the last accumulated header name
@@ -78,10 +79,10 @@ struct __natsMessageParser_s
     state nextState; // next state to transition to after finishing the arg
 };
 
-static natsStatus _startAccumulateArg(natsMessageParser *parser, state nextState, char ch)
+static natsStatus _startAccumulateArg(natsMessageParser *parser, state nextState, uint8_t ch)
 {
     natsStatus s = nats_resetBuf(parser->argBuf);
-    IFOK(s, nats_addB(parser->argBuf, ch));
+    IFOK(s, nats_appendB(parser->argBuf, ch));
     if (STILL_OK(s))
     {
         parser->state = stateAccumulateArg;
@@ -96,11 +97,13 @@ static void _finishAccumulateArg(natsMessageParser *parser, bool EOL)
 {
     parser->state = parser->nextState;
     parser->flags.skipWhitespace = true;
+    parser->flags.parsingHeaderName = false;
+    parser->flags.parsingHeaderValue = false;
     parser->flags.EOL = EOL;
 }
 
 #define _msgError(_p, _f, ...) \
-    nats_setErrorf(NATS_ERR, "message parsing error: %.*s:" _f, (int)(_p)->msg->subject.len, (_p)->msg->subject.data, __VA_ARGS__)
+    nats_setErrorf(NATS_ERR, "message parsing error: %s:" _f, nats_printableString(&(_p)->msg->subject), __VA_ARGS__)
 
 static natsStatus _processVarargs(natsMessageParser *parser)
 {
@@ -111,14 +114,13 @@ static natsStatus _processVarargs(natsMessageParser *parser)
         switch (parser->numVarargs)
         {
         case 2: // totalBytes headerBytes
-            IFOK(s, nats_strtoSizet(&parser->totalBytes, parser->varargs[0].data, parser->varargs[0].len));
-            IFOK(s, nats_strtoSizet(&parser->headerBytes, parser->varargs[1].data, parser->varargs[1].len));
+            IFOK(s, nats_strToSizet(&parser->totalBytes, parser->varargs[0].bytes, parser->varargs[0].len));
+            IFOK(s, nats_strToSizet(&parser->headerBytes, parser->varargs[1].bytes, parser->varargs[1].len));
             break;
         case 3: // reply-to totalBytes headerBytes
-            IFOK(s, CHECK_NO_MEMORY(parser->msg->reply = nats_palloc(parser->msg->pool, sizeof(natsString))));
-            IFOK(s, ALWAYS_OK(*(parser->msg->reply) = parser->varargs[0]));
-            IFOK(s, nats_strtoSizet(&parser->totalBytes, parser->varargs[1].data, parser->varargs[1].len));
-            IFOK(s, nats_strtoSizet(&parser->headerBytes, parser->varargs[2].data, parser->varargs[2].len));
+            IFOK(s, ALWAYS_OK(parser->msg->reply = *nats_bytesAsString(&parser->varargs[0])));
+            IFOK(s, nats_strToSizet(&parser->totalBytes, parser->varargs[1].bytes, parser->varargs[1].len));
+            IFOK(s, nats_strToSizet(&parser->headerBytes, parser->varargs[2].bytes, parser->varargs[2].len));
             break;
         default:
             s = _msgError(parser, "HMSG: expected 4 or 5 arguments, got %d", parser->numVarargs + 2);
@@ -130,12 +132,11 @@ static natsStatus _processVarargs(natsMessageParser *parser)
         switch (parser->numVarargs)
         {
         case 1: // totalBytes
-            s = nats_strtoSizet(&parser->totalBytes, parser->varargs[0].data, parser->varargs[0].len);
+            s = nats_strToSizet(&parser->totalBytes, parser->varargs[0].bytes, parser->varargs[0].len);
             break;
         case 2: // reply-to totalBytes
-            IFOK(s, CHECK_NO_MEMORY(parser->msg->reply = nats_palloc(parser->msg->pool, sizeof(natsString))));
-            IFOK(s, ALWAYS_OK(*(parser->msg->reply) = parser->varargs[0]));
-            IFOK(s, nats_strtoSizet(&parser->totalBytes, parser->varargs[1].data, parser->varargs[1].len));
+            IFOK(s, ALWAYS_OK(parser->msg->reply = *nats_bytesAsString(&parser->varargs[0])));
+            IFOK(s, nats_strToSizet(&parser->totalBytes, parser->varargs[1].bytes, parser->varargs[1].len));
             break;
         default:
             s = _msgError(parser, "HMSG: expected 3 or 4 arguments, got %d", parser->numVarargs + 2);
@@ -152,15 +153,13 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
     natsStatus s = NATS_OK;
     size_t c = 0;
     const uint8_t *remaining = data;
-    uint8_t *value = NULL;
-    natsString *strValue = NULL;
 
     CONNDEBUGf("Parsing message: '%.*s'", (int)(end - remaining), remaining);
 
     while ((STILL_OK(s)) && (parser->state != stateEnd))
     {
         // Get the next character to process. If we have reached the end of the buffer we are done.
-        char ch;
+        uint8_t ch;
         if (end - remaining == 0)
         {
             if (consumed != NULL)
@@ -191,9 +190,19 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
             case '\r':
                 if (parser->flags.parsingHeaderName)
                 {
+                    parser->flags.parsingHeaderName = false;
                     // We are accumulating a header name, it must be terminated by a ':'
                     s = _msgError(parser, "expected header name or ':', got %x", ch);
                     continue;
+                }
+                if (parser->flags.parsingHeaderValue)
+                {
+                    if (ch == ' ' || ch == '\t')
+                    {
+                        s = nats_appendB(parser->argBuf, ch);
+                        continue;
+                    }
+                    parser->flags.parsingHeaderValue = false;
                 }
                 // end of string
                 _finishAccumulateArg(parser, ch == '\r');
@@ -203,40 +212,30 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
                 if (parser->flags.parsingHeaderName)
                     _finishAccumulateArg(parser, false);
                 else
-                    s = nats_addB(parser->argBuf, ch);
+                    s = nats_appendB(parser->argBuf, ch);
                 continue;
 
             default:
-                s = nats_addB(parser->argBuf, ch);
+                s = nats_appendB(parser->argBuf, ch);
                 continue;
             }
             continue; // stateAccumulateArg
 
         case stateSubject:
             CONNDEBUGf("stateSubject: %x", ch);
-            value = (uint8_t *)nats_pstrdupnC(parser->msg->pool, natsBuf_data(parser->argBuf), natsBuf_len(parser->argBuf));
-            if (value == NULL)
-            {
-                s = nats_setDefaultError(NATS_NO_MEMORY);
-                continue;
-            }
             // Save the subject into the message right away.
-            parser->msg->subject.data = value;
-            parser->msg->subject.len = natsBuf_len(parser->argBuf);
+            s = nats_pdupString(&parser->msg->subject, parser->msg->pool, nats_bufAsString(parser->argBuf));
             // Go on to collect SSID
-            s = _startAccumulateArg(parser, stateSSID, ch);
+            IFOK(s, _startAccumulateArg(parser, stateSSID, ch));
             continue; // stateSubject
 
         case stateSSID:
             CONNDEBUGf("stateSSID: %x", ch);
             // Our SSIDs are always numeric, parse the string here and store the
             // result in the message.
-            s = nats_strtoUint64(&parser->msg->x.in.ssid, natsBuf_data(parser->argBuf), natsBuf_len(parser->argBuf));
-            if (STILL_OK(s))
-            {
-                // Go on to collect the rest of the arguments
-                s = _startAccumulateArg(parser, stateVarargs, ch);
-            }
+            s = nats_strToUint64(&parser->msg->x.in.ssid, nats_bufData(parser->argBuf), nats_bufLen(parser->argBuf));
+            // Go on to collect the rest of the arguments
+            IFOK(s, _startAccumulateArg(parser, stateVarargs, ch));
             continue; // stateSSID
 
         case stateVarargs:
@@ -256,14 +255,9 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
             {
                 // If we were already gathering a vararg, we need to save it.
                 int i = parser->numVarargs - 1;
-                value = (uint8_t *)nats_pstrdupnC(parser->msg->pool, natsBuf_data(parser->argBuf), natsBuf_len(parser->argBuf));
-                if (value == NULL)
-                {
-                    s = nats_setDefaultError(NATS_NO_MEMORY);
+                s = nats_pdupBytes(&parser->varargs[i], parser->msg->pool, nats_bufAsBytes(parser->argBuf));
+                if (s != NATS_OK)
                     continue;
-                }
-                parser->varargs[i].data = value;
-                parser->varargs[i].len = natsBuf_len(parser->argBuf);
                 parser->numVarargs++;
             }
 
@@ -363,45 +357,53 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
             continue; // stateNATSheader_NATS_SLASH_1_DOT_0_CR
 
         case stateHeaderName:
+            if (ch == '\r')
+            {
+                // We are done with the headers, we will be back here after the LF.
+                parser->state = stateEndHeader;
+                continue;
+            }
             CONNDEBUGf("stateHeaderName: '%x'", ch);
+            parser->flags.parsingHeaderName = true;
             s = _startAccumulateArg(parser, stateHeaderValue, ch);
             continue; // stateHeaderName
 
         case stateHeaderValue:
             CONNDEBUGf("stateHeaderValue: '%x'", ch);
             // gather the header name from the accumulator
-            parser->headerName.data = (uint8_t *)nats_pstrdupnC(parser->msg->pool, natsBuf_data(parser->argBuf), natsBuf_len(parser->argBuf));
-            parser->headerName.len = natsBuf_len(parser->argBuf);
-            s = _startAccumulateArg(parser, stateEndHeaderLine, ch);
+            s = nats_pdupString(&parser->headerName, parser->msg->pool, nats_bufAsString(parser->argBuf));
+            parser->flags.parsingHeaderValue = true;
+            IFOK(s, _startAccumulateArg(parser, stateEndHeaderLine, ch));
             continue; // stateHeaderValue
 
         case stateEndHeaderLine:
             CONNDEBUGf("stateEndHeaderLine: '%x'", ch);
-            switch (ch)
             {
-            case ' ':
-            case '\t':
-                // Skip whitespace in case there was any at the end of the hea
-                continue;
                 if (ch != '\n')
-                    s = _msgError(parser, "expected LF, got %x", ch);
-
-                // gather the header value from the accumulator
-                strValue = nats_pstrdupS(parser->msg->pool, &parser->argBuf->buf);
-                if (value == NULL)
                 {
-                    s = nats_setDefaultError(NATS_NO_MEMORY);
+                    s = _msgError(parser, "expected LF, got %x", ch);
                     continue;
                 }
+
                 // Add the header to the message
-                s = nats_setMessageHeader(parser->msg, &parser->headerName, strValue);
-                if (STILL_OK(s))
-                {
-                    // Go back to collecting headers
-                    parser->state = stateHeaderName;
-                }
+                s = nats_setMessageHeader(parser->msg, &parser->headerName, nats_bufAsString(parser->argBuf));
+                if (!STILL_OK(s))
+                    continue;
+                // Go back to collecting headers, we will be at the start of the line.
+                parser->state = stateHeaderName;
             }
             continue; // stateEndHeaderLine
+
+        case stateEndHeader:
+            CONNDEBUGf("stateEndHeader: '%x'", ch);
+            if (ch != '\n')
+            {
+                s = _msgError(parser, "expected LF, got %x", ch);
+                continue;
+            }
+            // We are done with the headers, we will be back here after the LF.
+            parser->state = stateEnd; // <>/<> PAYLOAD!
+            continue; // stateEndHeader
 
         case stateEnd: // We are done, we should not be here.
             continue;

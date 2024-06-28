@@ -51,7 +51,7 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
     const char *path = NULL;
     natsUrl *url = NULL;
 
-    if (nats_isEmptyC(urlStr))
+    if (nats_strIsEmpty(urlStr))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
     s = CHECK_NO_MEMORY(url = nats_palloc( pool, sizeof(natsUrl)));
@@ -120,7 +120,7 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
             *ptr = '\0';
             port = (const char *)(ptr + 1);
         }
-        if (nats_isEmptyC(host))
+        if (nats_strIsEmpty(host))
             host = "localhost";
     }
     // Port
@@ -136,7 +136,7 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
                 path = (const char *)(sep + 1);
             }
         }
-        if (nats_isEmptyC(port))
+        if (nats_strIsEmpty(port))
             url->port = 4222;
         else
             s = _parsePort(&url->port, port);
@@ -144,12 +144,12 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
     // Assemble everything
     if (STILL_OK(s))
     {
-        const char *userval = (nats_isEmptyC(user) ? "" : user);
-        const char *usep = (nats_isEmptyC(pwd) ? "" : ":");
-        const char *pwdval = (nats_isEmptyC(pwd) ? "" : pwd);
-        const char *hsep = (nats_isEmptyC(user) ? "" : "@");
-        const char *pathsep = (nats_isEmptyC(path) ? "" : "/");
-        const char *pathval = (nats_isEmptyC(path) ? "" : path);
+        const char *userval = (nats_strIsEmpty(user) ? "" : user);
+        const char *usep = (nats_strIsEmpty(pwd) ? "" : ":");
+        const char *pwdval = (nats_strIsEmpty(pwd) ? "" : pwd);
+        const char *hsep = (nats_strIsEmpty(user) ? "" : "@");
+        const char *pathsep = (nats_strIsEmpty(path) ? "" : "/");
+        const char *pathval = (nats_strIsEmpty(path) ? "" : path);
 
         if (host != NULL)
             IFOK(s, CHECK_NO_MEMORY(url->host = nats_pstrdup(pool, host)));

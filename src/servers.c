@@ -19,7 +19,7 @@
 #include "opts.h"
 
 static natsStatus
-_createSrv(natsServer **newSrv, natsPool *pool, char *url, bool implicit, const char *tlsName)
+_createSrv(natsServer **newSrv, natsPool *pool, const char *url, bool implicit, const char *tlsName)
 {
     natsStatus s = NATS_OK;
     natsServer *srv = nats_palloc(pool, sizeof(natsServer));
@@ -31,7 +31,7 @@ _createSrv(natsServer **newSrv, natsPool *pool, char *url, bool implicit, const 
     s = natsUrl_Create(&(srv->url), pool, url);
     if ((STILL_OK(s)) && (tlsName != NULL))
     {
-        srv->tlsName = nats_pstrdupC(pool, tlsName);
+        srv->tlsName = nats_pstrdup(pool, tlsName);
         if (srv->tlsName == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
@@ -42,9 +42,9 @@ _createSrv(natsServer **newSrv, natsPool *pool, char *url, bool implicit, const 
 }
 
 static natsStatus
-_addURLToServers(natsServers *servers, char *sURL, bool implicit, const char *tlsName)
+_addURLToServers(natsServers *servers, const char *sURL, bool implicit, const char *tlsName)
 {
-    natsStatus s;
+    natsStatus s = NATS_OK;
     natsServer *srv = NULL;
 
     s = _createSrv(&srv, servers->pool, sURL, implicit, tlsName);
@@ -55,8 +55,10 @@ _addURLToServers(natsServers *servers, char *sURL, bool implicit, const char *tl
     // and if not already done.
     if (!implicit && (servers->user == NULL) && (srv->url->username != NULL))
     {
-        s = CHECK_NO_MEMORY(servers->user = nats_pstrdupC(servers->pool, srv->url->username));
-        IFOK(s, ALWAYS_OK(servers->pwd = nats_pstrdupC(servers->pool, srv->url->password))); // password can be NULL
+        if (!nats_strIsEmpty(srv->url->username))
+            s = CHECK_NO_MEMORY(servers->user = nats_pstrdup(servers->pool, srv->url->username));
+        if (!nats_strIsEmpty(srv->url->password))
+            IFOK(s, CHECK_NO_MEMORY(servers->pwd = nats_pstrdup(servers->pool, srv->url->password))); // password can be NULL
         if (s != NATS_OK)
             return NATS_UPDATE_ERR_STACK(s);
     }
@@ -163,7 +165,7 @@ natsServers_Create(natsServers **newServers, natsPool *pool, natsOptions *opts)
     else if ((STILL_OK(s)) && (servers->size == 0))
     {
         // Place default URL if servers is empty.
-        s = _addURLToServers(servers, (char *)NATS_DEFAULT_URL, false, NULL);
+        s = _addURLToServers(servers, NATS_DEFAULT_URL, false, NULL);
     }
 
     if (STILL_OK(s))
@@ -269,7 +271,7 @@ natsServers_addNewURLs(natsServers *servers,
 
         // Remove from the temp list so that at the end we are left with only
         // new (or restarted) servers that need to be added to the pool.
-        n = nats_strarray_remove((char **)infoURLs, infoURLCount, url);
+        n = nats_strRemoveFromArray((char **)infoURLs, infoURLCount, url);
         inInfo = (n != infoURLCount);
         infoURLCount = n;
 

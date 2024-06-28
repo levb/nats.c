@@ -92,7 +92,7 @@ nats_SetName(natsOptions *opts, const char *name)
     opts->name = NULL;
     if (name != NULL)
     {
-        opts->name = nats_pstrdupC(opts->pool, name);
+        opts->name = nats_pstrdup(opts->pool, name);
         if (opts->name == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
@@ -111,13 +111,13 @@ nats_SetUserInfo(natsOptions *opts, const char *user, const char *password)
     opts->password = NULL;
     if (user != NULL)
     {
-        opts->user = nats_pstrdupC(opts->pool, user);
+        opts->user = nats_pstrdup(opts->pool, user);
         if (opts->user == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
     if ((STILL_OK(s)) && (password != NULL))
     {
-        opts->password = nats_pstrdupC(opts->pool, password);
+        opts->password = nats_pstrdup(opts->pool, password);
         if (opts->password == NULL)
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
@@ -342,7 +342,7 @@ nats_cloneOptions(natsOptions **newOptions, natsPool *pool, natsOptions *opts)
     // Make a blind copy first...
 
     size_t off  = offsetof(natsOptions, __memcpy_from_here);
-    memset((char *)cloned, 0, off);
+    memset(cloned, 0, off);
     memcpy((char *)cloned + off, (char *)opts+off, sizeof(natsOptions)-off);
     cloned->pool = pool;
 

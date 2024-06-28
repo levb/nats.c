@@ -71,17 +71,19 @@ _marshalLongVal(natsBuf *buf, bool comma, const char *fieldName, bool l, int64_t
 {
     natsStatus s = NATS_OK;
     char temp[32];
-    const char *start = (comma ? ",\"" : "\"");
 
     if (l)
         snprintf(temp, sizeof(temp), "%" PRId64, lval);
     else
         snprintf(temp, sizeof(temp), "%" PRIi64, uval);
+    if (comma)
+        IFOK(s, nats_appendB(buf, ','));
 
-    s = nats_addCString(buf, start);
-    IFOK(s, nats_addCString(buf, fieldName));
-    IFOK(s, nats_addCString(buf, "\":"));
-    IFOK(s, nats_addCString(buf, temp));
+    IFOK(s, nats_appendB(buf, '"'));
+    IFOK(s, nats_appendCString(buf, fieldName));
+    IFOK(s, nats_appendB(buf, '"'));
+    IFOK(s, nats_appendB(buf, ':'));
+    IFOK(s, nats_appendCString(buf, temp));
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -157,14 +159,13 @@ fmt_int(uint8_t *buf, int w, uint64_t v)
 natsStatus
 nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64_t d)
 {
+    natsStatus s = NATS_OK;
     // Largest time is 2540400h10m10.000000000s
     uint8_t buf[32];
     int w = 32;
     bool neg = d < 0;
     uint64_t u = (uint64_t)(neg ? -d : d);
     int prec;
-    natsStatus s = NATS_OK;
-    const char *start = (comma ? ",\"" : "\"");
 
     if (u < 1000000000)
     {
@@ -175,9 +176,11 @@ nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64
         w--;
         if (u == 0)
         {
-            s = nats_addCString(out_buf, start);
-            IFOK(s, nats_addCString(out_buf, field_name));
-            IFOK(s, nats_addCString(out_buf, "\":\"0s\""));
+            if (comma)
+                IFOK(s, nats_appendB(out_buf, ','));
+            IFOK(s, nats_appendB(out_buf, '"'));
+            IFOK(s, nats_appendCString(out_buf, field_name));
+            IFOK(s, nats_appendCString(out_buf, "\":\"0s\""));
             return NATS_UPDATE_ERR_STACK(s);
         }
         else if (u < 1000)
@@ -240,11 +243,13 @@ nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64
         buf[w] = '-';
     }
 
-    s = nats_addCString(out_buf, start);
-    IFOK(s, nats_addCString(out_buf, field_name));
-    IFOK(s, nats_addCString(out_buf, "\":\""));
-    IFOK(s, nats_addBB(out_buf, buf + w, sizeof(buf) - w));
-    IFOK(s, nats_addCString(out_buf, "\""));
+    if (comma)
+        IFOK(s, nats_appendB(out_buf, ','));
+    IFOK(s, nats_appendB(out_buf, '"'));
+    IFOK(s, nats_appendCString(out_buf, field_name));
+    IFOK(s, nats_appendCString(out_buf, "\":\""));
+    IFOK(s, nats_append(out_buf, buf + w, sizeof(buf) - w));
+    IFOK(s, nats_appendB(out_buf, '"'));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -288,7 +293,7 @@ natsStatus nats_marshalConnect(natsBytes *out, natsConnection *nc, const char *u
                         nats_GetBoolStr(!nc->opts->proto.noEcho),
                         nats_GetBoolStr(hdrs),
                         nats_GetBoolStr(noResponders),
-                        NATS_CRLF);
+                        CRLF_BYTES.bytes);
         need++; // For '\0'
     }
 

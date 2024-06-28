@@ -625,7 +625,7 @@ nats_ReadFile(natsBytes *data, natsPool *pool, size_t initBufSize, const char *f
     uint8_t     *ptr    = NULL;
     int         total   = 0;
 
-    if ((initBufSize <= 0) || nats_isEmptyC(fileName))
+    if ((initBufSize <= 0) || nats_strIsEmpty(fileName))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
     f = fopen(fileName, "r");
@@ -757,13 +757,14 @@ _isLineAnHeader(const char *ptr)
     return false;
 }
 
-bool nats_isSubjectValid(const uint8_t *subject, size_t len, bool wcAllowed)
+bool nats_isSubjectValid(const char *subject, bool wcAllowed)
 {
     int     i       = 0;
     int     lastDot = -1;
     char    c;
+    size_t  len     = safe_strlen(subject);
 
-    if (nats_isEmptyC((const char *)subject))
+    if (nats_strIsEmpty(subject))
         return false;
 
     for (i=0; i<(int)len ; i++)

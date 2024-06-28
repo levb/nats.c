@@ -135,7 +135,7 @@ natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int por
     if (phost == NULL)
         return nats_setError(NATS_ADDRESS_MISSING, "No host specified");
 
-    hostLen = (int) nats_strlen(phost);
+    hostLen = (int) safe_strlen(phost);
     if ((hostLen == 0) || ((hostLen == 1) && phost[0] == '['))
         return nats_setErrorf(NATS_INVALID_ARG, "Invalid host name: %s", phost);
 
@@ -512,7 +512,7 @@ natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, const char **ip, in
     if (inet_ntop(fam, laddr, localIP, sizeof(localIP)) == NULL)
         return nats_setErrorf(NATS_SYS_ERROR, "inet_ntop error: %d", NATS_SOCK_GET_ERROR);
 
-    if ((*ip = nats_pstrdupC(pool, localIP)) == NULL)
+    if ((*ip = nats_pstrdup(pool, localIP)) == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
     return NATS_OK;

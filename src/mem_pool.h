@@ -230,7 +230,7 @@ static inline natsStatus nats_log_pdupStringFromC(natsString *to, natsPool *pool
 #define nats_readBufferEnd(_rbuf) ((_rbuf)->buf.bytes + (_rbuf)->buf.len)
 #define nats_readBufferUnreadLen(_rbuf) (nats_readBufferEnd(_rbuf) - (_rbuf)->readFrom)
 #define nats_readBufferAsBytes(_rbuf) (&(_rbuf)->buf)
-#define nats_readBufferAsString(_rbuf) ((natsString*)&(_rbuf)->buf)
+#define nats_readBufferAsString(_rbuf) ((nats_bytesAsString(&(_rbuf)->buf))
 
 natsStatus nats_getReadBuffer(natsReadBuffer **rbuf, natsPool *pool);
 
@@ -255,12 +255,12 @@ natsStatus nats_appendB(natsBuf *buf, uint8_t b);
 // Does NOT add the terminating 0!
 static inline natsStatus nats_appendCString(natsBuf *buf, const char *str)
 {
-    if (nats_isEmptyC(str))
+    if (nats_strIsEmpty(str))
         return NATS_OK;
     return nats_append(buf, (const uint8_t *)str, strlen(str)); // don't use nats_strlen, no need.
 }
 
-static inline natsStatus natsBuf_appendC(natsBuf *buf, const char *str, size_t len)
+static inline natsStatus nats_appendC(natsBuf *buf, const char *str, size_t len)
 {
     return nats_append(buf, (const uint8_t *)str, len);
 }
@@ -268,6 +268,11 @@ static inline natsStatus natsBuf_appendC(natsBuf *buf, const char *str, size_t l
 static inline natsStatus nats_appendString(natsBuf *buf, const natsString *str)
 {
     return nats_append(buf, (const uint8_t *)str->text, str->len);
+}
+
+static inline natsStatus nats_appendBytes(natsBuf *buf, const natsBytes *bb)
+{
+    return nats_append(buf, bb->bytes, bb->len);
 }
 
 #endif /* MEM_POOL_H_ */

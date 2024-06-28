@@ -193,7 +193,7 @@ _connectProto(natsBytes *out, natsConnection *nc)
         // Options take precedence for an implicit URL. If above is still
         // empty, we will check if we have saved a user from an explicit
         // URL in the server pool.
-        if (nats_isEmptyC(user) && nats_isEmptyC(token) && (nc->servers->user != NULL))
+        if (nats_strIsEmpty(user) && nats_strIsEmpty(token) && (nc->servers->user != NULL))
         {
             user = nc->servers->user;
             pwd = nc->servers->pwd;
@@ -214,8 +214,7 @@ _connectProto(natsBytes *out, natsConnection *nc)
 natsStatus
 natsConn_sendPing(natsConnection *nc)
 {
-    natsBytes buf = NATS_BYTESL(NATS_PING NATS_CRLF);
-    natsStatus s = natsConn_asyncWrite(nc, &buf, NULL, NULL);
+    natsStatus s = natsConn_asyncWrite(nc, &PING_CRLF_BYTES, NULL, NULL);
     if (STILL_OK(s))
         nc->pingsOut++;
     return NATS_UPDATE_ERR_STACK(s);
@@ -233,7 +232,7 @@ natsConn_sendConnect(natsConnection *nc)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-static void _freePool(natsConnection *nc, uint8_t *buffer, void *closure)
+static void _releasePool(natsConnection *nc, uint8_t *buffer, void *closure)
 {
     natsPool *pool = (natsPool *)closure;
     nats_releasePool(pool);
@@ -246,13 +245,13 @@ nats_sendSubscribe(natsConnection *nc, uint64_t *sid, const char *subject, const
     natsPool *pool = NULL;
     char *buf;
     size_t len;
-    natsString sbuf = NATS_EMPTY_STR;
+    natsBytes out = NATS_EMPTY;
 
     // We need a temporary buffer for the duration of this function to build the protocol message. Use the connection's Op pool, it mu
 
     if ((nc == NULL) || (sid == NULL))
         return nats_setDefaultError(NATS_INVALID_ARG);
-    if (!nats_isSubjectValid((const uint8_t *)subject, nats_strlen(subject), true))
+    if (!nats_isSubjectValid(subject, true))
         return nats_setDefaultError(NATS_INVALID_SUBJECT);
     if (natsConn_isClosed(nc))
         return nats_setDefaultError(NATS_CONNECTION_CLOSED);
@@ -261,24 +260,24 @@ nats_sendSubscribe(natsConnection *nc, uint64_t *sid, const char *subject, const
     if (nc->opPool == NULL)
         return nats_setDefaultError(NATS_ILLEGAL_STATE);
 
-    if (nats_isEmptyC(queueGroup))
-        len = snprintf(NULL, 0, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, NATS_CRLF);
+    if (nats_strIsEmpty(queueGroup))
+        len = snprintf(NULL, 0, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, CRLF_BYTES.bytes);
     else
-        len = snprintf(NULL, 0, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, NATS_CRLF);
+        len = snprintf(NULL, 0, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, CRLF_BYTES.bytes);
     len++; // For '\0'
 
     IFOK(s, nats_createPool(&pool, &nc->opts->mem, "subscribe"));
     IFOK(s, CHECK_NO_MEMORY(buf = nats_palloc(pool, len)));
     if (STILL_OK(s))
     {
-        if (nats_isEmptyC(queueGroup))
-            snprintf(buf, len, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, NATS_CRLF);
+        if (nats_strIsEmpty(queueGroup))
+            snprintf(buf, len, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, CRLF_BYTES.bytes);
         else
-            snprintf(buf, len, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, NATS_CRLF);
-        sbuf.data = (uint8_t *)buf;
-        sbuf.len = len - 1; // Do not include '\0'
+            snprintf(buf, len, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, CRLF_BYTES.bytes);
+        out.bytes = (uint8_t *)buf;
+        out.len = len - 1; // Do not include '\0'
     }
-    IFOK(s, natsConn_asyncWrite(nc, &sbuf, _freePool, pool));
+    IFOK(s, natsConn_asyncWrite(nc, &out, _releasePool, pool));
 
     if (!STILL_OK(s))
     {
@@ -297,7 +296,7 @@ nats_sendUnsubscribe(natsConnection *nc, uint64_t sid, uint64_t afterNMessagesRe
     natsPool *pool = NULL;
     char *buf;
     size_t len;
-    natsString sbuf = NATS_EMPTY_STR;
+    natsBytes out = NATS_EMPTY;
 
     // We need a temporary buffer for the duration of this function to build the protocol message. Use the connection's Op pool, it mu
 
@@ -309,22 +308,22 @@ nats_sendUnsubscribe(natsConnection *nc, uint64_t sid, uint64_t afterNMessagesRe
         return nats_setDefaultError(NATS_ILLEGAL_STATE);
 
     if (afterNMessagesReceived > 0)
-        len = snprintf(NULL, 0, "%s %" PRIu64 " %" PRIu64 "%s", NATS_UNSUB, sid, afterNMessagesReceived, NATS_CRLF);
+        len = snprintf(NULL, 0, "%s %" PRIu64 " %" PRIu64 "%s", NATS_UNSUB, sid, afterNMessagesReceived, CRLF_BYTES.bytes);
     else
-        len = snprintf(NULL, 0, "%s %" PRIu64 "%s", NATS_UNSUB, sid, NATS_CRLF);
+        len = snprintf(NULL, 0, "%s %" PRIu64 "%s", NATS_UNSUB, sid, CRLF_BYTES.bytes);
 
     IFOK(s, nats_createPool(&pool, &nc->opts->mem, "subscribe"));
     IFOK(s, CHECK_NO_MEMORY(buf = nats_palloc(pool, len)));
     if (STILL_OK(s))
     {
         if (afterNMessagesReceived > 0)
-            snprintf(buf, len, "%s %" PRIu64 " %" PRIu64 "%s", NATS_UNSUB, sid, afterNMessagesReceived, NATS_CRLF);
+            snprintf(buf, len, "%s %" PRIu64 " %" PRIu64 "%s", NATS_UNSUB, sid, afterNMessagesReceived, CRLF_BYTES.bytes);
         else
-            snprintf(buf, len, "%s %" PRIu64 "%s", NATS_UNSUB, sid, NATS_CRLF);
-        sbuf.data = (uint8_t *)buf;
-        sbuf.len = len;
+            snprintf(buf, len, "%s %" PRIu64 "%s", NATS_UNSUB, sid, CRLF_BYTES.bytes);
+        out.bytes = (uint8_t *)buf;
+        out.len = len;
     }
-    IFOK(s, natsConn_asyncWrite(nc, &sbuf, _freePool, pool));
+    IFOK(s, natsConn_asyncWrite(nc, &out, _releasePool, pool));
 
     if (!STILL_OK(s))
     {

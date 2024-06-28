@@ -82,24 +82,16 @@ natsStatus nats_createJSONParser(natsJSONParser **parser, natsPool *pool);
 natsStatus nats_parseJSON(nats_JSON **jsonObj, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
 natsStatus nats_rangeJSON(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo);
 
-natsStatus nats_dupJSONArrayArray(nats_JSON *json, natsString *name, nats_JSONArray ***array, int *arraySize);
-natsStatus nats_dupJSONArrayBool(nats_JSON *json, natsString *name, bool **array, int *arraySize);
-natsStatus nats_dupJSONArrayDouble(nats_JSON *json, natsString *name, long double **array, int *arraySize);
-natsStatus nats_dupJSONArrayInt(nats_JSON *json, natsString *name, int **array, int *arraySize);
-natsStatus nats_dupJSONArrayLong(nats_JSON *json, natsString *name, int64_t **array, int *arraySize);
-natsStatus nats_dupJSONArrayObject(nats_JSON *json, natsString *name, nats_JSON ***array, int *arraySize);
-natsStatus nats_dupJSONArrayULong(nats_JSON *json, natsString *name, uint64_t **array, int *arraySize);
-natsStatus nats_dupJSONBytes(nats_JSON *json, natsPool *pool, natsString *name, uint8_t **value, int *len);
-natsStatus nats_dupJSONStringArrayIfDiff(nats_JSON *json, natsPool *pool, natsString *name, const char ***array, int *arraySize);
+natsStatus nats_dupJSONStringArrayIfDiff(const char ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name);
 natsStatus nats_strdupJSON(const char **value, nats_JSON *json, natsPool *pool, natsString *name);
-natsStatus nats_strdupJSONCIfDiff(const char **value, nats_JSON *json, natsPool *pool, natsString *name);
-natsStatus nats_getJSONBool(nats_JSON *json, natsString *name, bool *value);
+natsStatus nats_strdupJSONIfDiff(const char **value, nats_JSON *json, natsPool *pool, natsString *name);
+natsStatus nats_getJSONBool(bool *value, nats_JSON *json, natsString *name);
 natsStatus nats_getJSONDouble(long double *value, nats_JSON *json, natsString *name);
-natsStatus nats_getJSONInt(nats_JSON *json, natsString *name, int *value);
-natsStatus nats_getJSONInt32(nats_JSON *json, natsString *name, int32_t *value);
+natsStatus nats_getJSONInt(int *value, nats_JSON *json, natsString *name);
+natsStatus nats_getJSONInt32(int32_t *value, nats_JSON *json, natsString *name);
 natsStatus nats_getJSONLong(int64_t *value, nats_JSON *json, natsString *name);
-natsStatus nats_getJSONTime(nats_JSON *json, natsString *name, int64_t *timeUTC);
-natsStatus nats_getJSONUInt16(nats_JSON *json, natsString *name, uint16_t *value);
+natsStatus nats_getJSONTime(int64_t *timeUTC, nats_JSON *json, natsString *name);
+natsStatus nats_getJSONUInt16(uint16_t *value, nats_JSON *json, natsString *name);
 natsStatus nats_getJSONULong(uint64_t *value, nats_JSON *json, natsString *name);
 natsStatus nats_refJSONArray(nats_JSONField **retField, nats_JSON *json, natsString *name, int fieldType);
 natsStatus nats_refJSONField(nats_JSONField **retField, nats_JSON *json, natsString *name, int fieldType);
@@ -115,11 +107,11 @@ natsStatus nats_JSONArrayAsObjects(nats_JSONArray *arr, nats_JSON ***array, int 
 natsStatus nats_JSONArrayAsULongs(nats_JSONArray *arr, uint64_t **array, int *arraySize);
 
 natsStatus nats_encodeTimeUTC(char *buf, size_t bufLen, int64_t timeUTC);
-natsStatus nats_marshalLong(natsBuf *buf, bool comma, natsString *name, int64_t lval);
-natsStatus nats_marshalULong(natsBuf *buf, bool comma, natsString *name, uint64_t uval);
-natsStatus nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64_t d);
+natsStatus nats_marshalLong(natsBuf *buf, bool comma, const char *name, int64_t lval);
+natsStatus nats_marshalULong(natsBuf *buf, bool comma, const char *name, uint64_t uval);
+natsStatus nats_marshalDuration(natsBuf *out_buf, bool comma, const char *name, int64_t d);
 
-natsStatus nats_marshalConnect(natsBytes **out, natsConnection *nc, const char *user,
+natsStatus nats_marshalConnect(natsBytes *out, natsConnection *nc, const char *user,
                                const char *pwd, const char *token, const char *name,
                                bool hdrs, bool noResponders);
 natsStatus nats_unmarshalServerInfo(nats_JSON *json, natsPool *pool, natsServerInfo *info);

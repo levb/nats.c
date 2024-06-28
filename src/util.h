@@ -60,7 +60,7 @@ bool nats_HostIsIP(const char *host);
 
 void nats_FreeAddrInfo(struct addrinfo *res);
 
-bool nats_isSubjectValid(const uint8_t *subject, size_t len, bool wcAllowed);
+bool nats_isSubjectValid(const char *subject, bool wcAllowed);
 
 natsStatus
 nats_formatStringArray(char **out, const char **strings, int count);

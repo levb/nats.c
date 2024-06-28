@@ -147,7 +147,7 @@ void Test_nats_strEquals(void)
     for (int i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
         test(cases[i].name);
-        testCond(nats_strEquals(cases[i].str1, cases[i].str2) == cases[i].expected);
+        testCond(nats_equalStrings(cases[i].str1, cases[i].str2) == cases[i].expected);
     }
 }
 
@@ -167,7 +167,7 @@ void Test_nats_strEqualsC(void)
     for (int i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
         test(cases[i].name);
-        testCond(nats_strEqualsC(cases[i].str, cases[i].cstr) == cases[i].expected);
+        testCond(nats_equalsCString(cases[i].str, cases[i].cstr) == cases[i].expected);
     }
 }
 
@@ -181,7 +181,7 @@ void Test_nats_isEmptyC(void)
     for (int i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
         test(cases[i].name);
-        testCond(nats_isEmptyC(cases[i].p) == cases[i].expected);
+        testCond(nats_strIsEmpty(cases[i].p) == cases[i].expected);
     }
 }
 

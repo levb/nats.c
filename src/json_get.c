@@ -201,25 +201,25 @@ nats_refJSONStr(natsString *str, nats_JSON *json, natsString *name)
 // }
 
 natsStatus
-nats_getJSONInt(nats_JSON *json, natsString *name, int *value)
+nats_getJSONInt(int *value, nats_JSON *json, natsString *name)
 {
     JSON_GET_AS(TYPE_INT, int);
 }
 
 natsStatus
-nats_getJSONInt32(nats_JSON *json, natsString *name, int32_t *value)
+nats_getJSONInt32(int32_t *value, nats_JSON *json, natsString *name)
 {
     JSON_GET_AS(TYPE_INT, int32_t);
 }
 
 natsStatus
-nats_getJSONUInt16(nats_JSON *json, natsString *name, uint16_t *value)
+nats_getJSONUInt16(uint16_t *value, nats_JSON *json, natsString *name)
 {
     JSON_GET_AS(TYPE_UINT, uint16_t);
 }
 
 natsStatus
-nats_getJSONBool(nats_JSON *json, natsString *name, bool *value)
+nats_getJSONBool(bool *value, nats_JSON *json, natsString *name)
 {
     natsStatus s = NATS_OK;
     nats_JSONField *field = NULL;
@@ -266,25 +266,24 @@ nats_refJSONObject(nats_JSON **value, nats_JSON *json, natsString *name)
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-// natsStatus
-// nats_JSONGetTime(nats_JSON *json, const char *fieldName, int64_t *timeUTC)
-// {
-//     natsStatus s = NATS_OK;
-//     char *str = NULL;
+natsStatus
+nats_getJSONTime(int64_t *timeUTC, nats_JSON *json, natsString *name )
+{
+    natsStatus s = NATS_OK;
+    natsString str = NATS_EMPTY;
 
-//     s = nats_JSONGetStr(json, fieldName, &str);
-//     if ((STILL_OK(s)) && (str == NULL))
-//     {
-//         *timeUTC = 0;
-//         return NATS_OK;
-//     }
-//     else if (s != NATS_OK)
-//         return NATS_UPDATE_ERR_STACK(s);
+    s = nats_refJSONStr(&str, json, name);
+    if ((STILL_OK(s)) && nats_IsStringEmpty(&str))
+    {
+        *timeUTC = 0;
+        return NATS_OK;
+    }
+    else if (s != NATS_OK)
+        return NATS_UPDATE_ERR_STACK(s);
 
-//     s = nats_parseTime(str, timeUTC);
-//     NATS_FREE(str);
-//     return NATS_UPDATE_ERR_STACK(s);
-// }
+    s = nats_parseTime(str.text, timeUTC);
+    return NATS_UPDATE_ERR_STACK(s);
+}
 
 natsStatus
 nats_JSONRefArray(nats_JSONField **retField, nats_JSON *json, natsString *name, int fieldType)
@@ -361,7 +360,7 @@ _jsonArrayAsStringsIfDiff(const char ***array, int *arraySize, natsPool *pool, n
 }
 
 natsStatus
-nats_copyJSONStringArrayIfDiff(const char ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name)
+nats_dupJSONStringArrayIfDiff(const char ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name)
 {
     JSON_GET_ARRAY(pool, TYPE_STR, _jsonArrayAsStringsIfDiff);
 }

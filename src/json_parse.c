@@ -609,7 +609,7 @@ _decodeUTF16(const char *data, char *val)
     int res = 0;
     int j;
 
-    if (safe_strlen((const char *)data) < 4)
+    if (safe_strlen(data) < 4)
         return NATS_ERR;
 
     for (j = 0; j < 4; j++)

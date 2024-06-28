@@ -23,7 +23,7 @@
 size_t natsMessageHeader_encodedLen(natsMessage *msg)
 {
     natsStrHashIter iter;
-    natsString key = NATS_EMPTY_STR;
+    natsString key = NATS_EMPTY;
     void *p = NULL;
     size_t hl = 0;
 
@@ -41,7 +41,7 @@ size_t natsMessageHeader_encodedLen(natsMessage *msg)
     if (msg->headers == NULL)
         return 0;
 
-    hl = nats_NATS10.len + NATS_CRLF_LEN;
+    hl = NATS10_CRLF_BYTES.len;
     natsStrHashIter_Init(&iter, msg->headers);
     while (natsStrHashIter_Next(&iter, &key, &p))
     {
@@ -51,11 +51,11 @@ size_t natsMessageHeader_encodedLen(natsMessage *msg)
         for (c = v; c != NULL; c = c->next)
         {
             hl += key.len + 2; // 2 for ": "
-            hl += c->value.len + NATS_CRLF_LEN;
+            hl += c->value.len + CRLF_BYTES.len;
         }
     }
     natsStrHashIter_Done(&iter);
-    hl += NATS_CRLF_LEN;
+    hl += CRLF_BYTES.len;
 
     return hl;
 }
@@ -65,7 +65,7 @@ natsMessageHeader_encode(natsBuf *buf, natsMessage *msg)
 {
     natsStrHashIter iter;
     natsStatus s = NATS_OK;
-    natsString key = NATS_EMPTY_STR;
+    natsString key = NATS_EMPTY;
     void *p = NULL;
 
     // See explanation in natsMessageHeader_encodedLen()
@@ -79,8 +79,7 @@ natsMessageHeader_encode(natsBuf *buf, natsMessage *msg)
     if (msg->headers == NULL)
         return nats_setError(NATS_ERR, "trying to encode headers while there is none");
 
-    IFOK(s, nats_appendString(buf, &nats_NATS10));
-    IFOK(s, natsBuf_appendC(buf, NATS_CRLF, NATS_CRLF_LEN));
+    IFOK(s, nats_appendBytes(buf, &NATS10_CRLF_BYTES));
     IFOK(s, ALWAYS_OK(natsStrHashIter_Init(&iter, msg->headers)));
     while ((STILL_OK(s)) && natsStrHashIter_Next(&iter, &key, &p))
     {
@@ -94,11 +93,11 @@ natsMessageHeader_encode(natsBuf *buf, natsMessage *msg)
             IFOK(s, nats_appendB(buf, ' '));
             if (STILL_OK(s))
             {
-                int pos = natsBuf_len(buf);
+                int pos = nats_bufLen(buf);
                 s = nats_appendString(buf, &c->value);
                 if (STILL_OK(s))
                 {
-                    uint8_t *ch = natsBuf_data(buf) + pos;
+                    uint8_t *ch = nats_bufData(buf) + pos;
                     size_t i;
                     for (i = 0; i < c->value.len; i++)
                     {
@@ -108,11 +107,11 @@ natsMessageHeader_encode(natsBuf *buf, natsMessage *msg)
                     }
                 }
             }
-            IFOK(s, natsBuf_appendC(buf, NATS_CRLF, NATS_CRLF_LEN));
+            IFOK(s, nats_appendBytes(buf, &CRLF_BYTES));
         }
     }
     natsStrHashIter_Done(&iter);
-    IFOK(s, natsBuf_appendC(buf, NATS_CRLF, NATS_CRLF_LEN));
+    IFOK(s, nats_appendBytes(buf, &CRLF_BYTES));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -673,13 +672,11 @@ natsStatus
 nats_createMessage(natsMessage **newm, natsPool *pool, const char *subj)
 {
     natsStatus s = NATS_OK;
-    size_t subjLen = nats_strlen(subj);
+    size_t subjLen = unsafe_strlen(subj);
     natsMessage *m = NULL;
 
     IFOK(s, CHECK_NO_MEMORY(m = nats_palloc(pool, sizeof(natsMessage))));
-
-    if (!nats_isEmptyC(subj))
-        IFOK(s, CHECK_NO_MEMORY(m->subject.data = (uint8_t *)nats_pstrdupnC(pool, (const uint8_t *)subj, subjLen)));
+    IFOK(s, CHECK_NO_MEMORY(m->subject.text = nats_pstrdup(pool, subj)));
     if (NOT_OK(s))
         return NATS_UPDATE_ERR_STACK(s);
 
@@ -694,8 +691,7 @@ nats_CreateMessage(natsMessage **newm, natsConnection *nc, const char *subj)
 {
     natsStatus s = NATS_OK;
     natsPool *pool = NULL;
-    size_t subjLen = nats_strlen(subj);
-    if ((newm == NULL) || !nats_isSubjectValid((const uint8_t *)subj, subjLen, false))
+    if ((newm == NULL) || !nats_isSubjectValid(subj, false))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
     s = nats_createPool(&pool, &nc->opts->mem, "msg");
@@ -743,15 +739,13 @@ natsStatus nats_SetMessagePayload(natsMessage *m, const void *data, size_t dataL
         return nats_setDefaultError(NATS_INVALID_ARG);
     if (!m->flags.outgoing)
         return nats_setError(NATS_ILLEGAL_STATE, "attemped to change the payload of an incoming message");
-    if ((m->x.out.buf != NULL) || (m->pool == NULL))
-        return nats_setError(NATS_ILLEGAL_STATE, "message payload already set");
+    if (m->x.out.buf.bytes != NULL)
+        return nats_setError(NATS_ILLEGAL_STATE, "message payload is already set");
+    if (m->pool == NULL)
+        return nats_setError(NATS_ILLEGAL_STATE, "message is not properly initialized");
 
-    m->x.out.buf = nats_palloc(m->pool, sizeof(natsString));
-    if (m->x.out.buf == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
-    m->x.out.buf->data = (uint8_t *)data;
-    m->x.out.buf->len = dataLen;
-
+    m->x.out.buf.bytes = (uint8_t *)data;
+    m->x.out.buf.len = dataLen;
     return NATS_OK;
 }
 
@@ -759,14 +753,12 @@ natsStatus nats_SetMessageReplySubject(natsMessage *m, const char *reply)
 {
     if (m == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
-    if (m->reply != NULL)
+    if (m->reply.text != NULL)
         return nats_setError(NATS_ILLEGAL_STATE, "reply subject already set");
+    if (m->pool == NULL)
+        return nats_setError(NATS_ILLEGAL_STATE, "message is not properly initialized");
 
-    m->reply = nats_pstrdupU(m->pool, reply);
-    if (m->reply == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
-
-    return NATS_OK;
+    return nats_pdupStringFromC(&m->reply, m->pool, reply);
 }
 
 void nats_ReleaseMessage(natsMessage *m)
@@ -779,18 +771,18 @@ void nats_ReleaseMessage(natsMessage *m)
 
 const uint8_t *nats_GetMessageData(natsMessage *msg)
 {
-    if ((msg == NULL) || nats_IsBytesEmpty(msg->x.out.buf))
+    if ((msg == NULL) || nats_IsBytesEmpty(&(msg->x.out.buf)))
         return NULL;
 
-    return (const uint8_t *)msg->x.out.buf->data;
+    return msg->x.out.buf.bytes;
 }
 
 size_t nats_GetMessageDataLen(natsMessage *msg)
 {
-    if ((msg == NULL) || nats_IsStringEmpty(msg->x.out.buf))
+    if ((msg == NULL) || nats_IsBytesEmpty(&(msg->x.out.buf)))
         return 0;
 
-    return msg->x.out.buf->len;
+    return msg->x.out.buf.len;
 }
 
 natsStatus nats_setMessageHeader(natsMessage *m, natsString *key, natsString *value)
@@ -815,15 +807,15 @@ natsStatus nats_setMessageHeader(natsMessage *m, natsString *key, natsString *va
 natsStatus nats_SetMessageHeader(natsMessage *m, const char *key, const char *value)
 {
     natsStatus s = NATS_OK;
-    natsString *k = NULL, *v = NULL;
+    natsString k = NATS_EMPTY, v = NATS_EMPTY;
 
-    if ((m == NULL) || (m->pool == NULL) || nats_isEmptyC(key))
+    if ((m == NULL) || (m->pool == NULL) || nats_strIsEmpty(key))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
     // Duplicate the key and value into the message pool.
-    IFOK(s, CHECK_NO_MEMORY(k = nats_pstrdupn(m->pool, (const uint8_t*)key, strlen(key))));
-    if (!nats_isEmptyC(value))
-        IFOK(s, CHECK_NO_MEMORY(v = nats_pstrdupn(m->pool, (const uint8_t*)value, strlen(value))));
+    IFOK(s, nats_pdupStringFromC(&k, m->pool, key));
+    if (!nats_strIsEmpty(value))
+        IFOK(s, nats_pdupStringFromC(&v, m->pool, value));
 
-    return nats_setMessageHeader(m, k, v);
+    return nats_setMessageHeader(m, &k, &v);
 }

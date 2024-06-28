@@ -28,18 +28,18 @@ static int _MAX_BKT_SIZE = (1 << 30) - 1;
 
 // Jesteress derivative of FNV1A from [http://www.sanmayce.com/Fastest_Hash/]
 uint32_t
-natsStrHash_Hash(natsString *s)
+natsStrHash_Hash(natsString *str)
 {
     int i = 0;
-    int dlen = s->len;
+    int dlen = str->len;
     uint32_t h32 = (uint32_t)_OFF32;
     uint64_t k1, k2;
     uint32_t k3;
 
     for (; dlen >= _DDWSZ; dlen -= _DDWSZ)
     {
-        memcpy(&k1, &(s->data[i]), sizeof(k1));
-        memcpy(&k2, &(s->data[i + 4]), sizeof(k2));
+        memcpy(&k1, &(str->text[i]), sizeof(k1));
+        memcpy(&k2, &(str->text[i + 4]), sizeof(k2));
         h32 = (uint32_t)((((uint64_t)h32) ^ ((k1 << 5 | k1 >> 27) ^ k2)) * _YP32);
         i += _DDWSZ;
     }
@@ -47,19 +47,19 @@ natsStrHash_Hash(natsString *s)
     // Cases: 0,1,2,3,4,5,6,7
     if ((dlen & _DWSZ) != 0)
     {
-        memcpy(&k1, &(s->data[i]), sizeof(k1));
+        memcpy(&k1, &(str->text[i]), sizeof(k1));
         h32 = (uint32_t)((((uint64_t)h32) ^ k1) * _YP32);
         i += _DWSZ;
     }
     if ((dlen & _WSZ) != 0)
     {
-        memcpy(&k3, &(s->data[i]), sizeof(k3));
+        memcpy(&k3, &(str->text[i]), sizeof(k3));
         h32 = (uint32_t)((((uint64_t)h32) ^ (uint64_t)k3) * _YP32);
         i += _WSZ;
     }
     if ((dlen & 1) != 0)
     {
-        h32 = (h32 ^ (uint32_t)(s->data[i])) * _YP32;
+        h32 = (h32 ^ (uint32_t)(str->text[i])) * _YP32;
     }
 
     return h32 ^ (h32 >> 16);
@@ -154,7 +154,7 @@ _growStr(natsStrHash *hash)
 // Note that it would be invalid to call with copyKey:true and freeKey:false,
 // since this would lead to a memory leak.
 natsStatus
-natsStrHash_Set(natsStrHash *hash, natsString –*key, void *data)
+natsStrHash_Set(natsStrHash *hash, natsString *key, void *data)
 {
     natsStatus s = NATS_OK;
     uint32_t hk = 0;

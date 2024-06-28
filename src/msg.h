@@ -14,8 +14,6 @@
 #ifndef MSG_H_
 #define MSG_H_
 
-static const natsString nats_NATS10 = NATS_STR("NATS/1.0");
-
 #define STATUS_HDR "Status"
 #define DESCRIPTION_HDR "Description"
 #define NO_RESP_STATUS "503"

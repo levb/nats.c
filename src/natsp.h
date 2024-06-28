@@ -95,23 +95,23 @@ void nats_sysInit(void);
 #include "util.h"
 #include "mem.h"
 
-#define NATS_CRLF "\r\n"
-#define NATS_SPACE " "
+#define NATS_SPACEB ' '
 #define NATS_HPUB "HPUB"
-#define NATS_PING "PING"
-#define NATS_PONG "PONG"
 #define NATS_PUB "PUB"
 #define NATS_SUB "SUB"
 #define NATS_UNSUB "SUB"
 #define NATS_MINUS_ERR "-ERR"
 
-#define NATS_CRLF_LEN (sizeof(NATS_CRLF) - 1)
-#define NATS_SPACE_LEN (sizeof(NATS_SPACE) - 1)
 #define NATS_HPUB_LEN (sizeof(NATS_HPUB) - 1)
 #define NATS_PUB_LEN (sizeof(NATS_PUB) - 1)
 #define NATS_SUB_LEN (sizeof(NATS_SUB) - 1)
 #define NATS_UNSUB_LEN (sizeof(NATS_UNSUB) - 1)
 #define NATS_MINUS_ERR_LEN (sizeof(NATS_MINUS_ERR) - 1)
+
+static natsBytes CRLF_BYTES = NATS_BYTES("\r\n");
+static natsBytes NATS10_CRLF_BYTES = NATS_BYTES("NATS/1.0\r\n");
+static natsBytes PING_CRLF_BYTES = NATS_BYTES("PING\r\n");
+static natsBytes PONG_CRLF_BYTES = NATS_BYTES("PONG\r\n");
 
 // These depend on mem.h but are used elsewhere, so define here.
 

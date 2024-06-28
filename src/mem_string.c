@@ -69,7 +69,7 @@ nats_cpystrn(uint8_t *dst, uint8_t *src, size_t n)
     return dst;
 }
 
-natsStatus nats_strtoUint64(uint64_t *result, const uint8_t *d, size_t len)
+natsStatus nats_strToUint64(uint64_t *result, const uint8_t *d, size_t len)
 {
     uint64_t v = 0;
 

@@ -22,6 +22,7 @@
 #define NATS_STRC(_str) {.len = safe_strlen(_str), .text = _str}
 
 static natsString NATS_EMPTY_STRING = NATS_EMPTY;
+static natsBytes NATS_EMPTY_BYTES = NATS_EMPTY;
 
 static inline void nats_clearString(natsString *str)
 {
@@ -42,7 +43,7 @@ static inline void nats_clearBytes(natsBytes *bytes)
 }
 
 
-static inline bool nats_strEquals(natsString *str1, natsString *str2)
+static inline bool nats_equalStrings(natsString *str1, natsString *str2)
 {
     if (str1 == str2)
         return true;
@@ -51,21 +52,21 @@ static inline bool nats_strEquals(natsString *str1, natsString *str2)
            (strncmp(str1->text, str2->text, str1->len) == 0);
 }
 
-static inline bool nats_strEqualsC(const natsString *str, const char *cstr)
+static inline bool nats_equalsCString(const natsString *str, const char *cstr)
 {
     return ((str != NULL) && (str->text == cstr)) ||
            ((str != NULL) && (cstr != NULL) && (strcmp(str->text, cstr) == 0));
 }
 
-static inline bool nats_isEmptyC(const char *p) { return (p == NULL) || (*p == '\0'); }
+static inline bool nats_strIsEmpty(const char *p) { return (p == NULL) || (*p == '\0'); }
 
 static inline char nats_toLower(char c) { return (c >= 'A' && c <= 'Z') ? (c | 0x20) : c; }
 static inline char nats_toUpper(char c) { return (c >= 'a' && c <= 'z') ? (c & ~0x20) : c; }
 
-static inline size_t safe_strlen(const char *s) { return nats_isEmptyC(s) ? 0 : strlen(s); }
-static inline char *safe_strchr(const char *s, uint8_t find) { return nats_isEmptyC(s) ? NULL : strchr(s, (int)find); }
-static inline char *safe_strrchr(const char *s, uint8_t find) { return nats_isEmptyC(s) ? NULL : strrchr(s, (int)find); }
-static inline char *safe_strstr(const char *s, const char *find) { return (nats_isEmptyC(s) || nats_isEmptyC(find)) ? NULL : strstr(s, find); }
+static inline size_t safe_strlen(const char *s) { return nats_strIsEmpty(s) ? 0 : strlen(s); }
+static inline char *safe_strchr(const char *s, uint8_t find) { return nats_strIsEmpty(s) ? NULL : strchr(s, (int)find); }
+static inline char *safe_strrchr(const char *s, uint8_t find) { return nats_strIsEmpty(s) ? NULL : strrchr(s, (int)find); }
+static inline char *safe_strstr(const char *s, const char *find) { return (nats_strIsEmpty(s) || nats_strIsEmpty(find)) ? NULL : strstr(s, find); }
 static inline bool safe_streq(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
 
 #define unsafe_strlen(s) strlen(s)
@@ -74,27 +75,27 @@ static inline bool safe_streq(const char *s1, const char *s2) { return strcmp(s1
 #define unsafe_strstr(s, find) strstr((s), (find))
 #define unsafe_streq(s1, s2) (strcmp((s1), (s2)) == 0)
 
-// static inline int nats_strarray_find(const char **array, int count, const char *str)
-// {
-//     for (int i = 0; i < count; i++)
-//     {
-//         if (strcmp(array[i], str) == 0)
-//             return i;
-//     }
-//     return -1;
-// }
+static inline int nats_strFindInArray(const char **array, int count, const char *str)
+{
+    for (int i = 0; i < count; i++)
+    {
+        if (strcmp(array[i], str) == 0)
+            return i;
+    }
+    return -1;
+}
 
-// static inline size_t nats_strarray_remove(char **array, int count, const char *str)
-// {
-//     int i = nats_strarray_find((const char **)array, count, str);
-//     if (i < 0)
-//         return count;
+static inline size_t nats_strRemoveFromArray(char **array, int count, const char *str)
+{
+    int i = nats_strFindInArray((const char **)array, count, str);
+    if (i < 0)
+        return count;
 
-//     for (int j = i + 1; j < count; j++)
-//         array[j - 1] = array[j];
+    for (int j = i + 1; j < count; j++)
+        array[j - 1] = array[j];
 
-//     return count - 1;
-// }
+    return count - 1;
+}
 
 natsStatus nats_strToUint64(uint64_t *result, const uint8_t *d, size_t len);
 
@@ -106,5 +107,8 @@ static inline natsStatus nats_strToSizet(size_t *result, const uint8_t *d, size_
         *result = (size_t)v;
     return s;
 }
+
+static natsBytes *nats_stringAsBytes(natsString *str) { return (natsBytes*)str; }
+static natsString *nats_bytesAsString(natsBytes *bytes) { return (natsString*)bytes; }
 
 #endif /* MEM_STRING_H_ */

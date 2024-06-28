@@ -128,7 +128,7 @@ natsConn_processInfo(natsConnection *nc, nats_JSON *json)
         nc->srvVersion.mi = 0;
         nc->srvVersion.up = 0;
 
-        if ((nc->info != NULL) && !nats_isEmptyC(nc->info->version))
+        if ((nc->info != NULL) && !nats_strIsEmpty(nc->info->version))
             sscanf(nc->info->version, "%d.%d.%d", &(nc->srvVersion.ma), &(nc->srvVersion.mi), &(nc->srvVersion.up));
     }
 
@@ -175,8 +175,7 @@ natsConn_processInfo(natsConnection *nc, nats_JSON *json)
 
 natsStatus natsConn_processPing(natsConnection *nc)
 {
-    natsBytes buf = NATS_BYTES(NATS_PONG NATS_CRLF);
-    return natsConn_asyncWrite(nc, &buf, NULL, NULL);
+    return natsConn_asyncWrite(nc, &PONG_CRLF_BYTES, NULL, NULL);
 }
 
 natsStatus natsConn_processPong(natsConnection *nc)
