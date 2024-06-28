@@ -158,7 +158,7 @@ natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const c
 #define nats_recyclePool(_pptr, _rbufptr) nats_log_recyclePool((_pptr), (_rbufptr)DEV_MODE_CTX)
 
 #define nats_pstrdupC(_p, _str) nats_pstrdupnC((_p), (const uint8_t *)(_str), nats_strlen(_str) + 1)
-#define nats_pstrdupS(_p, _str) (natsString_isEmpty(_str) ? NULL : nats_pstrdupn((_p), (_str)->data, (_str)->len))
+#define nats_pstrdupS(_p, _str) (nats_IsStringEmpty(_str) ? NULL : nats_pstrdupn((_p), (_str)->data, (_str)->len))
 #define nats_pstrdupU(_p, _s) (nats_pstrdupn((_p), (const uint8_t *)(_s), nats_strlen(_s)))
 
 static inline char *nats_log_pdupnC(natsPool *pool, const uint8_t *data, size_t len DEV_MODE_ARGS)
@@ -180,7 +180,7 @@ static inline natsString *nats_log_pdupn(natsPool *pool, const uint8_t *data, si
     natsString *dup = nats_log_palloc(pool, sizeof(natsString) DEV_MODE_PASSARGS);
     if (dup == NULL)
         return NULL;
-    dup->data = nats_log_palloc(pool, len DEV_MODE_PASSARGS);
+    dup->data = nats_log_palloc(pool, len + 1 DEV_MODE_PASSARGS); // +1 for the terminating 0 to be safe when converting to C strings
     if (dup->data == NULL)
         return NULL;
     memcpy(dup->data, data, len);

@@ -587,13 +587,9 @@ _createField(nats_JSONField **newField, natsPool *pool, const uint8_t *fieldName
     if (field == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);
 
-    field->field_name = nats_palloc(pool, len + 1);
-    if (field->field_namename == NULL)
-        return nats_setDefaultError(NATS_NO_MEMORY);
-
-    memcpy(field->name, fieldName, len);
+    field->field_name.data = (uint8_t*)nats_pstrdupnC(pool, fieldName, len); // use the C version to get the 0-terminated string
+    field->field_name.len = len;
     field->typ = TYPE_NOT_SET;
-
     *newField = field;
 
     return NATS_OK;
@@ -656,7 +652,10 @@ static natsStatus _finishString(natsJSONParser *parser)
     switch (parser->nextState)
     {
     case stateStringValue:
-        parser->field->value.vstr = nats_pstrdupC(parser->json->pool, (char *)natsBuf_data(parser->strBuf));
+        parser->field->value.vstr = nats_pstrdupS(parser->json->pool, &parser->strBuf->buf);
+        if (parser->field->value.vstr == NULL)
+            return nats_setDefaultError(NATS_NO_MEMORY);
+
         JSONDEBUGf("added field: (string) \"%s\":\"%s\"", parser->field->name, parser->field->value.vstr);
         return _finishValue(parser);
 
@@ -739,7 +738,7 @@ static natsStatus _finishNestedValue(natsJSONParser *parser, nats_JSON *obj)
         JSONDEBUGf("added object value: %d fields", natsStrHash_Count(obj->fields));
         break;
     default:
-        return nats_setError(NATS_ERR, "unexpected error parsing nested object '%s'", parser->field->name);
+        return nats_setError(NATS_ERR, "unexpected error parsing nested object '%s'", parser->field->field_name);
     }
     parser->nested = NULL;
     return _finishValue(parser);
