@@ -154,7 +154,7 @@ _growStr(natsStrHash *hash)
 // Note that it would be invalid to call with copyKey:true and freeKey:false,
 // since this would lead to a memory leak.
 natsStatus
-natsStrHash_Set(natsStrHash *hash, natsString *key, void *data)
+natsStrHash_Set(natsStrHash *hash, natsString –*key, void *data)
 {
     natsStatus s = NATS_OK;
     uint32_t hk = 0;
@@ -168,7 +168,7 @@ natsStrHash_Set(natsStrHash *hash, natsString *key, void *data)
     e = (natsStrHashEntry *)hash->bkts[index];
     while (e != NULL)
     {
-        if ((e->hk != hk) || !natsString_Equal(&e->key, key))
+        if ((e->hk != hk) || !nats_equalStrings(&e->key, key))
         {
             e = e->next;
             continue;
@@ -206,7 +206,7 @@ natsStrHash_Get(natsStrHash *hash, natsString *key)
     e = hash->bkts[hk & hash->mask];
     while (e != NULL)
     {
-        if ((e->hk == hk) && natsString_Equal(&e->key, key) == 0)
+        if ((e->hk == hk) && nats_equalStrings(&e->key, key) == 0)
         {
             return e->data;
         }

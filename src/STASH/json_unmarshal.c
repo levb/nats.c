@@ -20,23 +20,23 @@ natsStatus
 nats_unmarshalServerInfo(nats_JSON *json, natsPool *pool, natsServerInfo *info)
 {
     natsStatus s = NATS_OK;
-    IFOK(s, nats_JSONDupStrIfDiff(json, pool, "server_id", &info->id));
-    IFOK(s, nats_JSONDupStrIfDiff(json, pool, "version", &(info->version)));
-    IFOK(s, nats_JSONDupStrIfDiff(json, pool, "host", &(info->host)));
-    IFOK(s, nats_JSONGetInt(json, "port", &(info->port)));
-    IFOK(s, nats_JSONGetBool(json, "auth_required", &(info->authRequired)));
-    IFOK(s, nats_JSONGetBool(json, "tls_required", &(info->tlsRequired)));
-    IFOK(s, nats_JSONGetBool(json, "tls_available", &(info->tlsAvailable)));
-    IFOK(s, nats_JSONGetLong(json, "max_payload", &(info->maxPayload)));
-    IFOK(s, nats_JSONDupStringArrayIfDiff(json, pool, "connect_urls",
+    IFOK(s, nats_copyJSONStringCIfDiff(json, pool, "server_id", &info->id));
+    IFOK(s, nats_copyJSONStringCIfDiff(json, pool, "version", &(info->version)));
+    IFOK(s, nats_copyJSONStringCIfDiff(json, pool, "host", &(info->host)));
+    IFOK(s, nats_getJSONInt(json, "port", &(info->port)));
+    IFOK(s, nats_getJSONBool(json, "auth_required", &(info->authRequired)));
+    IFOK(s, nats_getJSONBool(json, "tls_required", &(info->tlsRequired)));
+    IFOK(s, nats_getJSONBool(json, "tls_available", &(info->tlsAvailable)));
+    IFOK(s, nats_getJSONLong(json, "max_payload", &(info->maxPayload)));
+    IFOK(s, nats_copyJSONStringArrayIfDiff(json, pool, "connect_urls",
                                           &(info->connectURLs),
                                           &(info->connectURLsCount)));
-    IFOK(s, nats_JSONGetInt(json, "proto", &(info->proto)));
-    IFOK(s, nats_JSONGetULong(json, "client_id", &(info->CID)));
-    IFOK(s, nats_JSONDupStrIfDiff(json, pool, "nonce", &(info->nonce)));
-    IFOK(s, nats_JSONDupStrIfDiff(json, pool, "client_ip", &(info->clientIP)));
-    IFOK(s, nats_JSONGetBool(json, "ldm", &(info->lameDuckMode)));
-    IFOK(s, nats_JSONGetBool(json, "headers", &(info->headers)));
+    IFOK(s, nats_getJSONInt(json, "proto", &(info->proto)));
+    IFOK(s, nats_getJSONULong(json, "client_id", &(info->CID)));
+    IFOK(s, nats_copyJSONStringCIfDiff(json, pool, "nonce", &(info->nonce)));
+    IFOK(s, nats_copyJSONStringCIfDiff(json, pool, "client_ip", &(info->clientIP)));
+    IFOK(s, nats_getJSONBool(json, "ldm", &(info->lameDuckMode)));
+    IFOK(s, nats_getJSONBool(json, "headers", &(info->headers)));
 
     return NATS_UPDATE_ERR_STACK(s);
 }

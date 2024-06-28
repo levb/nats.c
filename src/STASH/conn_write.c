@@ -18,7 +18,7 @@
 #include "servers.h"
 #include "json.h"
 
-natsStatus natsConn_asyncWrite(natsConnection *nc, const natsString *buf,
+natsStatus natsConn_asyncWrite(natsConnection *nc, const natsBytes *buf,
                                natsOnWrittenF donef, void *doneUserData)
 {
     natsStatus s = NATS_OK;
@@ -44,8 +44,8 @@ void nats_ProcessWriteEvent(natsConnection *nc)
     while (natsWriteChain_len(&nc->writeChain) > 0)
     {
         natsWriteBuffer *wbuf = natsWriteChain_get(&nc->writeChain);
-        natsString written = {
-            .data = wbuf->buf.data + wbuf->written,
+        natsBytes written = {
+            .bytes = wbuf->buf.bytes + wbuf->written,
             .len = wbuf->buf.len - wbuf->written};
 
         s = natsSock_Write(&(nc->sockCtx), &written, &written.len);
@@ -69,7 +69,7 @@ static natsStatus _grow(natsWriteQueue *w, size_t cap)
     if (natsWriteChain_cap(w) >= cap)
         return NATS_OK;
     if (natsWriteChain_cap(w) == w->opts->writeQueueMaxBuffers)
-        return nats_setError(
+        return nats_setErrorf(
             NATS_INSUFFICIENT_BUFFER,
             "write chain has already reached the maximum capacity: %zu", w->opts->writeQueueMaxBuffers);
 
@@ -118,7 +118,7 @@ natsStatus natsWriteChain_init(natsWriteQueue *queueAllocaledByCaller, natsMemOp
 }
 
 // TODO <>/<> donef should process errors????
-natsStatus natsWriteChain_add(natsWriteQueue *w, const natsString *buffer,
+natsStatus natsWriteChain_add(natsWriteQueue *w, const natsBytes *buffer,
                               natsOnWrittenF donef, void *doneUserData)
 {
     // if we are full, attempt to grow the buffers queue.
@@ -130,7 +130,7 @@ natsStatus natsWriteChain_add(natsWriteQueue *w, const natsString *buffer,
     }
 
     size_t pos = natsWriteChain_endPos(w);
-    w->chain[pos].buf.data = buffer->data;
+    w->chain[pos].buf.bytes = buffer->bytes;
     w->chain[pos].buf.len = buffer->len;
     w->chain[pos].written = 0;
     w->chain[pos].done = donef;
@@ -151,11 +151,11 @@ natsStatus natsWriteChain_done(natsConnection *nc, natsWriteQueue *w)
     natsWriteBuffer *wbuf = natsWriteChain_get(w);
 
     if (wbuf == NULL)
-        return nats_setError(NATS_ERR, "%s", "no current write buffer");
+        return nats_setError(NATS_ERR, "no current write buffer");
 
     if (wbuf->done != NULL)
     {
-        wbuf->done(nc, wbuf->buf.data, wbuf->userData);
+        wbuf->done(nc, wbuf->buf.bytes, wbuf->userData);
     }
 
     w->start++;
@@ -163,7 +163,7 @@ natsStatus natsWriteChain_done(natsConnection *nc, natsWriteQueue *w)
 }
 
 static natsStatus
-_connectProto(natsString **proto, natsConnection *nc)
+_connectProto(natsBytes *out, natsConnection *nc)
 {
     natsOptions *opts = nc->opts;
     const char *token = NULL;
@@ -193,7 +193,7 @@ _connectProto(natsString **proto, natsConnection *nc)
         // Options take precedence for an implicit URL. If above is still
         // empty, we will check if we have saved a user from an explicit
         // URL in the server pool.
-        if (nats_isCStringEmpty(user) && nats_isCStringEmpty(token) && (nc->servers->user != NULL))
+        if (nats_isEmptyC(user) && nats_isEmptyC(token) && (nc->servers->user != NULL))
         {
             user = nc->servers->user;
             pwd = nc->servers->pwd;
@@ -206,7 +206,7 @@ _connectProto(natsString **proto, natsConnection *nc)
         }
     }
 
-    return nats_marshalConnect(proto, nc, user, pwd, token,
+    return nats_marshalConnect(out, nc, user, pwd, token,
                                nc->opts->name, nc->info->headers,
                                (nc->info->headers && !nc->opts->proto.disableNoResponders));
 }
@@ -214,7 +214,7 @@ _connectProto(natsString **proto, natsConnection *nc)
 natsStatus
 natsConn_sendPing(natsConnection *nc)
 {
-    natsString buf = NATS_STR(NATS_PING NATS_CRLF);
+    natsBytes buf = NATS_BYTESL(NATS_PING NATS_CRLF);
     natsStatus s = natsConn_asyncWrite(nc, &buf, NULL, NULL);
     if (STILL_OK(s))
         nc->pingsOut++;
@@ -225,11 +225,11 @@ natsStatus
 natsConn_sendConnect(natsConnection *nc)
 {
     natsStatus s = NATS_OK;
-    natsString *proto;
+    natsBytes proto;
 
     // Allocates the memory in the connect pool.
     s = _connectProto(&proto, nc);
-    IFOK(s, natsConn_asyncWrite(nc, proto, NULL, NULL));
+    IFOK(s, natsConn_asyncWrite(nc, &proto, NULL, NULL));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -261,7 +261,7 @@ nats_sendSubscribe(natsConnection *nc, uint64_t *sid, const char *subject, const
     if (nc->opPool == NULL)
         return nats_setDefaultError(NATS_ILLEGAL_STATE);
 
-    if (nats_isCStringEmpty(queueGroup))
+    if (nats_isEmptyC(queueGroup))
         len = snprintf(NULL, 0, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, NATS_CRLF);
     else
         len = snprintf(NULL, 0, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, NATS_CRLF);
@@ -271,7 +271,7 @@ nats_sendSubscribe(natsConnection *nc, uint64_t *sid, const char *subject, const
     IFOK(s, CHECK_NO_MEMORY(buf = nats_palloc(pool, len)));
     if (STILL_OK(s))
     {
-        if (nats_isCStringEmpty(queueGroup))
+        if (nats_isEmptyC(queueGroup))
             snprintf(buf, len, "%s %s %" PRIu64 "%s", NATS_SUB, subject, nc->nextSID, NATS_CRLF);
         else
             snprintf(buf, len, "%s %s %s %" PRIu64 "%s", NATS_SUB, subject, queueGroup, nc->nextSID, NATS_CRLF);

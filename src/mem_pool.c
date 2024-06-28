@@ -34,7 +34,7 @@ _initializePool(void *mempage, natsMemOptions *opts, const char *name)
     pool->small = small;
     pool->opts = opts;
     pool->refs = 1;
-    pool->name = nats_pstrdupC(pool, name);
+    pool->name = nats_pstrdup(pool, name);
     return pool;
 }
 
@@ -71,7 +71,6 @@ static void _free(natsPool *pool DEV_MODE_ARGS)
     natsSmall *next = NULL;
     int i = 0;
 #ifdef DEV_MODE_MEM_POOL
-    void *mem = pool->small;
     char namebuf[128];
     strncpy(namebuf, pool->name, sizeof(namebuf));
 #endif
@@ -94,6 +93,7 @@ void nats_log_releasePool(natsPool *pool DEV_MODE_ARGS)
     if (pool == NULL)
         return;
     pool->refs--;
+    POOLTRACEx("", "%s: released, now %zu refs", pool->name, pool->refs);
     if (pool->refs == 0)
         _free(pool DEV_MODE_PASSARGS);
 }
@@ -192,7 +192,7 @@ void *natsPool_Alloc(natsPool *pool, size_t size)
     return natsPool_nolog_alloc(pool, size);
 }
 
-natsStatus natsPool_getReadBuffer(natsReadBuffer **out, natsPool *pool)
+natsStatus nats_getReadBuffer(natsReadBuffer **out, natsPool *pool)
 {
     if (pool->readChain == NULL)
     {
@@ -203,7 +203,7 @@ natsStatus natsPool_getReadBuffer(natsReadBuffer **out, natsPool *pool)
     natsReadChain *chain = pool->readChain;
 
     // If we have a current chain and it has enough space, return it.
-    if ((chain->tail != NULL) && natsReadBuffer_available(pool->opts, chain->tail) >= pool->opts->readBufferMin)
+    if ((chain->tail != NULL) && nats_readBufferAvailable(pool->opts, chain->tail) >= pool->opts->readBufferMin)
     {
         *out = chain->tail;
         return NATS_OK;
@@ -214,11 +214,11 @@ natsStatus natsPool_getReadBuffer(natsReadBuffer **out, natsPool *pool)
     if (rbuf == NULL)
         return NATS_NO_MEMORY;
 
-    rbuf->buf.data = nats_alloc(pool->opts->readBufferSize, NATS_MEM_LEAVE_UNINITIALIZED);
-    if (rbuf->buf.data == NULL)
+    rbuf->buf.bytes = nats_alloc(pool->opts->readBufferSize, NATS_MEM_LEAVE_UNINITIALIZED);
+    if (rbuf->buf.bytes == NULL)
         return NATS_NO_MEMORY;
-    POOLDEBUGf("%s: allocated read buffer %zu bytes, heap: %p)", pool->name, pool->opts->readBufferSize, (void *)rbuf->buf.data);
-    rbuf->readFrom = rbuf->buf.data;
+    POOLDEBUGf("%s: allocated read buffer %zu bytes, heap: %p)", pool->name, pool->opts->readBufferSize, (void *)rbuf->buf.bytes);
+    rbuf->readFrom = rbuf->buf.bytes;
     rbuf->buf.len = 0;
 
     if (chain->tail == NULL)
@@ -252,7 +252,7 @@ static void natsPool_log_recycleReadChain(natsReadBuffer *clone, natsPool *pool 
             break;
         }
         POOLTRACEx("-r", "%s: freeing read buffer, heap: %p", pool->name, (void *)rbuf->buf.data);
-        nats_free(rbuf->buf.data);
+        nats_free(rbuf->buf.bytes);
     }
 
     memset(clone, 0, sizeof(natsReadBuffer));
@@ -261,10 +261,10 @@ static void natsPool_log_recycleReadChain(natsReadBuffer *clone, natsPool *pool 
 
     *clone = *rbuf;
     clone->next = NULL;
-    if (natsReadBuffer_unreadLen(clone) == 0)
+    if (nats_readBufferUnreadLen(clone) == 0)
     {
         // No need to zero out the memory, just reset the pointers.
-        clone->readFrom = clone->buf.data;
+        clone->readFrom = clone->buf.bytes;
         clone->buf.len = 0;
     }
     return;
@@ -347,7 +347,7 @@ natsStatus nats_log_recyclePool(natsPool **poolPtr, natsReadBuffer **outRbuf DEV
 
     // If there was allocated memory in the last ReadBuffer, use it. If it holds
     // unread bytes, use it as is, otherwise reset to an empty buffer.
-    if (lastToKeep.buf.data != NULL)
+    if (lastToKeep.buf.bytes != NULL)
     {
         POOLTRACEx("    ", "%s: keeping the last read buffer, heap: %p)", pool->name, (void *)lastToKeep.buf.data);
         pool->readChain = nats_palloc(pool, sizeof(natsReadChain));
@@ -380,8 +380,8 @@ static inline size_t _newLargeBufSize(natsPool *pool, size_t current, size_t req
     return newCap;
 }
 
-static natsStatus
-_expandBuf(natsBuf *buf, size_t capacity)
+natsStatus
+nats_expandBuf(natsBuf *buf, size_t capacity)
 {
     uint8_t *data = NULL;
     size_t prevCap = buf->cap;
@@ -412,7 +412,7 @@ _expandBuf(natsBuf *buf, size_t capacity)
         buf->large->data = nats_realloc(buf->large->data, newCap);
         if (buf->large->data == NULL)
             return nats_setDefaultError(NATS_NO_MEMORY);
-        buf->buf.data = buf->large->data;
+        buf->buf.bytes = buf->large->data;
         buf->cap = newCap;
         copy = false;
         return NATS_OK;
@@ -453,9 +453,9 @@ _expandBuf(natsBuf *buf, size_t capacity)
         }
     }
 
-    if (copy && !nats_IsStringEmpty(&buf->buf))
-        memcpy(data, buf->buf.data, buf->buf.len);
-    buf->buf.data = data;
+    if (copy && !nats_IsBytesEmpty(&buf->buf))
+        memcpy(data, buf->buf.bytes, buf->buf.len);
+    buf->buf.bytes = data;
     buf->cap = newCap;
 
     // If we were previously in a small, return the space to the pool, and zero
@@ -470,7 +470,7 @@ _expandBuf(natsBuf *buf, size_t capacity)
 }
 
 natsStatus
-natsBuf_Reset(natsBuf *buf)
+nats_resetBuf(natsBuf *buf)
 {
     if (buf == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
@@ -495,7 +495,7 @@ _createBuf(natsBuf **newBuf, natsPool *pool, size_t capacity, bool fixedSize)
             capacity = 1;
     }
 
-    natsStatus s = _expandBuf(buf, capacity);
+    natsStatus s = nats_expandBuf(buf, capacity);
     if (s != NATS_OK)
         return s;
 
@@ -503,17 +503,17 @@ _createBuf(natsBuf **newBuf, natsPool *pool, size_t capacity, bool fixedSize)
     return NATS_OK;
 }
 
-natsStatus natsPool_getFixedBuf(natsBuf **newBuf, natsPool *pool, size_t capacity)
+natsStatus nats_getFixedBuf(natsBuf **newBuf, natsPool *pool, size_t capacity)
 {
     return _createBuf(newBuf, pool, capacity, true);
 }
 
-natsStatus natsPool_getGrowableBuf(natsBuf **newBuf, natsPool *pool, size_t capacity)
+natsStatus nats_getGrowableBuf(natsBuf **newBuf, natsPool *pool, size_t capacity)
 {
     return _createBuf(newBuf, pool, capacity, false);
 }
 
-void natsPool_log_recycleBuf(natsBuf *buf DEV_MODE_ARGS)
+void nats_log_recycleBuf(natsBuf *buf DEV_MODE_ARGS)
 {
     if (buf == NULL)
         return;
@@ -534,36 +534,36 @@ void natsPool_log_recycleBuf(natsBuf *buf DEV_MODE_ARGS)
 }
 
 natsStatus
-natsBuf_addBB(natsBuf *buf, const uint8_t *data, size_t len)
+nats_append(natsBuf *buf, const uint8_t *data, size_t len)
 {
     natsStatus s = NATS_OK;
     size_t n = buf->buf.len + len;
 
     if (n > buf->cap)
-        s = _expandBuf(buf, n);
+        s = nats_expandBuf(buf, n);
     if (s != NATS_OK)
         return NATS_UPDATE_ERR_STACK(s);
 
-    memcpy(buf->buf.data + buf->buf.len, data, len);
+    memcpy(buf->buf.bytes + buf->buf.len, data, len);
     buf->buf.len += len;
 
     return NATS_OK;
 }
 
 natsStatus
-natsBuf_addB(natsBuf *buf, uint8_t b)
+nats_appendB(natsBuf *buf, uint8_t b)
 {
     natsStatus s = NATS_OK;
     size_t n;
 
     if ((n = buf->buf.len + 1) > buf->cap)
-        s = _expandBuf(buf, n);
+        s = nats_expandBuf(buf, n);
     if (s != NATS_OK)
         return NATS_UPDATE_ERR_STACK(s);
 
     if (STILL_OK(s))
     {
-        buf->buf.data[buf->buf.len] = b;
+        buf->buf.bytes[buf->buf.len] = b;
         buf->buf.len++;
     }
 
@@ -597,7 +597,7 @@ natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const c
 
     void *mempage = NULL;
     if (required > opts->heapPageSize)
-        return nats_setError(NATS_INVALID_ARG, "page size %zu too small, need at least %zu", opts->heapPageSize, required);
+        return nats_setErrorf(NATS_INVALID_ARG, "page size %zu too small, need at least %zu", opts->heapPageSize, required);
     mempage = nats_alloc(opts->heapPageSize, NATS_MEM_ZERO_OUT);
     if (mempage == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);

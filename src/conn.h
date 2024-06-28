@@ -157,8 +157,8 @@ nats_sendUnsubscribe(natsConnection *nc, uint64_t sid, uint64_t afterNMessagesRe
 #endif
 
 #ifdef DEV_MODE_CONN_TRACE
-#define CONNTRACE_out(_buf) DEVTRACEf("->  ", "%zu: '%s'", (_buf)->len, (natsString_debugPrintable(_buf, 0)));
-#define CONNTRACE_in(_buf) DEVTRACEf("<-  ", "%zu: '%s'", (_buf)->len, (natsString_debugPrintable(_buf, 0)));
+#define CONNTRACE_out(_buf) DEVTRACEf("->  ", "%zu: '%s'", (_buf)->len, (nats_printableBytes(_buf, 0)));
+#define CONNTRACE_in(_buf) DEVTRACEf("<-  ", "%zu: '%s'", (_buf)->len, (nats_printableBytes(_buf, 0)));
 #else
 #define CONNTRACE_out(_buf)
 #define CONNTRACE_in(_buf)

@@ -91,7 +91,7 @@ void Test_MemPoolAlloc(void)
 
     test("Make a natsBuf and see it take another chunk");
     natsBuf *buf = NULL;
-    s = natsPool_getGrowableBuf(&buf, pool, 10);
+    s = nats_getGrowableBuf(&buf, pool, 10);
     expectedLength = opts.heapPageSize;
     testCond((STILL_OK(s)) &&
              (buf != NULL) &&
@@ -123,7 +123,7 @@ void Test_MemPoolAlloc(void)
 
     test("Expand natsBuf into the heap, and allocate again, in the 3rd chunk that's returned");
     uint8_t aLotOfGarbage[2031];
-    s = natsBuf_addBB(buf, aLotOfGarbage, sizeof(aLotOfGarbage));
+    s = nats_addBufBB(buf, aLotOfGarbage, sizeof(aLotOfGarbage));
     testCond((STILL_OK(s)) &&
              (pool->small->next->next->len == sizeof(natsSmall)) &&
              (pool->large != NULL) && (pool->large->prev == NULL) &&
@@ -211,7 +211,7 @@ void Test_MemPoolRecycle(void)
 
     test("Get a read buffer");
     natsReadBuffer *rbuf = NULL;
-    s = natsPool_getReadBuffer(&rbuf, pool);
+    s = nats_getReadBuffer(&rbuf, pool);
     testCond(STILL_OK(s) &&
              (rbuf != NULL) &&
              (rbuf->buf.len == 0) &&

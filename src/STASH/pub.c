@@ -48,10 +48,10 @@ static void _onMessagePublished(natsConnection *nc, uint8_t *buffer, void *closu
     if (m == NULL)
         return;
 
-    if (m->donef != NULL)
-        m->donef(nc, m, m->doneClosure);
-    if (m->freef != NULL)
-        m->freef(m->freeClosure);
+    if (m->x.out.donef != NULL)
+        m->x.out.donef(nc, m, m->x.out.doneClosure);
+    if (m->x.out.freef != NULL)
+        m->x.out.freef(m->x.out.freeClosure);
 
     nats_releasePool(m->pool); // will free the message
 }
@@ -102,7 +102,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
             protoLen = NATS_HPUB_LEN;
         }
     }
-    else if (msg->in != NULL)
+    else if (!msg->flags.outgoing && msg->x.in.buf != NULL)
     {
         // <>/<> FIXME lift headers from msg->in into liftedHeader
         if (natsConn_initialConnectDone(nc) && nc->info->headers)
@@ -110,10 +110,10 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
     }
 
     // This will represent headers + data
-    totalLen = headerLen + nats_StringLen(msg->out);
+    totalLen = headerLen + nats_StringLen(msg->x.out.buf);
 
     if (natsConn_initialConnectDone(nc) && ((int64_t)totalLen > nc->info->maxPayload))
-        return nats_setError(NATS_MAX_PAYLOAD, "Payload %d greater than maximum allowed: %zu", totalLen, nc->info->maxPayload);
+        return nats_setErrorf(NATS_MAX_PAYLOAD, "Payload %d greater than maximum allowed: %zu", totalLen, nc->info->maxPayload);
 
     // <>/<> FIXME make sure we have enough space to queue for writes, against
     // the limits etc. Used to be for reconnection only, but really, on a slow
@@ -133,7 +133,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
     headerLineLen += dataLenStr.len;
     headerLineLen += NATS_CRLF_LEN;
 
-    s = natsPool_getFixedBuf(&scratch, msg->pool, headerLineLen);
+    s = nats_getFixedBuf(&scratch, msg->pool, headerLineLen);
     IFOK(s, natsBuf_addCBB(scratch, proto, protoLen));
     IFOK(s, natsBuf_addCBB(scratch, NATS_SPACE, NATS_SPACE_LEN));
     IFOK(s, natsBuf_addString(scratch, &msg->subject));
@@ -164,15 +164,15 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
 
     IFOK(s, natsConn_asyncWrite(nc, natsBuf_string(scratch), NULL, NULL));
 
-    if (!nats_IsStringEmpty(msg->out))
+    if (!nats_IsStringEmpty(msg->x.out.buf))
     {
-        uint8_t *data = msg->out->data;
+        uint8_t *data = msg->x.out.buf->data;
         if (copyData)
         {
-            IFOK(s, CHECK_NO_MEMORY(data = nats_palloc(msg->pool, msg->out->len)));
-            IFOK(s, ALWAYS_OK(memcpy(data, msg->out->data, msg->out->len)));
+            IFOK(s, CHECK_NO_MEMORY(data = nats_palloc(msg->pool, msg->x.out.buf->len)));
+            IFOK(s, ALWAYS_OK(memcpy(data, msg->x.out.buf->data, msg->x.out.buf->len)));
         }
-        IFOK(s, natsConn_asyncWrite(nc, msg->out, NULL, NULL));
+        IFOK(s, natsConn_asyncWrite(nc, msg->x.out.buf, NULL, NULL));
     }
 
     // Final write, add the callback

@@ -21,7 +21,8 @@ typedef void (*natsOnWrittenF)(natsConnection *nc, uint8_t *buffer, void *closur
 
 struct __natsWriteBuffer_s
 {
-    natsString buf; // must be first, so natsWrieBuf* is also a natsString*
+    natsBytes buf; // if first, natsWriteBuf* is castable natsBytes* and natsString*
+
     size_t written;
     natsOnWrittenF done;
     void *userData;
@@ -36,10 +37,10 @@ struct __natsWriteQueue_s
     size_t end;
 };
 
-natsStatus natsConn_asyncWrite(natsConnection *nc, const natsString *buf, natsOnWrittenF donef, void *doneUserData);
+natsStatus natsConn_asyncWrite(natsConnection *nc, const natsBytes *buf, natsOnWrittenF donef, void *doneUserData);
 
 natsStatus natsWriteChain_init(natsWriteQueue *w, natsMemOptions *opts);
-natsStatus natsWriteChain_add(natsWriteQueue *w, const natsString *buf, natsOnWrittenF donef, void *doneUserData);
+natsStatus natsWriteChain_add(natsWriteQueue *w, const natsBytes *buf, natsOnWrittenF donef, void *doneUserData);
 natsWriteBuffer *natsWriteChain_get(natsWriteQueue *w);
 natsStatus natsWriteChain_done(natsConnection *nc, natsWriteQueue *w);
 

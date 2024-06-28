@@ -32,10 +32,10 @@
 // Comment/uncomment to enable debug logging and tracking in specific modules.
 #define DEV_MODE_CONN
 #define DEV_MODE_CONN_TRACE
-// #define DEV_MODE_MEM_HEAP
-// #define DEV_MODE_MEM_POOL
+#define DEV_MODE_MEM_HEAP
+#define DEV_MODE_MEM_POOL
 // #define DEV_MODE_MEM_POOL_TRACE
-// #define DEV_MODE_JSON
+#define DEV_MODE_JSON
 
 #define DEV_MODE_DEFAULT_LOG_LEVEL DEV_MODE_TRACE
 
@@ -61,10 +61,26 @@ extern int nats_devmode_log_level;
 #define DEVLOG(level, module, str) DEVLOGx((level), (module), __SHORT_FILE__, __LINE__, __func__, "%s", str)
 #define DEVLOGf(level, module, fmt, ...) DEVLOGx((level), (module), __SHORT_FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
 
-const char *natsString_debugPrintable(natsString *buf, size_t limit);
-const char *natsString_debugPrintableN(const uint8_t *data, size_t len, size_t limit);
-const char *natsString_debugPrintableC(const char *buf, size_t limit);
-const char *natsPool_debugPrintable(natsString *buf, natsPool *pool, size_t limit);
+const char *nats_printableU(const uint8_t *data, size_t len, size_t limit);
+
+static inline const char *nats_printableBytes(natsBytes *bb, size_t limit)
+{
+    if (bb == NULL)
+        return "<null>";
+    return nats_printableU(bb->bytes, bb->len, limit);
+}
+
+static inline const char *nats_printableString(natsString *buf)
+{
+    if (buf == NULL)
+        return "<null>";
+    return nats_printableU((const uint8_t *)buf->text, buf->len, 64);
+}
+
+static inline const char *nats_printableC(const char *str, size_t len)
+{
+    return nats_printableU((const uint8_t *)str, len, 64);
+}
 
 #else // DEV_MODE
 

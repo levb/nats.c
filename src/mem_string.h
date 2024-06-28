@@ -16,73 +16,92 @@
 
 #include <stddef.h>
 
-#define NATS_STR(_str) \
-    {                  \
-        .len = sizeof(_str) - 1, .data = (uint8_t *)(_str)}
-#define NATS_STRC(_str) \
-    {                   \
-        .len = strlen(_str), .data = (uint8_t *)(_str)}
-#define NATS_EMPTY_STR \
-    {                  \
-        0, NULL}
+#define NATS_EMPTY {0, NULL}
+#define NATS_BYTES(_quoted_literal) {.len = sizeof(_quoted_literal) - 1, .bytes = (uint8_t*)_quoted_literal}
+#define NATS_STR(_quoted_literal) {.len = sizeof(_quoted_literal) - 1, .text = (char*)_quoted_literal}
+#define NATS_STRC(_str) {.len = safe_strlen(_str), .text = _str}
 
-static inline bool natsString_Equal(natsString *str1, natsString *str2)
+static natsString NATS_EMPTY_STRING = NATS_EMPTY;
+
+static inline void nats_clearString(natsString *str)
+{
+    if (str != NULL)
+    {
+        str->len = 0;
+        str->text = NULL;
+    }
+}
+
+static inline void nats_clearBytes(natsBytes *bytes)
+{
+    if (bytes != NULL)
+    {
+        bytes->len = 0;
+        bytes->bytes = NULL;
+    }
+}
+
+
+static inline bool nats_strEquals(natsString *str1, natsString *str2)
 {
     if (str1 == str2)
         return true;
     return (str1 != NULL) && (str2 != NULL) &&
            (str1->len == str2->len) &&
-           (strncmp((const char *)str1->data, (const char *)str2->data, str1->len) == 0);
+           (strncmp(str1->text, str2->text, str1->len) == 0);
 }
 
-static inline bool natsString_equalC(const natsString *str1, const char *lit)
+static inline bool nats_strEqualsC(const natsString *str, const char *cstr)
 {
-    if ((str1 == NULL) && (lit == NULL))
-        return true;
-    return (str1 != NULL) && (lit != NULL) &&
-           (str1->len == strlen((const char *)lit)) &&
-           (strncmp((const char *)str1->data, lit, str1->len) == 0);
+    return ((str != NULL) && (str->text == cstr)) ||
+           ((str != NULL) && (cstr != NULL) && (strcmp(str->text, cstr) == 0));
 }
 
-static inline bool nats_isCStringEmpty(const char *p) { return (p == NULL) || (*p == '\0'); }
+static inline bool nats_isEmptyC(const char *p) { return (p == NULL) || (*p == '\0'); }
 
-#define nats_toLower(c) (uint8_t)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
-#define nats_toUpper(c) (uint8_t)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
+static inline char nats_toLower(char c) { return (c >= 'A' && c <= 'Z') ? (c | 0x20) : c; }
+static inline char nats_toUpper(char c) { return (c >= 'a' && c <= 'z') ? (c & ~0x20) : c; }
 
-static inline size_t nats_strlen(const char *s) { return nats_isCStringEmpty(s) ? 0 : strlen(s); }
-static inline uint8_t *nats_strchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strchr((const char *)s, (int)(find)); }
-static inline uint8_t *nats_strrchr(const uint8_t *s, uint8_t find) { return (uint8_t *)strrchr((const char *)s, (int)(find)); }
-static inline const uint8_t *nats_strstr(const uint8_t *s, const char *find) { return (const uint8_t *)strstr((const char *)s, find); }
-static inline int nats_strcmp(const uint8_t *s1, const char *s2) { return strcmp((const char *)s1, s2); }
+static inline size_t safe_strlen(const char *s) { return nats_isEmptyC(s) ? 0 : strlen(s); }
+static inline char *safe_strchr(const char *s, uint8_t find) { return nats_isEmptyC(s) ? NULL : strchr(s, (int)find); }
+static inline char *safe_strrchr(const char *s, uint8_t find) { return nats_isEmptyC(s) ? NULL : strrchr(s, (int)find); }
+static inline char *safe_strstr(const char *s, const char *find) { return (nats_isEmptyC(s) || nats_isEmptyC(find)) ? NULL : strstr(s, find); }
+static inline bool safe_streq(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
 
-static inline int nats_strarray_find(const char **array, int count, const char *str)
-{
-    for (int i = 0; i < count; i++)
-    {
-        if (strcmp(array[i], str) == 0)
-            return i;
-    }
-    return -1;
-}
+#define unsafe_strlen(s) strlen(s)
+#define unsafe_strchr(s, find) strchr((s), (find))
+#define unsafe_strrchr(s, find) strrchr((s), (find))
+#define unsafe_strstr(s, find) strstr((s), (find))
+#define unsafe_streq(s1, s2) (strcmp((s1), (s2)) == 0)
 
-static inline size_t nats_strarray_remove(char **array, int count, const char *str)
-{
-    int i = nats_strarray_find((const char **)array, count, str);
-    if (i < 0)
-        return count;
+// static inline int nats_strarray_find(const char **array, int count, const char *str)
+// {
+//     for (int i = 0; i < count; i++)
+//     {
+//         if (strcmp(array[i], str) == 0)
+//             return i;
+//     }
+//     return -1;
+// }
 
-    for (int j = i + 1; j < count; j++)
-        array[j - 1] = array[j];
+// static inline size_t nats_strarray_remove(char **array, int count, const char *str)
+// {
+//     int i = nats_strarray_find((const char **)array, count, str);
+//     if (i < 0)
+//         return count;
 
-    return count - 1;
-}
+//     for (int j = i + 1; j < count; j++)
+//         array[j - 1] = array[j];
 
-natsStatus nats_strtoUint64(uint64_t *result, const uint8_t *d, size_t len);
+//     return count - 1;
+// }
 
-static inline natsStatus nats_strtoSizet(size_t *result, const uint8_t *d, size_t len)
+natsStatus nats_strToUint64(uint64_t *result, const uint8_t *d, size_t len);
+
+static inline natsStatus nats_strToSizet(size_t *result, const uint8_t *d, size_t len)
 {
     uint64_t v = 0;
-    natsStatus s = nats_strtoUint64(&v, d, len);
+    natsStatus s = nats_strToUint64(&v, d, len);
     if (result != NULL)
         *result = (size_t)v;
     return s;

@@ -33,27 +33,28 @@ static void reportAndDisconnect(natsConnection *nc, natsMessage *m, void *closur
     nats_DestroyConnection(nc);
 }
 
+static const char *staticPayload ="Hello, NATS!";
+
 static void connected(natsConnection *nc, void *closure)
 {
     natsStatus s = NATS_OK;
     uint64_t sid = 0;
-    natsString payload;
 
     // Subscribe to messages with a wildcard.
     s = nats_Subscribe(nc, &sid, "XXX", NULL);
 
     // Send a simple message with static data. Publish-and-forget.
-    payload = nats_ToString("Hello, NATS!");
     natsMessage *msg1 = NULL;
-    s = nats_CreateMessage(&msg1, nc, subj);
     if (s == NATS_OK)
-        s = nats_SetMessagePayload(msg1, payload.data, payload.len);
+        s = nats_CreateMessage(&msg1, nc, subj);
+    if (s == NATS_OK)
+        s = nats_SetMessagePayload(msg1, staticPayload, strlen(staticPayload));
     if (s == NATS_OK)
         s = nats_SetMessageReplySubject(msg1, "XXX");
     if (s == NATS_OK)
         s = nats_AsyncPublishNoCopy(nc, msg1);
     if (s == NATS_OK)
-        printf("Message enqueued, text: %.*s\n", (int)payload.len, payload.data);
+        printf("Message enqueued, text: %s\n", staticPayload);
     nats_ReleaseMessage(msg1);
 
     // payload = nats_ToString(strdup("Hello, NATS! "

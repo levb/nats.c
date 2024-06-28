@@ -18,7 +18,7 @@
 #include "opts.h"
 
 natsStatus
-nats_EncodeTimeUTC(char *buf, size_t bufLen, int64_t timeUTC)
+nats_encodeTimeUTC(char *buf, size_t bufLen, int64_t timeUTC)
 {
     int64_t t = timeUTC / (int64_t)1E9;
     int64_t ns = timeUTC - ((int64_t)t * (int64_t)1E9);
@@ -28,7 +28,7 @@ nats_EncodeTimeUTC(char *buf, size_t bufLen, int64_t timeUTC)
     // We will encode at most: "YYYY:MM:DDTHH:MM:SS.123456789+12:34"
     // so we need at least 35+1 characters.
     if (bufLen < 36)
-        return nats_setError(NATS_INVALID_ARG,
+        return nats_setErrorf(NATS_INVALID_ARG,
                              "buffer to encode UTC time is too small (%d), needs 36",
                              (int)bufLen);
 
@@ -78,10 +78,10 @@ _marshalLongVal(natsBuf *buf, bool comma, const char *fieldName, bool l, int64_t
     else
         snprintf(temp, sizeof(temp), "%" PRIi64, uval);
 
-    s = natsBuf_addCString(buf, start);
-    IFOK(s, natsBuf_addCString(buf, fieldName));
-    IFOK(s, natsBuf_addCString(buf, "\":"));
-    IFOK(s, natsBuf_addCString(buf, temp));
+    s = nats_addCString(buf, start);
+    IFOK(s, nats_addCString(buf, fieldName));
+    IFOK(s, nats_addCString(buf, "\":"));
+    IFOK(s, nats_addCString(buf, temp));
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -175,9 +175,9 @@ nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64
         w--;
         if (u == 0)
         {
-            s = natsBuf_addCString(out_buf, start);
-            IFOK(s, natsBuf_addCString(out_buf, field_name));
-            IFOK(s, natsBuf_addCString(out_buf, "\":\"0s\""));
+            s = nats_addCString(out_buf, start);
+            IFOK(s, nats_addCString(out_buf, field_name));
+            IFOK(s, nats_addCString(out_buf, "\":\"0s\""));
             return NATS_UPDATE_ERR_STACK(s);
         }
         else if (u < 1000)
@@ -240,15 +240,15 @@ nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64
         buf[w] = '-';
     }
 
-    s = natsBuf_addCString(out_buf, start);
-    IFOK(s, natsBuf_addCString(out_buf, field_name));
-    IFOK(s, natsBuf_addCString(out_buf, "\":\""));
-    IFOK(s, natsBuf_addBB(out_buf, buf + w, sizeof(buf) - w));
-    IFOK(s, natsBuf_addCString(out_buf, "\""));
+    s = nats_addCString(out_buf, start);
+    IFOK(s, nats_addCString(out_buf, field_name));
+    IFOK(s, nats_addCString(out_buf, "\":\""));
+    IFOK(s, nats_addBB(out_buf, buf + w, sizeof(buf) - w));
+    IFOK(s, nats_addCString(out_buf, "\""));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-natsStatus nats_marshalConnect(natsString **out, natsConnection *nc, const char *user,
+natsStatus nats_marshalConnect(natsBytes *out, natsConnection *nc, const char *user,
                                const char *pwd, const char *token, const char *name,
                                bool hdrs, bool noResponders)
 {
@@ -292,9 +292,8 @@ natsStatus nats_marshalConnect(natsString **out, natsConnection *nc, const char 
         need++; // For '\0'
     }
 
-    *out = nats_palloc(nc->connectPool, sizeof(natsString));
-    (*out)->data = (uint8_t *)buf;
-    (*out)->len = need - 1;
+    out->bytes = (uint8_t *)buf;
+    out->len = need - 1;
     return NATS_OK;
 }
 
@@ -308,20 +307,20 @@ natsStatus nats_marshalConnect(natsString **out, natsConnection *nc, const char 
 //     if (md.Count <= 0)
 //         return NATS_OK;
 
-//     IFOK(s, natsBuf_addCString(buf, start));
-//     IFOK(s, natsBuf_addCString(buf, fieldName));
+//     IFOK(s, nats_addCString(buf, start));
+//     IFOK(s, nats_addCString(buf, fieldName));
 //     IFOK(s, natsBuf_Append(buf, (const uint8_t *)"\":{", 3));
 //     for (i = 0; (STILL_OK(s)) && (i < md.Count); i++)
 //     {
-//         IFOK(s, natsBuf_addB(buf, '"'));
-//         IFOK(s, natsBuf_addCString(buf, md.List[i * 2]));
+//         IFOK(s, nats_addB(buf, '"'));
+//         IFOK(s, nats_addCString(buf, md.List[i * 2]));
 //         IFOK(s, natsBuf_Append(buf, (const uint8_t *)"\":\"", 3));
-//         IFOK(s, natsBuf_addCString(buf, md.List[i * 2 + 1]));
-//         IFOK(s, natsBuf_addB(buf, '"'));
+//         IFOK(s, nats_addCString(buf, md.List[i * 2 + 1]));
+//         IFOK(s, nats_addB(buf, '"'));
 
 //         if (i != md.Count - 1)
-//             IFOK(s, natsBuf_addB(buf, ','));
+//             IFOK(s, nats_addB(buf, ','));
 //     }
-//     IFOK(s, natsBuf_addB(buf, '}'));
+//     IFOK(s, nats_addB(buf, '}'));
 //     return NATS_OK;
 // }

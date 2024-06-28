@@ -76,7 +76,7 @@ natsSock_Read(natsSockCtx *ctx, uint8_t *buffer, size_t maxBufferSize, size_t *n
 // If an external event loop is used, it is possible that this function
 // returns NATS_OK with 'n' == 0.
 natsStatus
-natsSock_Write(natsSockCtx *ctx, natsString *buf, size_t *n);
+natsSock_Write(natsSockCtx *ctx, natsBytes *buf, size_t *n);
 
 natsStatus
 natsSock_Flush(natsSock fd);

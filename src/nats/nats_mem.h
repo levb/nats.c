@@ -21,15 +21,21 @@
 typedef struct __natsString_s
 {
     size_t len;
-    uint8_t *data;
+    char *text;
 } natsString;
+
+typedef struct __natsBytes_s
+{
+    size_t len;
+    uint8_t *bytes;
+} natsBytes;
 
 static inline natsString nats_ToString(const char *str)
 {
     natsString s;
 
     s.len = (str == NULL) ? 0 : strlen(str);
-    s.data = (uint8_t *)str;
+    s.text = (char *)str;
 
     return s;
 }
@@ -42,6 +48,16 @@ static inline bool nats_IsStringEmpty(const natsString *str)
 static inline size_t nats_StringLen(const natsString *str)
 {
     return nats_IsStringEmpty(str) ? 0 : str->len;
+}
+
+static inline bool nats_IsBytesEmpty(const natsBytes *bb)
+{
+    return (bb == NULL) || (bb->len == 0);
+}
+
+static inline size_t nats_BytesLen(const natsBytes *bb)
+{
+    return nats_IsBytesEmpty(bb) ? 0 : bb->len;
 }
 
 // Heap (implementation is provided by adapters, like nats/adapters/c_heap.h)

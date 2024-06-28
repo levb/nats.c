@@ -24,30 +24,20 @@ static const natsString nats_NATS10 = NATS_STR("NATS/1.0");
 #define CTRL_STATUS "100"
 #define HDR_STATUS_LEN (3)
 
-#define natsMessage_setNeedsLift(m) ((m)->flags |= (1 << 0))
-#define natsMessage_needsLift(m) (((m)->flags & (1 << 0)) != 0)
-#define natsMessage_clearNeedsLift(m) ((m)->flags &= ~(1 << 0))
-
-#define natsMessage_setAcked(m) ((m)->flags |= (1 << 1))
-#define natsMessage_isAcked(m) (((m)->flags & (1 << 1)) != 0)
-#define natsMessage_clearAcked(m) ((m)->flags &= ~(1 << 1))
-
-#define natsMessage_setTimeout(m) ((m)->flags |= (1 << 2))
-#define natsMessage_isTimeout(m) (((m)->flags & (1 << 2)) != 0)
-#define natsMessage_clearTimeout(m) ((m)->flags &= ~(1 << 2))
-
-#define natsMessage_setOutgoing(m) ((m)->flags |= (1 << 3))
-#define natsMessage_setIncoming(m) ((m)->flags &= ~(1 << 3))
-#define natsMessage_isOutgoing(m) (((m)->flags & (1 << 3)) != 0)
-
 struct __natsMessage
 {
     natsString subject;
     natsPool *pool;
-    natsString *reply;
+    natsString reply;
     natsStrHash *headers;
 
-    int flags;
+    struct
+    {
+        unsigned needsLift : 1;
+        unsigned acked : 1;
+        unsigned timeout : 1;
+        unsigned outgoing : 1;
+    } flags;
     int64_t time;
 
     union
@@ -65,7 +55,7 @@ struct __natsMessage
         } in;
         struct
         {
-            natsString *buf;
+            natsBytes buf;
             natsOnMessagePublishedF donef;
             void *doneClosure;
             void (*freef)(void *);
@@ -78,17 +68,17 @@ struct __natsHeaderValue;
 
 typedef struct __natsHeaderValue
 {
-    char *value;
-    bool needFree;
+    natsString value;
     struct __natsHeaderValue *next;
 
 } natsHeaderValue;
 
-int natsMessageHeader_encodedLen(natsMessage *msg);
+size_t natsMessageHeader_encodedLen(natsMessage *msg);
 natsStatus natsMessageHeader_encode(natsBuf *buf, natsMessage *msg);
 
 natsStatus nats_createMessage(natsMessage **newm, natsPool *pool, const char *subj);
 natsStatus nats_createMessageParser(natsMessageParser **newParser, natsPool *pool, bool expectHeaders);
 natsStatus nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
+natsStatus nats_setMessageHeader(natsMessage *m, natsString *key, natsString *value);
 
 #endif /* MSG_H_ */

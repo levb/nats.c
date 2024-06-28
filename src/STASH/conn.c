@@ -78,7 +78,7 @@ nats_AsyncConnectWithOptions(natsConnection **newConn, natsEventLoop *ev, natsOp
     if (s != NATS_OK)
     {
         natsConn_release(nc);
-        nats_setError(s,
+        nats_setErrorf(s,
                       "Error attaching to the event loop: %d - %s",
                       s, natsStatus_GetText(s));
         return NATS_UPDATE_ERR_STACK(s);

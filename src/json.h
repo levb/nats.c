@@ -56,11 +56,11 @@ struct __nats_JSON_s
 
 typedef struct
 {
-    natsString field_name;
+    natsString name;
     int typ;
     union
     {
-        natsString *vstr;
+        natsString vstr;
         bool vbool;
         uint64_t vuint;
         int64_t vint;
@@ -72,128 +72,57 @@ typedef struct
 
 } nats_JSONField;
 
-natsStatus
-nats_createJSONParser(natsJSONParser **parser, natsPool *pool);
+typedef natsStatus (*jsonRangeCB)(void *userInfo, natsString *fieldName, nats_JSONField *f);
+
+natsStatus nats_createJSONParser(natsJSONParser **parser, natsPool *pool);
 
 // Should be called repeatedly until newJSON is initialized. If there are no
 // errors, artial parsing returns NATS_OK, jsonObj set to NULL, and consumes the
 // entire buf.
-natsStatus
-nats_parseJSON(nats_JSON **jsonObj, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
+natsStatus nats_parseJSON(nats_JSON **jsonObj, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
+natsStatus nats_rangeJSON(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo);
 
-natsStatus
-nats_JSONRefField(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
+natsStatus nats_dupJSONArrayArray(nats_JSON *json, natsString *name, nats_JSONArray ***array, int *arraySize);
+natsStatus nats_dupJSONArrayBool(nats_JSON *json, natsString *name, bool **array, int *arraySize);
+natsStatus nats_dupJSONArrayDouble(nats_JSON *json, natsString *name, long double **array, int *arraySize);
+natsStatus nats_dupJSONArrayInt(nats_JSON *json, natsString *name, int **array, int *arraySize);
+natsStatus nats_dupJSONArrayLong(nats_JSON *json, natsString *name, int64_t **array, int *arraySize);
+natsStatus nats_dupJSONArrayObject(nats_JSON *json, natsString *name, nats_JSON ***array, int *arraySize);
+natsStatus nats_dupJSONArrayULong(nats_JSON *json, natsString *name, uint64_t **array, int *arraySize);
+natsStatus nats_dupJSONBytes(nats_JSON *json, natsPool *pool, natsString *name, uint8_t **value, int *len);
+natsStatus nats_dupJSONStringArrayIfDiff(nats_JSON *json, natsPool *pool, natsString *name, const char ***array, int *arraySize);
+natsStatus nats_strdupJSON(const char **value, nats_JSON *json, natsPool *pool, natsString *name);
+natsStatus nats_strdupJSONCIfDiff(const char **value, nats_JSON *json, natsPool *pool, natsString *name);
+natsStatus nats_getJSONBool(nats_JSON *json, natsString *name, bool *value);
+natsStatus nats_getJSONDouble(long double *value, nats_JSON *json, natsString *name);
+natsStatus nats_getJSONInt(nats_JSON *json, natsString *name, int *value);
+natsStatus nats_getJSONInt32(nats_JSON *json, natsString *name, int32_t *value);
+natsStatus nats_getJSONLong(int64_t *value, nats_JSON *json, natsString *name);
+natsStatus nats_getJSONTime(nats_JSON *json, natsString *name, int64_t *timeUTC);
+natsStatus nats_getJSONUInt16(nats_JSON *json, natsString *name, uint16_t *value);
+natsStatus nats_getJSONULong(uint64_t *value, nats_JSON *json, natsString *name);
+natsStatus nats_refJSONArray(nats_JSONField **retField, nats_JSON *json, natsString *name, int fieldType);
+natsStatus nats_refJSONField(nats_JSONField **retField, nats_JSON *json, natsString *name, int fieldType);
+natsStatus nats_refJSONObject(nats_JSON **value, nats_JSON *json, natsString *name);
+natsStatus nats_refJSONStr(natsString *str, nats_JSON *json, natsString *name);
 
-natsStatus
-nats_JSONDupStr(nats_JSON *json, natsPool *pool, const char *fieldName, const char **value);
+natsStatus nats_JSONArrayAsArrays(nats_JSONArray *arr, nats_JSONArray ***array, int *arraySize);
+natsStatus nats_JSONArrayAsBools(nats_JSONArray *arr, bool **array, int *arraySize);
+natsStatus nats_JSONArrayAsDoubles(nats_JSONArray *arr, long double **array, int *arraySize);
+natsStatus nats_JSONArrayAsInts(nats_JSONArray *arr, int **array, int *arraySize);
+natsStatus nats_JSONArrayAsLongs(nats_JSONArray *arr, int64_t **array, int *arraySize);
+natsStatus nats_JSONArrayAsObjects(nats_JSONArray *arr, nats_JSON ***array, int *arraySize);
+natsStatus nats_JSONArrayAsULongs(nats_JSONArray *arr, uint64_t **array, int *arraySize);
 
-natsStatus
-nats_JSONDupStrIfDiff(nats_JSON *json, natsPool *pool, const char *fieldName, const char **value);
+natsStatus nats_encodeTimeUTC(char *buf, size_t bufLen, int64_t timeUTC);
+natsStatus nats_marshalLong(natsBuf *buf, bool comma, natsString *name, int64_t lval);
+natsStatus nats_marshalULong(natsBuf *buf, bool comma, natsString *name, uint64_t uval);
+natsStatus nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64_t d);
 
-natsStatus
-nats_JSONRefStr(nats_JSON *json, const char *fieldName, natsString **str);
-
-natsStatus
-nats_JSONDupBytes(nats_JSON *json, natsPool *pool, const char *fieldName, unsigned char **value, int *len);
-
-natsStatus
-nats_JSONGetInt(nats_JSON *json, const char *fieldName, int *value);
-
-natsStatus
-nats_JSONGetInt32(nats_JSON *json, const char *fieldName, int32_t *value);
-
-natsStatus
-nats_JSONGetUInt16(nats_JSON *json, const char *fieldName, uint16_t *value);
-
-natsStatus
-nats_JSONGetBool(nats_JSON *json, const char *fieldName, bool *value);
-
-natsStatus
-nats_JSONGetLong(nats_JSON *json, const char *fieldName, int64_t *value);
-
-natsStatus
-nats_JSONGetULong(nats_JSON *json, const char *fieldName, uint64_t *value);
-
-natsStatus
-nats_JSONGetDouble(nats_JSON *json, const char *fieldName, long double *value);
-
-natsStatus
-nats_JSONRefObject(nats_JSON *json, const char *fieldName, nats_JSON **value);
-
-natsStatus
-nats_JSONGetTime(nats_JSON *json, const char *fieldName, int64_t *timeUTC);
-
-natsStatus
-nats_JSONRefArray(nats_JSON *json, const char *fieldName, int fieldType, nats_JSONField **retField);
-
-natsStatus
-nats_JSONDupStringArrayIfDiff(nats_JSON *json, natsPool *pool, const char *fieldName, const char ***array, int *arraySize);
-
-natsStatus
-nats_JSONArrayAsBools(nats_JSONArray *arr, bool **array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayBool(nats_JSON *json, const char *fieldName, bool **array, int *arraySize);
-
-natsStatus
-nats_JSONArrayAsDoubles(nats_JSONArray *arr, long double **array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayDouble(nats_JSON *json, const char *fieldName, long double **array, int *arraySize);
-
-natsStatus
-nats_JSONArrayAsInts(nats_JSONArray *arr, int **array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayInt(nats_JSON *json, const char *fieldName, int **array, int *arraySize);
-
-natsStatus
-nats_JSONArrayAsLongs(nats_JSONArray *arr, int64_t **array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayLong(nats_JSON *json, const char *fieldName, int64_t **array, int *arraySize);
-
-natsStatus
-nats_JSONArrayAsULongs(nats_JSONArray *arr, uint64_t **array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayULong(nats_JSON *json, const char *fieldName, uint64_t **array, int *arraySize);
-
-natsStatus
-nats_JSONArrayAsObjects(nats_JSONArray *arr, nats_JSON ***array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayObject(nats_JSON *json, const char *fieldName, nats_JSON ***array, int *arraySize);
-
-natsStatus
-nats_JSONArrayAsArrays(nats_JSONArray *arr, nats_JSONArray ***array, int *arraySize);
-
-natsStatus
-nats_JSONGetArrayArray(nats_JSON *json, const char *fieldName, nats_JSONArray ***array, int *arraySize);
-
-typedef natsStatus (*jsonRangeCB)(void *userInfo, natsString *fieldName, nats_JSONField *f);
-
-natsStatus
-nats_JSONRange(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo);
-
-natsStatus
-nats_EncodeTimeUTC(char *buf, size_t bufLen, int64_t timeUTC);
-
-natsStatus
-nats_marshalLong(natsBuf *buf, bool comma, const char *fieldName, int64_t lval);
-
-natsStatus
-nats_marshalULong(natsBuf *buf, bool comma, const char *fieldName, uint64_t uval);
-
-natsStatus
-nats_marshalDuration(natsBuf *out_buf, bool comma, const char *field_name, int64_t d);
-
-natsStatus nats_marshalConnect(natsString **out, natsConnection *nc, const char *user,
+natsStatus nats_marshalConnect(natsBytes **out, natsConnection *nc, const char *user,
                                const char *pwd, const char *token, const char *name,
                                bool hdrs, bool noResponders);
-
-natsStatus
-nats_unmarshalServerInfo(nats_JSON *json, natsPool *pool, natsServerInfo *info);
+natsStatus nats_unmarshalServerInfo(nats_JSON *json, natsPool *pool, natsServerInfo *info);
 
 #ifdef DEV_MODE_JSON
 #define JSONDEBUG(str) DEVDEBUG("JSON", str)

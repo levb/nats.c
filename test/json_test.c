@@ -26,28 +26,28 @@ void Test_JSONStructure(void)
     const TC tests[] = {
         {"empty object: ", "{}"},
         {"single: number: ", "{ \"test\":1}"},
-        {"single: boolean true: ","{ \"test\":true}"},
-        {"single: boolean false: ","{ \"test\":false}"},
-        {"single: string: ","{ \"test\":\"abc\"}"},
-        {"single: null: ","{ \"test\": null}"},
-        {"multiple: numbers: ","{ \"test\":1, \"test2\":2}"},
-        {"multiple: booleans: ","{ \"test\":true, \"test2\":false}"},
-        {"multiple: strings: ","{ \"test\":\"a\", \"test2\":\"b\"}"},
-        {"multiple: nulls: ","{ \"test\":null, \"test2\":null}"},
-        {"multiple: mixed: ","{ \"test\":1, \"test2\":true, \"test3\":\"abc\", \"test4\":null}"},
-        {"multiple: mixed different order: ","{ \"test2\":true, \"test3\":\"abc\", \"test4\":null, \"test\":1}"},
+        {"single: boolean true: ", "{ \"test\":true}"},
+        {"single: boolean false: ", "{ \"test\":false}"},
+        {"single: string: ", "{ \"test\":\"abc\"}"},
+        {"single: null: ", "{ \"test\": null}"},
+        {"multiple: numbers: ", "{ \"test\":1, \"test2\":2}"},
+        {"multiple: booleans: ", "{ \"test\":true, \"test2\":false}"},
+        {"multiple: strings: ", "{ \"test\":\"a\", \"test2\":\"b\"}"},
+        {"multiple: nulls: ", "{ \"test\":null, \"test2\":null}"},
+        {"multiple: mixed: ", "{ \"test\":1, \"test2\":true, \"test3\":\"abc\", \"test4\":null}"},
+        {"multiple: mixed different order: ", "{ \"test2\":true, \"test3\":\"abc\", \"test4\":null, \"test\":1}"},
 
-        {"empty array: ","{ \"test\": []}"},
-        {"array of empty arrays: ","{ \"test\": [[], [], []]}"},
-        {"array of empty objects: ","{ \"test\": [{}, {}, {}]}"},
-        {"array of strings: ","{ \"test\": [\"a\", \"b\", \"c\"]}"},
-        {"array of objects: ","{ \"test\": [{\"a\": 1}, {\"b\": \"c\"}]}"},
-        {"array of arrays: ","{ \"test\": [[{\"a\": 1}], [{\"b\": \"c\"}]]}"},
-        {"array of numbers: ","{ \"test\": [1, 2, 3]}"},
-        {"array of doubles: ","{ \"test\": [1.1, 2.2, 3.3]}"},
-        {"array of booleans: ","{ \"test\": [true, false, true]}"},
-        {"empty nested object","{ \n\"test\":\n{}}"},
-        {"nested objects","{ \"test\":1, \"inner1\": {\"inner\":\"a\",\"inner2\":2,\"inner3\":false,\"inner4\":{\"inner2\" : 1.234}}}"},
+        {"empty array: ", "{ \"test\": []}"},
+        {"array of empty arrays: ", "{ \"test\": [[], [], []]}"},
+        {"array of empty objects: ", "{ \"test\": [{}, {}, {}]}"},
+        {"array of strings: ", "{ \"test\": [\"a\", \"b\", \"c\"]}"},
+        {"array of objects: ", "{ \"test\": [{\"a\": 1}, {\"b\": \"c\"}]}"},
+        {"array of arrays: ", "{ \"test\": [[{\"a\": 1}], [{\"b\": \"c\"}]]}"},
+        {"array of numbers: ", "{ \"test\": [1, 2, 3]}"},
+        {"array of doubles: ", "{ \"test\": [1.1, 2.2, 3.3]}"},
+        {"array of booleans: ", "{ \"test\": [true, false, true]}"},
+        {"empty nested object", "{ \n\"test\":\n{}}"},
+        {"nested objects", "{ \"test\":1, \"inner1\": {\"inner\":\"a\",\"inner2\":2,\"inner3\":false,\"inner4\":{\"inner2\" : 1.234}}}"},
 
         {"ignored commas", "{ ,, \"test\":1,,,,  }"},
     };
@@ -70,7 +70,7 @@ void Test_JSONStructure(void)
         nats_JSON *json = NULL;
         size_t consumed = 0;
         TC tc = tests[i];
-        
+
         test(tc.name);
         s = nats_createJSONParser(&parser, pool);
         const uint8_t *data = (const uint8_t *)tc.json;
@@ -96,7 +96,122 @@ void Test_JSONStructure(void)
     nats_releasePool(pool);
 }
 
+void Test_JSONParseComprehensive(void)
+{
+    static const uint8_t *jsonString =
+        (const uint8_t *)"{\n"
+                         "  \"string\": \"Hello, World!\",\n"
+                         "  \"number\": 12345,\n"
+                         "  \"float\": 123.45,\n"
+                         "  \"boolean_true\": true,\n"
+                         "  \"boolean_false\": false,\n"
+                         "  \"null_value\": null,\n"
+                         "  \"object\": {\n"
+                         "    \"nested_string\": \"Nested Hello\",\n"
+                         "    \"nested_number\": 6789,\n"
+                         "    \"nested_float\": 67.89,\n"
+                         "    \"nested_boolean_true\": true,\n"
+                         "    \"nested_boolean_false\": false,\n"
+                         "    \"nested_null_value\": null,\n"
+                         "    \"nested_string_array\": [\"a\", \"b\", \"c\"],\n"
+                         "    \"nested_number_array\": [1, 2, 3],\n"
+                         "    \"nested_float_array\": [1.1, 2.2, 3.3],\n"
+                         "    \"nested_boolean_array\": [true, false, true],\n"
+                         "    \"nested_object_array\": [\n"
+                         "      {\"deep_nested\": \"deep1\"},\n"
+                         "      {\"deep_nested\": \"deep2\"},\n"
+                         "      {\"deep_nested\": \"deep3\"}\n"
+                         "    ]\n"
+                         "  },\n"
+                         "  \"string_array\": [\n"
+                         "    \"string in array 1\",\n"
+                         "    \"string in array 2\",\n"
+                         "    \"string in array 3\"\n"
+                         "  ],\n"
+                         "  \"number_array\": [\n"
+                         "    23456,\n"
+                         "    34567,\n"
+                         "    45678\n"
+                         "  ],\n"
+                         "  \"float_array\": [\n"
+                         "    234.56,\n"
+                         "    345.67,\n"
+                         "    456.78\n"
+                         "  ],\n"
+                         "  \"boolean_array\": [\n"
+                         "    true,\n"
+                         "    false,\n"
+                         "    true\n"
+                         "  ],\n"
+                         "  \"object_array\": [\n"
+                         "    {\n"
+                         "      \"array_nested_object_string\": \"Array Nested Object Hello 1\",\n"
+                         "      \"array_nested_object_number\": 7890,\n"
+                         "      \"array_nested_object_float\": 78.90,\n"
+                         "      \"array_nested_object_boolean_true\": true,\n"
+                         "      \"array_nested_object_boolean_false\": false,\n"
+                         "      \"array_nested_object_null_value\": null\n"
+                         "    },\n"
+                         "    {\n"
+                         "      \"array_nested_object_string\": \"Array Nested Object Hello 2\",\n"
+                         "      \"array_nested_object_number\": 8901,\n"
+                         "      \"array_nested_object_float\": 89.01,\n"
+                         "      \"array_nested_object_boolean_true\": true,\n"
+                         "      \"array_nested_object_boolean_false\": false,\n"
+                         "      \"array_nested_object_null_value\": null\n"
+                         "    },\n"
+                         "    {\n"
+                         "      \"array_nested_object_string\": \"Array Nested Object Hello 3\",\n"
+                         "      \"array_nested_object_number\": 9012,\n"
+                         "      \"array_nested_object_float\": 90.12,\n"
+                         "      \"array_nested_object_boolean_true\": true,\n"
+                         "      \"array_nested_object_boolean_false\": false,\n"
+                         "      \"array_nested_object_null_value\": null\n"
+                         "    }\n"
+                         "  ],\n"
+                         "  \"empty_string\": \"\",\n"
+                         "  \"empty_object\": {},\n"
+                         "  \"empty_array\": []\n"
+                         "}";
 
+    natsStatus s = NATS_OK;
+    natsPool *pool = NULL;
+    size_t len = nats_strlen((const char *)jsonString);
+
+    size_t l1 = len / 5;
+    size_t l2 = len - l1 / 3;
+    size_t l3 = len - l1 - l2;
+
+    test("create JSON parser");
+    natsJSONParser *parser = NULL;
+    IFOK(s, nats_createPool(&pool, &nats_defaultMemOptions, "json-test"));
+    IFOK(s, nats_createJSONParser(&parser, pool));
+    testCond(STILL_OK(s));
+
+    test("parse JSON chunk 1");
+    nats_JSON *json = NULL;
+    size_t consumed = 0;
+    IFOK(s, nats_parseJSON(&json, parser, jsonString, jsonString + l1, &consumed));
+    testCond((STILL_OK(s)) && (json == NULL) && (consumed == l1));
+
+    test("parse JSON chunk 2");
+    IFOK(s, nats_parseJSON(&json, parser, jsonString + l1, jsonString + l1 + l2, &consumed));
+    testCond((STILL_OK(s)) && (json == NULL) && (consumed == l2));
+
+    test("parse JSON chunk 3");
+    IFOK(s, nats_parseJSON(&json, parser, jsonString + l1 + l2, jsonString + l1 + l2 + l3, &consumed));
+    testCond((STILL_OK(s)) && (json != NULL) && (consumed == l3));
+
+    test("check string value");
+    natsString *strVal = NULL;
+    IFOK(s, nats_refJSONStr(json, "string", &strVal));
+    testCond((STILL_OK(s)) && (strVal != NULL) && (nats_strcmp(strVal->data, "Hello, World!") == 0));
+
+    test("check string value (copy)");
+    const char *strValCopy = NULL;
+    IFOK(s, nats_copyJSONStringC(json, pool, "string", &strValCopy));
+    testCond((STILL_OK(s)) && (strValCopy != NULL) && (strcmp(strValCopy, "Hello, World!") == 0) && ((uint8_t*)strValCopy != strVal->data));
+}
 // Test_JSON(void)
 // {
 //     natsStatus s;

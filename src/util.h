@@ -24,14 +24,12 @@ nats_ParseInt64(const char *d, int dLen);
 natsStatus
 nats_Trim(char **pres, natsPool *pool, const char *s);
 
-const char*
+const char *
 nats_GetBoolStr(bool value);
 
-void
-nats_NormalizeErr(char *error);
+void nats_NormalizeErr(char *error);
 
-void
-nats_Base32_Init(void);
+void nats_Base32_Init(void);
 
 natsStatus
 nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen);
@@ -45,8 +43,7 @@ nats_Base64_Encode(const unsigned char *src, int srcLen, char **pDest);
 natsStatus
 nats_Base64_DecodeLen(const char *src, int *srcLen, int *dstLen);
 
-void
-nats_Base64_DecodeInPlace(const char *src, int l, unsigned char *dst);
+void nats_Base64_DecodeInPlace(const char *src, int l, unsigned char *dst);
 
 natsStatus
 nats_Base64_Decode(const char *src, unsigned char **dst, int *dstLen);
@@ -54,20 +51,16 @@ nats_Base64_Decode(const char *src, unsigned char **dst, int *dstLen);
 uint16_t
 nats_CRC16_Compute(unsigned char *data, int len);
 
-bool
-nats_CRC16_Validate(unsigned char *data, int len, uint16_t expected);
+bool nats_CRC16_Validate(unsigned char *data, int len, uint16_t expected);
 
 natsStatus
-nats_ReadFile(natsBuf **buffer, int initBufSize, const char *fn);
+nats_ReadFile(natsBytes *data, natsPool *pool, size_t initBufSize, const char *fileName);
 
-bool
-nats_HostIsIP(const char *host);
+bool nats_HostIsIP(const char *host);
 
-void
-nats_FreeAddrInfo(struct addrinfo *res);
+void nats_FreeAddrInfo(struct addrinfo *res);
 
-bool
-nats_isSubjectValid(const uint8_t *subject, size_t len, bool wcAllowed);
+bool nats_isSubjectValid(const uint8_t *subject, size_t len, bool wcAllowed);
 
 natsStatus
 nats_formatStringArray(char **out, const char **strings, int count);

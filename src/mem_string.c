@@ -73,11 +73,11 @@ natsStatus nats_strtoUint64(uint64_t *result, const uint8_t *d, size_t len)
 {
     uint64_t v = 0;
 
-    for (int i = 0; i < len; i++)
+    for (size_t i = 0; i < len; i++)
     {
         if ((d[i] < '0') || (d[i] > '9'))
         {
-            return nats_setError(NATS_ERR, "invalid number: %.*s", (int)len, d);
+            return nats_setErrorf(NATS_ERR, "invalid number: %.*s", (int)len, d);
         }
 
         v = v * 10 + (d[i] - '0');
@@ -90,21 +90,23 @@ natsStatus nats_strtoUint64(uint64_t *result, const uint8_t *d, size_t len)
 
 #ifdef DEV_MODE
 
-static char _printbuf[128];
+#define PRINTBUF_SIZE 128
+#define NUM_PRINT_BUFFERS 10
+static char _printbuf[NUM_PRINT_BUFFERS][PRINTBUF_SIZE];
+static int _printbufIndex = 0;
 
-const char *_debugPrintable(const uint8_t *data, size_t len, char *out, size_t outCap, size_t limit)
+const char *nats_printableU(const uint8_t *data, size_t len, size_t limit)
 {
     if (data == NULL)
         return "<null>";
-    if (outCap < 5)
-        return "<n/a>";
     if (limit == 0)
         limit = len;
     if (len > limit)
         len = limit;
     const uint8_t *end = data + len;
 
-    const size_t maxbuf = outCap - 1;
+    char *out = _printbuf[_printbufIndex++ % NUM_PRINT_BUFFERS];
+    const size_t maxbuf = PRINTBUF_SIZE - 1;
     size_t i = 0;
     for (const uint8_t *p = data; (p < end) && (i < maxbuf); p++)
     {
@@ -138,49 +140,6 @@ const char *_debugPrintable(const uint8_t *data, size_t len, char *out, size_t o
     return out;
 }
 
-static size_t _debugPrintableLen(natsString *buf)
-{
-    if (buf == NULL)
-    {
-        return 6;
-    }
-    uint8_t *end = buf->data + buf->len;
 
-    size_t l = 0;
-    for (uint8_t *p = buf->data; p < end; p++, l++)
-    {
-        if ((*p == '\n') || (*p == '\r'))
-            l++;
-    }
-    return l + 1;
-}
-
-const char *natsString_debugPrintable(natsString *buf, size_t limit)
-{
-    if (buf == NULL)
-        return "<null>";
-    return _debugPrintable(buf->data, buf->len, _printbuf, sizeof(_printbuf), limit);
-}
-
-const char *natsString_debugPrintableN(const uint8_t *data, size_t len, size_t limit)
-{
-    return _debugPrintable(data, len, _printbuf, sizeof(_printbuf), limit);
-}
-
-const char *natsString_debugPrintableC(const char *buf, size_t limit)
-{
-    if (buf == NULL)
-        return "<null>";
-    return natsString_debugPrintableN((const uint8_t *)buf, strlen(buf), limit);
-}
-
-// const char *natsPool_debugPrintable(natsString *buf, natsPool *pool, size_t limit)
-// {
-//     if (buf == NULL)
-//         return "<null>";
-//     size_t cap = _debugPrintableLen(buf);
-//     char *s = natsPool_alloc(pool, cap);
-//     return (s != NULL) ? nats_debugPrintableN(buf->data, buf->len, s, cap, limit) : "n/a - out of memory";
-// }
 
 #endif // DEV_MODE

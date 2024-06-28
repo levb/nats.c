@@ -231,9 +231,9 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
     if ((l < 20) || (l > (int) (sizeof(tmpStr) - 1)))
     {
         if (l < 20)
-            s = nats_setError(NATS_INVALID_ARG, "time '%s' too small", orgStr);
+            s = nats_setErrorf(NATS_INVALID_ARG, "time '%s' too small", orgStr);
         else
-            s = nats_setError(NATS_INVALID_ARG, "time '%s' too long", orgStr);
+            s = nats_setErrorf(NATS_INVALID_ARG, "time '%s' too long", orgStr);
         return NATS_UPDATE_ERR_STACK(s);
     }
 
@@ -256,7 +256,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
         p = str+l-6;
         if ((strlen(p) != 6) || ((*p != '+') && (*p != '-')) || (*(p+3) != ':'))
         {
-            s = nats_setError(NATS_INVALID_ARG, "time '%s' has invalid UTC offset", orgStr);
+            s = nats_setErrorf(NATS_INVALID_ARG,  "time '%s' has invalid UTC offset", orgStr);
             return NATS_UPDATE_ERR_STACK(s);
         }
         snprintf(utcOff, sizeof(utcOff), "%s", p);
@@ -277,7 +277,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
         val = nats_ParseInt64((const char*) p, l);
         if (val == -1)
         {
-            s = nats_setError(NATS_INVALID_ARG, "time '%s' is invalid", orgStr);
+            s = nats_setErrorf(NATS_INVALID_ARG, "time '%s' is invalid", orgStr);
             return NATS_UPDATE_ERR_STACK(s);
         }
 
@@ -286,7 +286,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
 
         if (val > 999999999)
         {
-            s = nats_setError(NATS_INVALID_ARG, "time '%s' second fraction too big", orgStr);
+            s = nats_setErrorf(NATS_INVALID_ARG, "time '%s' second fraction too big", orgStr);
             return NATS_UPDATE_ERR_STACK(s);
         }
 
@@ -313,7 +313,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
 #endif
         if (res == -1)
         {
-            s = nats_setError(NATS_ERR, "error parsing time '%s'", orgStr);
+            s = nats_setErrorf(NATS_ERR, "error parsing time '%s'", orgStr);
             return NATS_UPDATE_ERR_STACK(s);
         }
         // Compute the offset
@@ -330,7 +330,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
     }
     else
     {
-        s = nats_setError(NATS_ERR, "error parsing time '%s'", orgStr);
+        s = nats_setErrorf(NATS_ERR, "error parsing time '%s'", orgStr);
     }
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -386,7 +386,7 @@ nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen)
             // If invalid character, report the position but as the number of character
             // since beginning, not array index.
             if (dbuf[j] == (char) 0xFF)
-                return nats_setError(NATS_ERR, "base32: invalid data at location %d", srcLen - remaining);
+                return nats_setErrorf(NATS_ERR, "base32: invalid data at location %d", srcLen - remaining);
             j++;
         }
 
@@ -400,7 +400,7 @@ nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen)
             case 2: needs = 1; break;
         }
         if (n+needs > dstMax)
-            return nats_setError(NATS_INSUFFICIENT_BUFFER, "based32: needs %d bytes, max is %d", n+needs, dstMax);
+            return nats_setErrorf(NATS_INSUFFICIENT_BUFFER, "based32: needs %d bytes, max is %d", n+needs, dstMax);
 
         if (dLen == 8)
             dst[4] = dbuf[6]<<5 | dbuf[7];
@@ -530,7 +530,7 @@ nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen)
 //     int dl;
 //     int i;
 
-//     if (nats_isCStringEmpty(src))
+//     if (nats_isEmptyC(src))
 //         return nats_setError(NATS_INVALID_ARG, "%s", "base64 content cannot be empty");
 
 //     l = (int) strlen(src);
@@ -616,60 +616,61 @@ nats_CRC16_Validate(unsigned char *data, int len, uint16_t expected)
     return crc == expected;
 }
 
-// natsStatus
-// nats_ReadFile(natsBuf **buffer, int initBufSize, const char *fn)
-// {
-//     natsStatus  s;
-//     FILE        *f      = NULL;
-//     natsBuf  *buf    = NULL;
-//     uint8_t     *ptr    = NULL;
-//     int         total   = 0;
+natsStatus
+nats_ReadFile(natsBytes *data, natsPool *pool, size_t initBufSize, const char *fileName)
+{
+    natsStatus  s;
+    FILE        *f      = NULL;
+    natsBuf  *buf    = NULL;
+    uint8_t     *ptr    = NULL;
+    int         total   = 0;
 
-//     if ((initBufSize <= 0) || nats_isCStringEmpty(fn))
-//         return nats_setDefaultError(NATS_INVALID_ARG);
+    if ((initBufSize <= 0) || nats_isEmptyC(fileName))
+        return nats_setDefaultError(NATS_INVALID_ARG);
 
-//     f = fopen(fn, "r");
-//     if (f == NULL)
-//         return nats_setError(NATS_ERR, "error opening file '%s': %s", fn, strerror(errno));
+    f = fopen(fileName, "r");
+    if (f == NULL)
+        return nats_setErrorf(NATS_ERR, "error opening file '%s': %s", fileName, strerror(errno));
 
-//     s = natsBuf_Create(&buf, initBufSize);
-//     if (STILL_OK(s))
-//         ptr = natsBuf_data(buf);
-//     while (STILL_OK(s))
-//     {
-//         int r = (int) fread(ptr, 1, natsBuf_Available(buf), f);
-//         if (r == 0)
-//             break;
+    s = nats_getGrowableBuf(&buf, pool, initBufSize);
+    if (STILL_OK(s))
+        ptr = nats_bufData(buf);
+    while (STILL_OK(s))
+    {
+        int r = (int) fread(ptr, 1, nats_bufAvailable(buf), f);
+        if (r == 0)
+            break;
 
-//         total += r;
-//         natsBuf_MoveTo(buf, total);
-//         if (natsBuf_Available(buf) == 0)
-//             s = natsBuf_Expand(buf, natsBuf_Capacity(buf)*2);
-//         if (STILL_OK(s))
-//             ptr = natsBuf_data(buf) + total;
-//     }
+        total += r;
+        buf->buf.len = total;
+        if (nats_bufAvailable(buf) == 0)
+            s = nats_expandBuf(buf, nats_bufCapacity(buf)*2);
+        if (STILL_OK(s))
+            ptr = nats_bufData(buf) + total;
+    }
 
-//     // Close file. If there was an error, do not report possible closing error
-//     // as the actual error
-//     if (s != NATS_OK)
-//         fclose(f);
-//     else if (fclose(f) != 0)
-//         s = nats_setError(NATS_ERR, "error closing file '%s': '%s", fn, strerror(errno));
+    // Close file. If there was an error, do not report possible closing error
+    // as the actual error
+    if (s != NATS_OK)
+        fclose(f);
+    else if (fclose(f) != 0)
+        s = nats_setErrorf(NATS_ERR, "error closing file '%s': '%s", fileName, strerror(errno));
 
-//     IFOK(s, natsBuf_addB(buf, '\0'));
+    IFOK(s, nats_appendB(buf, '\0'));
 
-//     if (STILL_OK(s))
-//     {
-//         *buffer = buf;
-//     }
-//     else if (buf != NULL)
-//     {
-//         memset(natsBuf_data(buf), 0, natsBuf_Capacity(buf));
-//         natsBuf_Destroy(buf);
-//     }
+    if (STILL_OK(s))
+    {
+        *data = buf->buf;
+        // no not recycle the buffer since we return a pointer to its contents.
+    }
+    else if (buf != NULL)
+    {
+        memset(nats_bufData(buf), 0, nats_bufCapacity(buf));
+        nats_recycleBuf(buf);
+    }
 
-//     return NATS_UPDATE_ERR_STACK(s);
-// }
+    return NATS_UPDATE_ERR_STACK(s);
+}
 
 void
 nats_FreeAddrInfo(struct addrinfo *res)
@@ -762,7 +763,7 @@ bool nats_isSubjectValid(const uint8_t *subject, size_t len, bool wcAllowed)
     int     lastDot = -1;
     char    c;
 
-    if (nats_isCStringEmpty((const char *)subject))
+    if (nats_isEmptyC((const char *)subject))
         return false;
 
     for (i=0; i<(int)len ; i++)
@@ -834,27 +835,27 @@ bool nats_isSubjectValid(const uint8_t *subject, size_t len, bool wcAllowed)
 
 //     s = natsBuf_InitCalloc(&buf, len);
 
-//     natsBuf_addB(&buf, '[');
+//     nats_appendB(&buf, '[');
 //     for (i = 0; (STILL_OK(s)) && (i < count); i++)
 //     {
 //         if (i > 0)
 //         {
-//             IFOK(s, natsBuf_addB(&buf, ','));
+//             IFOK(s, nats_appendB(&buf, ','));
 //         }
-//         IFOK(s, natsBuf_addB(&buf, '"'));
+//         IFOK(s, nats_appendB(&buf, '"'));
 //         if (strings[i] == NULL)
 //         {
-//             IFOK(s, natsBuf_addCString(&buf, "(null)"));
+//             IFOK(s, nats_appendCString(&buf, "(null)"));
 //         }
 //         else
 //         {
-//             IFOK(s, natsBuf_addCString(&buf, strings[i]));
+//             IFOK(s, nats_appendCString(&buf, strings[i]));
 //         }
-//         IFOK(s, natsBuf_addB(&buf, '"'));
+//         IFOK(s, nats_appendB(&buf, '"'));
 //     }
 
-//     IFOK(s, natsBuf_addB(&buf, ']'));
-//     IFOK(s, natsBuf_addB(&buf, '\0'));
+//     IFOK(s, nats_appendB(&buf, ']'));
+//     IFOK(s, nats_appendB(&buf, '\0'));
     
 //     if (s != NATS_OK)
 //     {

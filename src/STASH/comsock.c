@@ -51,20 +51,20 @@ natsSock_SetCommonTcpOptions(natsSock fd)
     int             yes = 1;
 
     if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char*) &yes, sizeof(yes)) == -1)
-        return nats_setError(NATS_SYS_ERROR, "setsockopt TCP_NO_DELAY error: %d",
+        return nats_setErrorf(NATS_SYS_ERROR, "setsockopt TCP_NO_DELAY error: %d",
                              NATS_SOCK_GET_ERROR);
 
     yes = 1;
 
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*) &yes, sizeof(yes)) == -1)
-        return nats_setError(NATS_SYS_ERROR, "setsockopt SO_REUSEADDR error: %d",
+        return nats_setErrorf(NATS_SYS_ERROR, "setsockopt SO_REUSEADDR error: %d",
                              NATS_SOCK_GET_ERROR);
 
     l.l_onoff  = 1;
     l.l_linger = 0;
 
     if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (void*)&l, sizeof(l)) == -1)
-        return nats_setError(NATS_SYS_ERROR, "setsockopt SO_LINGER error: %d",
+        return nats_setErrorf(NATS_SYS_ERROR, "setsockopt SO_LINGER error: %d",
                              NATS_SOCK_GET_ERROR);
 
     return NATS_OK;
@@ -133,11 +133,11 @@ natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int por
     int64_t         timeoutPerIP  = 0;
 
     if (phost == NULL)
-        return nats_setError(NATS_ADDRESS_MISSING, "%s", "No host specified");
+        return nats_setError(NATS_ADDRESS_MISSING, "No host specified");
 
     hostLen = (int) nats_strlen(phost);
     if ((hostLen == 0) || ((hostLen == 1) && phost[0] == '['))
-        return nats_setError(NATS_INVALID_ARG, "Invalid host name: %s", phost);
+        return nats_setErrorf(NATS_INVALID_ARG, "Invalid host name: %s", phost);
 
     if (phost[0] == '[')
     {
@@ -174,7 +174,7 @@ natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int por
 
         if ((res = getaddrinfo(host, sport, &hints, &servinfo)) != 0)
         {
-            s = nats_setError(NATS_SYS_ERROR, "getaddrinfo error: %s",
+            s = nats_setErrorf(NATS_SYS_ERROR, "getaddrinfo error: %s",
                               gai_strerror(res));
             continue;
         }
@@ -222,7 +222,7 @@ natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int por
             ctx->fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
             if (ctx->fd == NATS_SOCK_INVALID)
             {
-                s = nats_setError(NATS_SYS_ERROR, "socket error: %d", NATS_SOCK_GET_ERROR);
+                s = nats_setErrorf(NATS_SYS_ERROR, "socket error: %d", NATS_SOCK_GET_ERROR);
                 continue;
             }
 
@@ -233,7 +233,7 @@ natsSock_ConnectTcp(natsSockCtx *ctx, natsPool *pool, const char *phost, int por
             int set = 1;
             if (setsockopt(ctx->fd, SOL_SOCKET, SO_NOSIGPIPE, (void*)&set, sizeof(int)) == -1)
             {
-                s = nats_setError(NATS_SYS_ERROR,
+                s = nats_setErrorf(NATS_SYS_ERROR,
                                   "setsockopt SO_NOSIGPIPE error: %d",
                                   NATS_SOCK_GET_ERROR);
             }
@@ -341,11 +341,11 @@ natsSock_Read(natsSockCtx *ctx, uint8_t *buffer, size_t maxBufferSize, size_t *n
             {
 #if defined(NATS_HAS_TLS)
                 if (ctx->ssl != NULL)
-                    return nats_setError(NATS_IO_ERROR, "SSL_read error: %s",
+                    return nats_setErrorf(NATS_IO_ERROR, "SSL_read error: %s",
                                          NATS_SSL_ERR_REASON_STRING);
                 else
 #endif
-                    return nats_setError(NATS_IO_ERROR, "recv error: %d",
+                    return nats_setErrorf(NATS_IO_ERROR, "recv error: %d",
                                          NATS_SOCK_GET_ERROR);
             }
 
@@ -375,7 +375,7 @@ natsSock_Read(natsSockCtx *ctx, uint8_t *buffer, size_t maxBufferSize, size_t *n
 }
 
 natsStatus
-natsSock_Write(natsSockCtx *ctx, natsString *buf, size_t *n)
+natsSock_Write(natsSockCtx *ctx, natsBytes *buf, size_t *n)
 {
     natsStatus s = NATS_OK;
     int bytes = 0;
@@ -389,7 +389,7 @@ natsSock_Write(natsSockCtx *ctx, natsString *buf, size_t *n)
         else
 #endif
 #ifdef MSG_NOSIGNAL
-            bytes = send(ctx->fd, buf->data, buf->len, MSG_NOSIGNAL);
+            bytes = send(ctx->fd, buf->bytes, buf->len, MSG_NOSIGNAL);
 #else
             bytes = send(ctx->fd, data, len, 0);
 #endif
@@ -427,11 +427,11 @@ natsSock_Write(natsSockCtx *ctx, natsString *buf, size_t *n)
             {
 #if defined(NATS_HAS_TLS)
                 if (ctx->ssl != NULL)
-                    return nats_setError(NATS_IO_ERROR, "SSL_write error: %s",
+                    return nats_setErrorf(NATS_IO_ERROR, "SSL_write error: %s",
                                          NATS_SSL_ERR_REASON_STRING);
                 else
 #endif
-                    return nats_setError(NATS_IO_ERROR, "send error: %d",
+                    return nats_setErrorf(NATS_IO_ERROR, "send error: %d",
                                          NATS_SOCK_GET_ERROR);
             }
             else if (ctx->useEventLoop)
@@ -486,7 +486,7 @@ natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, const char **ip, in
     *port = 0;
 
     if (getsockname(ctx->fd, (struct sockaddr*) &addr, &addrLen) != 0)
-        return nats_setError(NATS_SYS_ERROR, "getsockname error: %d", NATS_SOCK_GET_ERROR);
+        return nats_setErrorf(NATS_SYS_ERROR, "getsockname error: %d", NATS_SOCK_GET_ERROR);
 
     fam = ((struct sockaddr*) &addr)->sa_family;
 
@@ -506,11 +506,11 @@ natsSock_GetLocalIPAndPort(natsSockCtx *ctx, natsPool *pool, const char **ip, in
     }
     else
     {
-        return nats_setError(NATS_SYS_ERROR, "unknown INET family: %d", fam);
+        return nats_setErrorf(NATS_SYS_ERROR, "unknown INET family: %d", fam);
     }
 
     if (inet_ntop(fam, laddr, localIP, sizeof(localIP)) == NULL)
-        return nats_setError(NATS_SYS_ERROR, "inet_ntop error: %d", NATS_SOCK_GET_ERROR);
+        return nats_setErrorf(NATS_SYS_ERROR, "inet_ntop error: %d", NATS_SOCK_GET_ERROR);
 
     if ((*ip = nats_pstrdupC(pool, localIP)) == NULL)
         return nats_setDefaultError(NATS_NO_MEMORY);

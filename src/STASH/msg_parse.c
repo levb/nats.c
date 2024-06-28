@@ -47,22 +47,22 @@ struct __natsMessageParser_s
 
     natsMessage *msg;
 
-    union
+    struct
     {
         // Are we processing an HMSG or a MSG?
-        int expectHeaders : 1;
+        unsigned expectHeaders : 1;
 
         // Toggles whitespace skipping.
-        int skipWhitespace : 1;
+        unsigned skipWhitespace : 1;
 
         // Set if we are accumulating a header name, must be terminated with a ':'
-        int parsingHeaderName : 1;
+        unsigned parsingHeaderName : 1;
         // Set if we are accumulating a header value, must be terminated with a CR,
         // we include trailing whitespace in the value.
-        int parsingHeaderValue : 1;
+        unsigned parsingHeaderValue : 1;
 
         // set if terminated by a CR, indicating end of the line.
-        int EOL : 1;
+        unsigned EOL : 1;
     } flags;
 
     // Besides the subject and sid which we can immediately store in the
@@ -80,8 +80,8 @@ struct __natsMessageParser_s
 
 static natsStatus _startAccumulateArg(natsMessageParser *parser, state nextState, char ch)
 {
-    natsStatus s = natsBuf_Reset(parser->argBuf);
-    IFOK(s, natsBuf_addB(parser->argBuf, ch));
+    natsStatus s = nats_resetBuf(parser->argBuf);
+    IFOK(s, nats_addB(parser->argBuf, ch));
     if (STILL_OK(s))
     {
         parser->state = stateAccumulateArg;
@@ -100,7 +100,7 @@ static void _finishAccumulateArg(natsMessageParser *parser, bool EOL)
 }
 
 #define _msgError(_p, _f, ...) \
-    nats_setError(NATS_ERR, "message parsing error: %.*s:" _f, (int)(_p)->msg->subject.len, (_p)->msg->subject.data, __VA_ARGS__)
+    nats_setErrorf(NATS_ERR, "message parsing error: %.*s:" _f, (int)(_p)->msg->subject.len, (_p)->msg->subject.data, __VA_ARGS__)
 
 static natsStatus _processVarargs(natsMessageParser *parser)
 {
@@ -153,6 +153,7 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
     size_t c = 0;
     const uint8_t *remaining = data;
     uint8_t *value = NULL;
+    natsString *strValue = NULL;
 
     CONNDEBUGf("Parsing message: '%.*s'", (int)(end - remaining), remaining);
 
@@ -202,11 +203,11 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
                 if (parser->flags.parsingHeaderName)
                     _finishAccumulateArg(parser, false);
                 else
-                    s = natsBuf_addB(parser->argBuf, ch);
+                    s = nats_addB(parser->argBuf, ch);
                 continue;
 
             default:
-                s = natsBuf_addB(parser->argBuf, ch);
+                s = nats_addB(parser->argBuf, ch);
                 continue;
             }
             continue; // stateAccumulateArg
@@ -383,63 +384,65 @@ nats_parseMessage(natsMessage **newMsg, natsMessageParser *parser, const uint8_t
                 // Skip whitespace in case there was any at the end of the hea
                 continue;
                 if (ch != '\n')
-                {
                     s = _msgError(parser, "expected LF, got %x", ch);
-                    continue;
-                }
+
                 // gather the header value from the accumulator
-                value = (uint8_t *)nats_pstrdupnC(parser->msg->pool, natsBuf_data(parser->argBuf), natsBuf_len(parser->argBuf));
+                strValue = nats_pstrdupS(parser->msg->pool, &parser->argBuf->buf);
                 if (value == NULL)
                 {
                     s = nats_setDefaultError(NATS_NO_MEMORY);
                     continue;
                 }
                 // Add the header to the message
-                s = natsMsgHeader_add(parser->msg, parser->headerName.data, parser->headerName.len, value, natsBuf_len(parser->argBuf));
+                s = nats_setMessageHeader(parser->msg, &parser->headerName, strValue);
                 if (STILL_OK(s))
                 {
                     // Go back to collecting headers
                     parser->state = stateHeaderName;
                 }
-                continue; // stateEndHeaderLine
-
-            default:
-                s = _msgError(parser, "invalid state %d", parser->state);
-                break;
             }
-        }
+            continue; // stateEndHeaderLine
 
-        if ((STILL_OK(s)) && (parser->state == stateEnd))
-        {
-            if (consumed != NULL)
-                *consumed = c;
-            *newMsg = parser->msg;
-        }
+        case stateEnd: // We are done, we should not be here.
+            continue;
 
-        return NATS_UPDATE_ERR_STACK(s);
+        default:
+            s = _msgError(parser, "invalid state %d", parser->state);
+            break;
+        }
     }
 
-    natsStatus
-    nats_createMessageParser(natsMessageParser * *newParser, natsPool * pool, bool expectHeaders)
+    if ((STILL_OK(s)) && (parser->state == stateEnd))
     {
-        natsStatus s = NATS_OK;
-        natsMessageParser *parser = NULL;
-
-        if (newParser == NULL)
-            s = nats_setDefaultError(NATS_INVALID_ARG);
-
-        IFOK(s, CHECK_NO_MEMORY(parser = nats_palloc(pool, sizeof(natsMessageParser))));
-        IFOK(s, nats_createMessage(&parser->msg, pool, NULL));
-        if (s != NATS_OK)
-            return NATS_UPDATE_ERR_STACK(s);
-        natsMessage_setIncoming(parser->msg);
-        parser->expectHeaders = expectHeaders;
-        parser->state = stateStart;
-        parser->skipWhitespace = true;
-        IFOK(s, natsPool_getGrowableBuf(&parser->argBuf, pool, 0));
-        if (s != NATS_OK)
-            return NATS_UPDATE_ERR_STACK(s);
-
-        *newParser = parser;
-        return NATS_UPDATE_ERR_STACK(s);
+        if (consumed != NULL)
+            *consumed = c;
+        *newMsg = parser->msg;
     }
+
+    return NATS_UPDATE_ERR_STACK(s);
+}
+
+natsStatus
+nats_createMessageParser(natsMessageParser **newParser, natsPool *pool, bool expectHeaders)
+{
+    natsStatus s = NATS_OK;
+    natsMessageParser *parser = NULL;
+
+    if (newParser == NULL)
+        s = nats_setDefaultError(NATS_INVALID_ARG);
+
+    IFOK(s, CHECK_NO_MEMORY(parser = nats_palloc(pool, sizeof(natsMessageParser))));
+    IFOK(s, nats_createMessage(&parser->msg, pool, NULL));
+    if (s != NATS_OK)
+        return NATS_UPDATE_ERR_STACK(s);
+    parser->msg->flags.outgoing = false;
+    parser->flags.expectHeaders = expectHeaders;
+    parser->state = stateStart;
+    parser->flags.skipWhitespace = true;
+    IFOK(s, nats_getGrowableBuf(&parser->argBuf, pool, 0));
+    if (s != NATS_OK)
+        return NATS_UPDATE_ERR_STACK(s);
+
+    *newParser = parser;
+    return NATS_UPDATE_ERR_STACK(s);
+}

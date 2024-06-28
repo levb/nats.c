@@ -70,19 +70,19 @@ struct __natsSmall_s
 struct __natsLarge_s
 {
     struct __natsLarge_s *prev;
-    uint8_t *data;
+    uint8_t *data;  // <>/<> rename to void *mem
 };
 
 struct __natsReadBuffer_s
 {
-    natsString buf; // must be first, so natsReadBuf* is also a natsString*
+    natsBytes buf; // must be first, so natsReadBuf* is also a natsString*
     struct __natsReadBuffer_s *next;
     uint8_t *readFrom;
 };
 
 struct __natsBuf_s
 {
-    natsString buf; // must be first, so natsBuf* is also a natsString*
+    natsBytes buf; // must be first, so natsBuf* is also a natsString* and natsBytes*
 
     size_t cap;
     natsPool *pool;
@@ -119,19 +119,20 @@ struct __natsPool_s
     const char *name; // stored as a pointer, not copied.
 };
 
-static inline natsPool *nats_retainPool(natsPool *pool)
-{
-    pool->refs++;
-    return pool;
-}
-void *nats_log_palloc(natsPool *pool, size_t size DEV_MODE_ARGS);
-void nats_log_releasePool(natsPool *pool DEV_MODE_ARGS);
-natsStatus nats_log_recyclePool(natsPool **pool, natsReadBuffer **rbuf DEV_MODE_ARGS);
-natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const char *name DEV_MODE_ARGS);
+#define POOLTRACEx(module, fmt, ...)
+#define POOLDEBUGf(fmt, ...)
+#define POOLERRORf(fmt, ...)
 
 #ifdef DEV_MODE_MEM_POOL
+
+#ifdef DEV_MODE_MEM_POOL_TRACE
+#undef POOLTRACEx
 #define POOLTRACEx(module, fmt, ...) DEVLOGx(DEV_MODE_TRACE, module, file, line, func, fmt, __VA_ARGS__)
+#endif // DEV_MODE_MEM_POOL_TRACE
+
+#undef POOLDEBUGf
 #define POOLDEBUGf(fmt, ...) DEVDEBUGf("POOL", fmt, __VA_ARGS__)
+#undef POOLERRORf
 #define POOLERRORf(fmt, ...) DEVERRORx("POOL", file, line, func, fmt, __VA_ARGS__)
 
 #if defined(DEV_MODE) && !defined(MEM_POOL_C_)
@@ -142,94 +143,131 @@ natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const c
 #define nats_Palloc(_p, _s) USE_nats_palloc_INSTEAD
 #endif
 
-#else // DEV_MODE_MEM_POOL
-
-#define POOLTRACEx(module, fmt, ...)
-#define POOLDEBUGf(fmt, ...)
-#define POOLERRORf(fmt, ...)
-
 #endif // DEV_MODE_MEM_POOL
 
+//----------------------------------------------------------------------------
+// Pool functions.
+
 #define nats_createPool(_p, _opts, _n) nats_log_createPool((_p), (_opts), (_n)DEV_MODE_CTX)
-#define nats_releasePool(_p) nats_log_releasePool((_p)DEV_MODE_CTX)
-#define nats_pstrdupnC(_p, _str, _len) nats_log_pdupnC((_p), (_str), (_len)DEV_MODE_CTX)
-#define nats_pstrdupn(_p, _str, _len) nats_log_pdupn((_p), (_str), (_len)DEV_MODE_CTX)
-#define nats_palloc(_p, _s) nats_log_palloc((_p), _s DEV_MODE_CTX)
-#define nats_recyclePool(_pptr, _rbufptr) nats_log_recyclePool((_pptr), (_rbufptr)DEV_MODE_CTX)
+natsStatus nats_log_createPool(natsPool **newPool, natsMemOptions *opts, const char *name DEV_MODE_ARGS);
 
-#define nats_pstrdupC(_p, _str) nats_pstrdupnC((_p), (const uint8_t *)(_str), nats_strlen(_str) + 1)
-#define nats_pstrdupS(_p, _str) (nats_IsStringEmpty(_str) ? NULL : nats_pstrdupn((_p), (_str)->data, (_str)->len))
-#define nats_pstrdupU(_p, _s) (nats_pstrdupn((_p), (const uint8_t *)(_s), nats_strlen(_s)))
-
-static inline char *nats_log_pdupnC(natsPool *pool, const uint8_t *data, size_t len DEV_MODE_ARGS)
+#define nats_retainPool(_p) nats_log_retainPool((_p)DEV_MODE_CTX)
+static inline natsPool *nats_log_retainPool(natsPool *pool DEV_MODE_ARGS)
 {
-    if ((data == NULL) || (len == 0))
+    pool->refs++;
+    POOLTRACEx("", "%s: retained, now %zu refs", pool->name, pool->refs);
+    return pool;
+}
+
+#define nats_releasePool(_p) nats_log_releasePool((_p)DEV_MODE_CTX)
+void nats_log_releasePool(natsPool *pool DEV_MODE_ARGS);
+
+#define nats_palloc(_p, _s) nats_log_palloc((_p), _s DEV_MODE_CTX)
+void *nats_log_palloc(natsPool *pool, size_t size DEV_MODE_ARGS);
+
+#define nats_recyclePool(_pptr, _rbufptr) nats_log_recyclePool((_pptr), (_rbufptr)DEV_MODE_CTX)
+natsStatus nats_log_recyclePool(natsPool **pool, natsReadBuffer **rbuf DEV_MODE_ARGS);
+
+#define nats_recycleBuf(_buf) nats_log_recycleBuf((_buf)DEV_MODE_CTX)
+void natsPool_log_recycleBuf(natsBuf *buf DEV_MODE_ARGS);
+
+//----------------------------------------------------------------------------
+// strdup-like helpers.
+
+#define nats_pstrdup(_p, _s) nats_log_pstrdup((_p), (_s)DEV_MODE_CTX)
+static inline char *nats_log_pstrdup(natsPool *pool, const char *str DEV_MODE_ARGS)
+{
+    if (str == NULL)
         return NULL;
+    size_t len = unsafe_strlen(str);
     char *dup = nats_log_palloc(pool, len + 1 DEV_MODE_PASSARGS); // +1 for the terminating 0
     if (dup == NULL)
         return NULL;
-    memcpy(dup, data, len);
-    POOLTRACEx("=s", "%s: allocated string '%s'", pool->name, natsString_debugPrintableN(data, len, 64));
+    memcpy(dup, str, len);
     return dup;
 }
 
-static inline natsString *nats_log_pdupn(natsPool *pool, const uint8_t *data, size_t len DEV_MODE_ARGS)
+#define nats_pdupn(_to, _pool, _from, _len) nats_log_pdupn((_to), (_pool), (_from), (_len)DEV_MODE_CTX)
+static inline natsStatus nats_log_pdupn(natsBytes *to, natsPool *pool, const uint8_t *from, size_t len, bool padding DEV_MODE_ARGS)
 {
-    if ((data == NULL) || (len == 0))
-        return NULL;
-    natsString *dup = nats_log_palloc(pool, sizeof(natsString) DEV_MODE_PASSARGS);
-    if (dup == NULL)
-        return NULL;
-    dup->data = nats_log_palloc(pool, len + 1 DEV_MODE_PASSARGS); // +1 for the terminating 0 to be safe when converting to C strings
-    if (dup->data == NULL)
-        return NULL;
-    memcpy(dup->data, data, len);
-    dup->len = len;
-    POOLTRACEx("", "%s: allocated string '%s'", pool->name, natsString_debugPrintableN(data, len, 64));
-    return dup;
+    if (from == NULL)
+    {
+        nats_clearBytes(to);
+        return NATS_OK;
+    }
+    to->bytes = nats_log_palloc(pool, len + padding DEV_MODE_PASSARGS); // +1 for the terminating 0 to be safe when converting to C strings
+    if (to->bytes == NULL)
+        return NATS_NO_MEMORY;
+    memcpy(to->bytes, from, len);
+    to->len = len;
+    return NATS_OK;
 }
 
-#define natsReadBuf_capacity() nats_memReadBufferSize
-#define natsReadBuf_data(_rbuf) ((_rbuf)->buf.data)
-#define natsReadBuf_len(_rbuf) ((_rbuf)->buf.len)
-#define natsReadBuffer_available(_memopts, _rbuf) ((_memopts)->heapPageSize - (_rbuf)->buf.len)
-#define natsReadBuffer_end(_rbuf) ((_rbuf)->buf.data + (_rbuf)->buf.len)
-#define natsReadBuffer_unreadLen(_rbuf) (natsReadBuffer_end(_rbuf) - (_rbuf)->readFrom)
+#define nats_pdupBytes(_to, _pool, _from) nats_log_pdupBytes((_to), (_pool), (_from)DEV_MODE_CTX)
+static inline natsStatus nats_log_pdupBytes(natsBytes *to, natsPool *pool, const natsBytes *from DEV_MODE_ARGS)
+{
+    return (from == NULL) ? ALWAYS_OK(nats_clearBytes(to)) : nats_log_pdupn(to, pool, from->bytes, from->len, false DEV_MODE_PASSARGS);
+}
 
-natsStatus natsPool_getReadBuffer(natsReadBuffer **rbuf, natsPool *pool);
+#define nats_pdupString(_to, _pool, _from) nats_log_pdupString((_to), (_pool), (_from)DEV_MODE_CTX)
+static inline natsStatus nats_log_pdupString(natsString *to, natsPool *pool, const natsString *from DEV_MODE_ARGS)
+{
+    return (from == NULL) ? ALWAYS_OK(nats_clearString(to)) : nats_log_pdupn((natsBytes *)to, pool, (const uint8_t *)from->text, from->len, true DEV_MODE_PASSARGS);
+}
 
-#define natsBuf_available(b) ((b)->cap - (b)->buf.len)
-#define natsBuf_capacity(b) ((b)->cap)
-#define natsBuf_data(b) ((b)->buf.data)
-#define natsBuf_len(b) ((b)->buf.len)
-#define natsBuf_string(b) (&(b)->buf)
+#define nats_pdupStringFromC(_to, _pool, _from) nats_log_pdupStringFromC((_to), (_pool), (_from)DEV_MODE_CTX)
+static inline natsStatus nats_log_pdupStringFromC(natsString *to, natsPool *pool, const char *str DEV_MODE_ARGS)
+{
+    return (str == NULL) ? ALWAYS_OK(nats_clearString(to)) : nats_log_pdupn((natsBytes *)to, pool, (const uint8_t *)str, strlen(str), true DEV_MODE_PASSARGS);
+}
 
-natsStatus natsPool_getFixedBuf(natsBuf **newBuf, natsPool *pool, size_t cap);
-natsStatus natsPool_getGrowableBuf(natsBuf **newBuf, natsPool *pool, size_t initialCap);
+//----------------------------------------------------------------------------
+// Read buffer.
 
-natsStatus natsBuf_Reset(natsBuf *buf);
-natsStatus natsBuf_addBB(natsBuf *buf, const uint8_t *data, size_t len);
-natsStatus natsBuf_addB(natsBuf *buf, uint8_t b);
+#define nats_readBufferData(_rbuf) ((_rbuf)->buf.bytes)
+#define nats_readBufferLen(_rbuf) ((_rbuf)->buf.len)
+#define nats_readBufferAvailable(_memopts, _rbuf) ((_memopts)->heapPageSize - (_rbuf)->buf.len)
+#define nats_readBufferEnd(_rbuf) ((_rbuf)->buf.bytes + (_rbuf)->buf.len)
+#define nats_readBufferUnreadLen(_rbuf) (nats_readBufferEnd(_rbuf) - (_rbuf)->readFrom)
+#define nats_readBufferAsBytes(_rbuf) (&(_rbuf)->buf)
+#define nats_readBufferAsString(_rbuf) ((natsString*)&(_rbuf)->buf)
+
+natsStatus nats_getReadBuffer(natsReadBuffer **rbuf, natsPool *pool);
+
+//----------------------------------------------------------------------------
+// Growable (pool-based) buffer.
+
+#define nats_bufAvailable(b) ((b)->cap - (b)->buf.len)
+#define nats_bufCapacity(b) ((b)->cap)
+#define nats_bufData(b) ((b)->buf.bytes)
+#define nats_bufLen(b) ((b)->buf.len)
+#define nats_bufAsString(b) ((natsString *)&(b)->buf)
+#define nats_bufAsBytes(b) (&(b)->buf)
+
+natsStatus nats_getFixedBuf(natsBuf **newBuf, natsPool *pool, size_t cap);
+natsStatus nats_getGrowableBuf(natsBuf **newBuf, natsPool *pool, size_t initialCap);
+natsStatus nats_expandBuf(natsBuf *buf, size_t capacity);
+void nats_log_recycleBuf(natsBuf *buf DEV_MODE_ARGS);
+natsStatus nats_resetBuf(natsBuf *buf);
+natsStatus nats_append(natsBuf *buf, const uint8_t *data, size_t len);
+natsStatus nats_appendB(natsBuf *buf, uint8_t b);
 
 // Does NOT add the terminating 0!
-static inline natsStatus
-natsBuf_addCString(natsBuf *buf, const char *str)
+static inline natsStatus nats_appendCString(natsBuf *buf, const char *str)
 {
-    if (nats_isCStringEmpty(str))
+    if (nats_isEmptyC(str))
         return NATS_OK;
-    return natsBuf_addBB(buf, (const uint8_t *)str, strlen(str)); // don't use nats_strlen, no need.
+    return nats_append(buf, (const uint8_t *)str, strlen(str)); // don't use nats_strlen, no need.
 }
 
-static inline natsStatus
-natsBuf_addCBB(natsBuf *buf, const char *str, size_t len)
+static inline natsStatus natsBuf_appendC(natsBuf *buf, const char *str, size_t len)
 {
-    return natsBuf_addBB(buf, (const uint8_t *)str, len);
+    return nats_append(buf, (const uint8_t *)str, len);
 }
 
-static inline natsStatus
-natsBuf_addString(natsBuf *buf, const natsString *str)
+static inline natsStatus nats_appendString(natsBuf *buf, const natsString *str)
 {
-    return natsBuf_addBB(buf, str->data, str->len);
+    return nats_append(buf, (const uint8_t *)str->text, str->len);
 }
 
 #endif /* MEM_POOL_H_ */

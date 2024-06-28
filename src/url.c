@@ -30,7 +30,7 @@ _parsePort(int *port, const char *sport)
 
     n = nats_ParseInt64(sport, strlen(sport));
     if ((n < 0) || (n > INT32_MAX))
-        s = nats_setError(NATS_INVALID_ARG, "invalid port '%s'", sport);
+        s = nats_setErrorf(NATS_INVALID_ARG, "invalid port '%s'", sport);
     else
         *port = (int)n;
 
@@ -51,7 +51,7 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
     const char *path = NULL;
     natsUrl *url = NULL;
 
-    if (nats_isCStringEmpty(urlStr))
+    if (nats_isEmptyC(urlStr))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
     s = CHECK_NO_MEMORY(url = nats_palloc( pool, sizeof(natsUrl)));
@@ -120,7 +120,7 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
             *ptr = '\0';
             port = (const char *)(ptr + 1);
         }
-        if (nats_isCStringEmpty(host))
+        if (nats_isEmptyC(host))
             host = "localhost";
     }
     // Port
@@ -136,7 +136,7 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
                 path = (const char *)(sep + 1);
             }
         }
-        if (nats_isCStringEmpty(port))
+        if (nats_isEmptyC(port))
             url->port = 4222;
         else
             s = _parsePort(&url->port, port);
@@ -144,16 +144,19 @@ natsUrl_Create(natsUrl **newUrl, natsPool *pool, const char *urlStr)
     // Assemble everything
     if (STILL_OK(s))
     {
-        const char *userval = (nats_isCStringEmpty(user) ? "" : user);
-        const char *usep = (nats_isCStringEmpty(pwd) ? "" : ":");
-        const char *pwdval = (nats_isCStringEmpty(pwd) ? "" : pwd);
-        const char *hsep = (nats_isCStringEmpty(user) ? "" : "@");
-        const char *pathsep = (nats_isCStringEmpty(path) ? "" : "/");
-        const char *pathval = (nats_isCStringEmpty(path) ? "" : path);
+        const char *userval = (nats_isEmptyC(user) ? "" : user);
+        const char *usep = (nats_isEmptyC(pwd) ? "" : ":");
+        const char *pwdval = (nats_isEmptyC(pwd) ? "" : pwd);
+        const char *hsep = (nats_isEmptyC(user) ? "" : "@");
+        const char *pathsep = (nats_isEmptyC(path) ? "" : "/");
+        const char *pathval = (nats_isEmptyC(path) ? "" : path);
 
-        IFOK(s, ALWAYS_OK(url->host = nats_pstrdupC(pool, host)));
-        IFOK(s, ALWAYS_OK(url->username = nats_pstrdupC(pool, user)));
-        IFOK(s, ALWAYS_OK(url->password = nats_pstrdupC(pool, pwd)));
+        if (host != NULL)
+            IFOK(s, CHECK_NO_MEMORY(url->host = nats_pstrdup(pool, host)));
+        if (user != NULL)
+            IFOK(s, CHECK_NO_MEMORY(url->username = nats_pstrdup(pool, user)));
+        if (pwd != NULL)
+            IFOK(s, CHECK_NO_MEMORY(url->password = nats_pstrdup(pool, pwd)));
 
         if (STILL_OK(s))
         {

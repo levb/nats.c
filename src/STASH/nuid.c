@@ -137,7 +137,7 @@ _nextLong(int64_t *next, bool useCrypto, int64_t maxValue)
     natsStatus s = NATS_OK;
 
     if (maxValue <= 0)
-        return nats_setError(NATS_INVALID_ARG,
+        return nats_setErrorf(NATS_INVALID_ARG,
                              "Invalid argument for nextLong: %" PRId64 "",
                              maxValue);
 #if defined(NATS_HAS_TLS)
@@ -234,7 +234,7 @@ _nextNUID(natsNUID *nuid, char *buffer, int bufferLen)
 
     // Check bufferLen is big enough
     if (bufferLen <= totalLen)
-        return nats_setError(NATS_INSUFFICIENT_BUFFER, "Buffer should be at least %d bytes, it is only %d bytes", totalLen, bufferLen);
+        return nats_setErrorf(NATS_INSUFFICIENT_BUFFER, "Buffer should be at least %d bytes, it is only %d bytes", totalLen, bufferLen);
 
     // Increment and capture.
     nuid->seq += nuid->inc;
