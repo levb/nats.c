@@ -82,7 +82,8 @@ natsStatus nats_createJSONParser(natsJSONParser **parser, natsPool *pool);
 natsStatus nats_parseJSON(nats_JSON **jsonObj, natsJSONParser *parser, const uint8_t *data, const uint8_t *end, size_t *consumed);
 natsStatus nats_rangeJSON(nats_JSON *json, int expectedType, int expectedNumType, jsonRangeCB cb, void *userInfo);
 
-natsStatus nats_dupJSONStringArrayIfDiff(const char ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name);
+natsStatus nats_dupJSONArrayOfStringsIfDiff(const char ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name);
+natsStatus nats_dupJSONArrayOfObjects(nats_JSON ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name);
 natsStatus nats_strdupJSON(const char **value, nats_JSON *json, natsPool *pool, natsString *name);
 natsStatus nats_strdupJSONIfDiff(const char **value, nats_JSON *json, natsPool *pool, natsString *name);
 natsStatus nats_getJSONBool(bool *value, nats_JSON *json, natsString *name);

@@ -41,20 +41,20 @@
     }                                                \
     return NATS_UPDATE_ERR_STACK(s);
 
-#define JSON_ARRAY_AS(_p, _t)                                        \
-    int i;                                                           \
-    _t *values = (_t *)natsPool_alloc((_p), arr->size * sizeof(_t)); \
-    if (values == NULL)                                              \
-        return nats_setDefaultError(NATS_NO_MEMORY);                 \
-    for (i = 0; i < arr->size; i++)                                  \
-        values[i] = ((_t *)arr->values)[i];                          \
-    *array = values;                                                 \
-    *arraySize = arr->size;                                          \
+#define JSON_ARRAY_AS(_p, _t)                                     \
+    int i;                                                        \
+    _t *values = (_t *)nats_palloc((_p), arr->size * sizeof(_t)); \
+    if (values == NULL)                                           \
+        return nats_setDefaultError(NATS_NO_MEMORY);              \
+    for (i = 0; i < arr->size; i++)                               \
+        values[i] = ((_t *)arr->values)[i];                       \
+    *array = values;                                              \
+    *arraySize = arr->size;                                       \
     return NATS_OK;
 
 #define JSON_ARRAY_AS_NUM(_p, _t)                                        \
     int i;                                                               \
-    _t *values = (_t *)natsPool_alloc((_p), arr->size * sizeof(_t));     \
+    _t *values = (_t *)nats_palloc((_p), arr->size * sizeof(_t));        \
     if (values == NULL)                                                  \
         return nats_setDefaultError(NATS_NO_MEMORY);                     \
     for (i = 0; i < arr->size; i++)                                      \
@@ -67,17 +67,17 @@
     *arraySize = arr->size;                                              \
     return NATS_OK;
 
-#define JSON_GET_ARRAY(_p, _t, _f)                         \
-    natsStatus s = NATS_OK;                                \
-    nats_JSONField *field = NULL;                          \
-    s = nats_JSONRefArray(&field, json, name, (_t));       \
-    if ((STILL_OK(s)) && (field == NULL))                  \
-    {                                                      \
-        *array = NULL;                                     \
-        *arraySize = 0;                                    \
-        return NATS_OK;                                    \
-    }                                                      \
-    else if (STILL_OK(s))                                  \
+#define JSON_GET_ARRAY(_p, _t, _f)                           \
+    natsStatus s = NATS_OK;                                  \
+    nats_JSONField *field = NULL;                            \
+    s = nats_refJSONArray(&field, json, name, (_t));         \
+    if ((STILL_OK(s)) && (field == NULL))                    \
+    {                                                        \
+        *array = NULL;                                       \
+        *arraySize = 0;                                      \
+        return NATS_OK;                                      \
+    }                                                        \
+    else if (STILL_OK(s))                                    \
         s = (_f)(array, arraySize, (_p), field->value.varr); \
     return NATS_UPDATE_ERR_STACK(s);
 
@@ -267,7 +267,7 @@ nats_refJSONObject(nats_JSON **value, nats_JSON *json, natsString *name)
 }
 
 natsStatus
-nats_getJSONTime(int64_t *timeUTC, nats_JSON *json, natsString *name )
+nats_getJSONTime(int64_t *timeUTC, nats_JSON *json, natsString *name)
 {
     natsStatus s = NATS_OK;
     natsString str = NATS_EMPTY;
@@ -286,7 +286,7 @@ nats_getJSONTime(int64_t *timeUTC, nats_JSON *json, natsString *name )
 }
 
 natsStatus
-nats_JSONRefArray(nats_JSONField **retField, nats_JSON *json, natsString *name, int fieldType)
+nats_refJSONArray(nats_JSONField **retField, nats_JSON *json, natsString *name, int fieldType)
 {
     nats_JSONField *field = NULL;
 
@@ -346,7 +346,7 @@ _jsonArrayAsStringsIfDiff(const char ***array, int *arraySize, natsPool *pool, n
     for (i = 0; i < arr->size; i++)
     {
         natsString *str = (natsString *)(arr->values[i]);
-        if ((values[i] != NULL) && !unsafe_streq(str->text, values[i]))
+        if (!safe_streq(str->text, values[i]))
         {
             values[i] = nats_pstrdup(pool, str->text);
             if (values[i] == NULL)
@@ -360,9 +360,21 @@ _jsonArrayAsStringsIfDiff(const char ***array, int *arraySize, natsPool *pool, n
 }
 
 natsStatus
-nats_dupJSONStringArrayIfDiff(const char ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name)
+nats_dupJSONArrayOfStringsIfDiff(const char ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name)
 {
     JSON_GET_ARRAY(pool, TYPE_STR, _jsonArrayAsStringsIfDiff);
+}
+
+static natsStatus
+_jsonArrayAsObjects(nats_JSON ***array, int *arraySize, natsPool *pool, nats_JSONArray *arr)
+{
+    JSON_ARRAY_AS(pool, nats_JSON *);
+}
+
+natsStatus
+nats_dupJSONArrayOfObjects(nats_JSON ***array, int *arraySize, nats_JSON *json, natsPool *pool, natsString *name)
+{
+    JSON_GET_ARRAY(pool, TYPE_OBJECT, _jsonArrayAsObjects);
 }
 
 // static natsStatus

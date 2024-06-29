@@ -36,7 +36,7 @@ natsStatus
 nats_unmarshalServerInfo(nats_JSON *json, natsPool *pool, natsServerInfo *info)
 {
     natsStatus s = NATS_OK;
-    IFOK(s, nats_strdupJSONIfDiff(&info->id, json, pool, &_serverID));
+    IFOK(s, nats_strdupJSONIfDiff(&(info->id), json, pool, &_serverID));
     IFOK(s, nats_strdupJSONIfDiff(&info->version, json, pool, &_version));
     IFOK(s, nats_strdupJSONIfDiff(&info->host, json, pool, &_host));
     IFOK(s, nats_getJSONInt(&info->port, json, &_port));
@@ -44,7 +44,7 @@ nats_unmarshalServerInfo(nats_JSON *json, natsPool *pool, natsServerInfo *info)
     IFOK(s, nats_getJSONBool(&info->tlsRequired, json, &_tlsRequired));
     IFOK(s, nats_getJSONBool(&info->tlsAvailable, json, &_tlsAvailable));
     IFOK(s, nats_getJSONLong(&info->maxPayload, json, &_maxPayload));
-    IFOK(s, nats_dupJSONStringArrayIfDiff(&info->connectURLs, &info->connectURLsCount, json, pool, &_connectURLs));
+    IFOK(s, nats_dupJSONArrayOfStringsIfDiff(&info->connectURLs, &info->connectURLsCount, json, pool, &_connectURLs));
     IFOK(s, nats_getJSONInt(&info->proto, json, &_proto));
     IFOK(s, nats_getJSONULong(&info->CID, json, &_CID));
     IFOK(s, nats_strdupJSONIfDiff(&info->nonce, json, pool, &_nonce));

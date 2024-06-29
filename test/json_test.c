@@ -13,6 +13,7 @@
 
 #include "natsp.h"
 #include "json.h"
+#include "conn.h"
 #include "test.h"
 
 void Test_JSONStructure(void)
@@ -219,11 +220,181 @@ void Test_JSONParseComprehensive(void)
     testCond((STILL_OK(s)) && (strValCopy == first));
 
     test("check strdupJSONIfDiff - with a diff");
-    strValCopy = (char*) "something different";
+    strValCopy = (char *)"something different";
     const char *second = strValCopy;
     IFOK(s, nats_strdupJSONIfDiff(&strValCopy, json, pool, &_string));
     testCond((STILL_OK(s)) && (strValCopy != NULL) && (strValCopy != second) && strValCopy != first);
+
+    test("check number value");
+    natsString _number = NATS_STR("number");
+    int numberVal = 0;
+    IFOK(s, nats_getJSONInt(&numberVal, json, &_number));
+    testCond((STILL_OK(s)) && (numberVal == 12345));
+
+    test("check float value");
+    natsString _float = NATS_STR("float");
+    long double floatVal = 0;
+    IFOK(s, nats_getJSONDouble(&floatVal, json, &_float));
+    testCond((STILL_OK(s)) && (floatVal == 123.45));
+
+    test("check boolean true value");
+    natsString _boolean_true = NATS_STR("boolean_true");
+    bool booleanTrueVal = false;
+    IFOK(s, nats_getJSONBool(&booleanTrueVal, json, &_boolean_true));
+    testCond((STILL_OK(s)) && booleanTrueVal);
+
+    test("check boolean false value");
+    natsString _boolean_false = NATS_STR("boolean_false");
+    bool booleanFalseVal = true;
+    IFOK(s, nats_getJSONBool(&booleanFalseVal, json, &_boolean_false));
+    testCond((STILL_OK(s)) && !booleanFalseVal);
+
+    test("check object value");
+    natsString _object = NATS_STR("object");
+    nats_JSON *objectVal = NULL;
+    IFOK(s, nats_refJSONObject(&objectVal, json, &_object));
+    testCond((STILL_OK(s)) && (objectVal != NULL));
+
+    test("check nested string value");
+    natsString _nested_string = NATS_STR("nested_string");
+    natsString nestedStringVal = NATS_EMPTY;
+    IFOK(s, nats_refJSONStr(&nestedStringVal, objectVal, &_nested_string));
+    testCond((STILL_OK(s)) && safe_streq(nestedStringVal.text, "Nested Hello"));
+
+    test("check nested number value");
+    natsString _nested_number = NATS_STR("nested_number");
+    int nestedNumberVal = 0;
+    IFOK(s, nats_getJSONInt(&nestedNumberVal, objectVal, &_nested_number));
+    testCond((STILL_OK(s)) && (nestedNumberVal == 6789));
+
+    test("check nested float value");
+    natsString _nested_float = NATS_STR("nested_float");
+    long double nestedFloatVal = 0;
+    IFOK(s, nats_getJSONDouble(&nestedFloatVal, objectVal, &_nested_float));
+    testCond((STILL_OK(s)) && (nestedFloatVal == 67.89));
+
+    test("check nested string array value");
+    natsString _nested_string_array = NATS_STR("nested_string_array");
+    const char **nestedStringArrayVal = NULL;
+    int nestedStringArraySize = 0;
+    IFOK(s, nats_dupJSONArrayOfStringsIfDiff(&nestedStringArrayVal, &nestedStringArraySize, objectVal, pool, &_nested_string_array));
+    testCond((STILL_OK(s)) &&
+             (nestedStringArrayVal != NULL) &&
+             (nestedStringArraySize == 3) &&
+             safe_streq(nestedStringArrayVal[0], "a") &&
+             safe_streq(nestedStringArrayVal[1], "b") &&
+             safe_streq(nestedStringArrayVal[2], "c"));
+
+    test("check nested object array second element float value");
+    natsString _nested_object_array = NATS_STR("nested_object_array");
+    natsString _deep_nested = NATS_STR("deep_nested");
+    nats_JSON **nestedObjectArrayVal = NULL;
+    int nestedObjectArraySize = 0;
+    IFOK(s, nats_dupJSONArrayOfObjects(&nestedObjectArrayVal, &nestedObjectArraySize, objectVal, pool, &_nested_object_array));
+    IFOK(s, nats_strdupJSON(&strValCopy, nestedObjectArrayVal[1], pool, &_deep_nested));
+    testCond((STILL_OK(s)) &&
+             (nestedObjectArrayVal != NULL) &&
+             (nestedObjectArraySize == 3) &&
+             safe_streq(strValCopy, "deep2"));
+
+    nats_releasePool(pool);
 }
+
+void Test_JSONUnmarshalInfo(void)
+{
+    natsStatus s;
+    natsPool *pool = NULL;
+    nats_JSON *json = NULL;
+    natsServerInfo info;
+    const char *jsonStr = "{"
+                          "\"server_id\":\"test\","
+                          "\"version\":\"1.2.3\","
+                          "\"host\":\"localhost\","
+                          "\"port\":4222,"
+                          "\"auth_required\":true,"
+                          "\"tls_required\":true,"
+                          "\"tls_available\":true,"
+                          "\"max_payload\":1024,"
+                          "\"connect_urls\":[\"url1\",\"url2\"]"
+                          "\"proto\":1,"
+                          "\"client_id\":12345678901,"
+                          "\"nonce\":\"nonce\","
+                          "\"client_ip\":\"client_ip\","
+                          "\"ldm\":true,"
+                          "\"headers\":true"
+                          "}";
+
+    test("Create memory pool: ");
+    s = nats_createPool(&pool, &nats_defaultMemOptions, "json-test");
+    testCond(STILL_OK(s));
+
+    test("create JSON parser");
+    natsJSONParser *parser = NULL;
+    IFOK(s, nats_createPool(&pool, &nats_defaultMemOptions, "json-test"));
+    IFOK(s, nats_createJSONParser(&parser, pool));
+    testCond(STILL_OK(s));
+
+    test("parse JSON chunk 1");
+    size_t consumed = 0;
+    IFOK(s, nats_parseJSON(&json, parser, (const uint8_t *)jsonStr, (const uint8_t *)jsonStr + unsafe_strlen(jsonStr), &consumed));
+    testCond((STILL_OK(s)) && (json != NULL) && (consumed == unsafe_strlen(jsonStr)));
+
+    test("Unmarshal server info: ");
+    memset(&info, 0, sizeof(info));
+    s = nats_unmarshalServerInfo(json, pool, &info);
+    testCond(STILL_OK(s));
+
+    test("Check server id: ");
+    testCond(safe_streq(info.id, "test"));
+
+    test("Check version: ");
+    testCond(safe_streq(info.version, "1.2.3"));
+
+    test("Check host: ");
+    testCond(safe_streq(info.host, "localhost"));
+
+    test("Check port: ");
+    testCond(info.port == 4222);
+
+    test("Check auth required: ");
+    testCond(info.authRequired);
+
+    test("Check TLS required: ");
+    testCond(info.tlsRequired);
+
+    test("Check TLS available: ");
+    testCond(info.tlsAvailable);
+
+    test("Check max payload: ");
+    testCond(info.maxPayload == 1024);
+
+    test("Check connect urls: ");
+    testCond((info.connectURLs != NULL) &&
+             (info.connectURLsCount == 2) &&
+             safe_streq(info.connectURLs[0], "url1") &&
+             safe_streq(info.connectURLs[1], "url2"));
+
+    test("Check proto: ");
+    testCond(info.proto == 1);
+
+    test("Check cliebt ID: ");
+    testCond(info.CID == 12345678901);
+
+    test("Check nonce: ");
+    testCond(safe_streq(info.nonce, "nonce"));
+
+    test("Check client IP: ");
+    testCond(safe_streq(info.clientIP, "client_ip"));
+
+    test("Check lame duck mode: ");
+    testCond(info.lameDuckMode);
+
+    test("Check headers: ");
+    testCond(info.headers);
+
+    nats_releasePool(pool);
+}
+
 // Test_JSON(void)
 // {
 //     natsStatus s;
@@ -725,7 +896,7 @@ void Test_JSONParseComprehensive(void)
 
 //     test("Ask for wrong type (array): ");
 //     s = nats_JSONParse(&json, "{\"test\":[\"a\", \"b\"]}", -1);
-//     IFOK(s, nats_JSONRefArray(json, "test", TYPE_INT, &f));
+//     IFOK(s, nats_refJSONArray(json, "test", TYPE_INT, &f));
 //     testCond((s != NATS_OK) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 1) && (arrCount == 0) && (arrVal == NULL));
 //     nats_JSONDestroy(json);
 //     json = NULL;
@@ -739,7 +910,7 @@ void Test_JSONParseComprehensive(void)
 
 //     test("Ask for unknown type (array): ");
 //     s = nats_JSONParse(&json, "{\"test\":true}", -1);
-//     IFOK(s, nats_JSONRefArray(json, "test", 9999, &f));
+//     IFOK(s, nats_refJSONArray(json, "test", 9999, &f));
 //     testCond((s == NATS_INVALID_ARG) && (json != NULL) && (json->fields != NULL) && (json->fields->used == 1));
 //     nats_JSONDestroy(json);
 //     json = NULL;
