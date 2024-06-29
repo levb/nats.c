@@ -95,9 +95,9 @@ static natsStatus _completeINFO(natsParser *ps, natsConnection *nc)
 
 static natsStatus _completeMessage(natsParser *ps, natsConnection *nc)
 {
-    natsStatus s = NATS_OK;
+    // natsStatus s = NATS_OK;
     // natsStatus s = natsConn_processInfo(nc, ps->args.json.obj);
-    CONNTRACEf("ParseOp: completed [H]MSG but don't know what to do with it yet: %s", (STILL_OK(s) ? "OK" : "ERROR"));
+    CONNTRACEf("%s", "ParseOp: completed [H]MSG but don't know what to do with it yet!");
     return NATS_OK;
 }
 

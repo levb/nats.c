@@ -119,7 +119,7 @@ nats_Trim(char **pres, natsPool *pool, const char *s)
         ptr++;
 
     start = ptr;
-    ptr = (char*) (s + strlen(s) - 1);
+    ptr = (char*) (s + safe_strlen(s) - 1);
     while ((ptr != start) && isspace((unsigned char) *ptr))
         ptr--;
 
@@ -162,7 +162,7 @@ nats_NormalizeErr(char *error)
 {
     int start = 0;
     int end   = 0;
-    int len   = (int) strlen(error);
+    int len   = (int) safe_strlen(error);
     int i;
 
     if (strncmp(error, NATS_MINUS_ERR, NATS_MINUS_ERR_LEN) == 0)
@@ -225,7 +225,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
         return NATS_OK;
     }
 
-    l = (int) strlen(orgStr);
+    l = (int) safe_strlen(orgStr);
     // The smallest date/time should be: "YYYY:MM:DDTHH:MM:SSZ", which is 20
     // while the longest should be: "YYYY:MM:DDTHH:MM:SS.123456789-12:34" which is 35
     if ((l < 20) || (l > (int) (sizeof(tmpStr) - 1)))
@@ -254,7 +254,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
     {
         // Make sure the UTC offset comes as "+12:34" (or "-12:34").
         p = str+l-6;
-        if ((strlen(p) != 6) || ((*p != '+') && (*p != '-')) || (*(p+3) != ':'))
+        if ((unsafe_strlen(p) != 6) || ((*p != '+') && (*p != '-')) || (*(p+3) != ':'))
         {
             s = nats_setErrorf(NATS_INVALID_ARG,  "time '%s' has invalid UTC offset", orgStr);
             return NATS_UPDATE_ERR_STACK(s);
@@ -272,7 +272,7 @@ nats_parseTime(char *orgStr, int64_t *timeUTC)
 
         p = (char*) (dotPos+1);
         // Need to recompute the length, since it has changed.
-        l = (int) strlen(p);
+        l = (int) unsafe_strlen(p);
 
         val = nats_ParseInt64((const char*) p, l);
         if (val == -1)
@@ -339,7 +339,7 @@ void
 nats_Base32_Init(void)
 {
     const char  *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-    int         alphaLen  = (int) strlen(alphabet);
+    int         alphaLen  = (int) unsafe_strlen(alphabet);
     int         i;
 
     for (i=0; i<(int)sizeof(base32DecodeMap); i++)
@@ -355,7 +355,7 @@ nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen)
     char        *ptr      = (char*) src;
     int         n         = 0;
     bool        done      = false;
-    int         srcLen    = (int) strlen(src);
+    int         srcLen    = (int) safe_strlen(src);
     int         remaining = srcLen;
 
     *dstLen = 0;
@@ -533,7 +533,7 @@ nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen)
 //     if (nats_isEmptyC(src))
 //         return nats_setError(NATS_INVALID_ARG, "%s", "base64 content cannot be empty");
 
-//     l = (int) strlen(src);
+//     l = (int) safe_strlen(src);
 //     if (l % 4 != 0)
 //         return nats_setError(NATS_INVALID_ARG, "invalid base64 length: %d", l);
 
@@ -702,61 +702,6 @@ nats_HostIsIP(const char *host)
     return isIP;
 }
 
-static bool
-_isLineAnHeader(const char *ptr)
-{
-    char    *last   = NULL;
-    int     len     = 0;
-    int     count   = 0;
-    bool    done    = false;
-
-    // We are looking for a header. Based on the Go client's regex,
-    // the strict requirement is that it ends with at least 3 consecutive
-    // `-` characters. It must also have 3 consecutive `-` before that.
-    // So the minimum size would be 6.
-    len = (int) strlen(ptr);
-    if (len < 6)
-        return false;
-
-    // First make sure that we have at least 3 `-` at the end.
-    last = (char*) (ptr + len - 1);
-
-    while ((*last == '-') && (last != ptr))
-    {
-        count++;
-        last--;
-        if (count == 3)
-            break;
-    }
-    if (count != 3)
-        return false;
-
-    // Now from that point and going backward, we consider
-    // to have proper header if we find again 3 consecutive
-    // dashes.
-    count = 0;
-    while (!done)
-    {
-        if (*last == '-')
-        {
-            // We have at least `---`, we are done.
-            if (++count == 3)
-                return true;
-        }
-        else
-        {
-            // Reset.. we need 3 consecutive dashes
-            count = 0;
-        }
-        if (last == ptr)
-            done = true;
-        else
-            last--;
-    }
-    // If we are here, it means we did not find `---`
-    return false;
-}
-
 bool nats_isSubjectValid(const char *subject, bool wcAllowed)
 {
     int     i       = 0;
@@ -809,7 +754,6 @@ bool nats_isSubjectValid(const char *subject, bool wcAllowed)
     return true;
 }
 
-
 // allocates a sufficiently large buffer and formats the strings into it, as a
 // ["unencoded-string-0","unencoded-string-1",...]. For an empty array of
 // strings returns "[]".
@@ -827,9 +771,9 @@ bool nats_isSubjectValid(const char *subject, bool wcAllowed)
 //         if (i > 0)
 //             len++; // For the ','
 //         if (strings[i] == NULL)
-//             len += strlen("(null)");
+//             len += unsafe_strlen("(null)");
 //         else
-//             len += strlen(strings[i]);
+//             len += safe_strlen(strings[i]);
 //     }
 //     len++; // For the ']'
 //     len++; // For the '\0'

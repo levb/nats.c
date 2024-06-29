@@ -30,10 +30,10 @@
 #ifdef DEV_MODE
 
 // Comment/uncomment to enable debug logging and tracking in specific modules.
-#define DEV_MODE_CONN
-#define DEV_MODE_CONN_TRACE
-#define DEV_MODE_MEM_HEAP
-#define DEV_MODE_MEM_POOL
+// #define DEV_MODE_CONN
+// #define DEV_MODE_CONN_TRACE
+// #define DEV_MODE_MEM_HEAP
+// #define DEV_MODE_MEM_POOL
 // #define DEV_MODE_MEM_POOL_TRACE
 #define DEV_MODE_JSON
 

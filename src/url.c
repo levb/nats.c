@@ -28,7 +28,7 @@ _parsePort(int *port, const char *sport)
     natsStatus s = NATS_OK;
     int64_t n = 0;
 
-    n = nats_ParseInt64(sport, strlen(sport));
+    n = nats_ParseInt64(sport, safe_strlen(sport));
     if ((n < 0) || (n > INT32_MAX))
         s = nats_setErrorf(NATS_INVALID_ARG, "invalid port '%s'", sport);
     else

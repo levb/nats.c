@@ -74,9 +74,9 @@ void Test_JSONStructure(void)
         test(tc.name);
         s = nats_createJSONParser(&parser, pool);
         const uint8_t *data = (const uint8_t *)tc.json;
-        const uint8_t *end = (const uint8_t *)tc.json + strlen(tc.json);
+        const uint8_t *end = (const uint8_t *)tc.json + unsafe_strlen(tc.json);
         IFOK(s, nats_parseJSON(&json, parser, data, end, &consumed));
-        testCond((STILL_OK(s)) && (json != NULL) && (consumed == strlen(tc.json)));
+        testCond((STILL_OK(s)) && (json != NULL) && (consumed == unsafe_strlen(tc.json)));
     }
 
     for (int i = 0; i < (int)(sizeof(errorTests) / sizeof(*errorTests)); i++)
@@ -88,7 +88,7 @@ void Test_JSONStructure(void)
         test(tc.name);
         s = nats_createJSONParser(&parser, pool);
         const uint8_t *data = (const uint8_t *)tc.json;
-        const uint8_t *end = (const uint8_t *)tc.json + strlen(tc.json);
+        const uint8_t *end = (const uint8_t *)tc.json + unsafe_strlen(tc.json);
         IFOK(s, nats_parseJSON(&json, parser, data, end, NULL));
         testCond((s != NATS_OK) && (json == NULL));
     }
@@ -176,10 +176,10 @@ void Test_JSONParseComprehensive(void)
 
     natsStatus s = NATS_OK;
     natsPool *pool = NULL;
-    size_t len = nats_strlen((const char *)jsonString);
+    size_t len = safe_strlen((const char *)jsonString);
 
     size_t l1 = len / 5;
-    size_t l2 = len - l1 / 3;
+    size_t l2 = (len - l1) / 3;
     size_t l3 = len - l1 - l2;
 
     test("create JSON parser");
@@ -203,14 +203,26 @@ void Test_JSONParseComprehensive(void)
     testCond((STILL_OK(s)) && (json != NULL) && (consumed == l3));
 
     test("check string value");
-    natsString *strVal = NULL;
-    IFOK(s, nats_refJSONStr(json, "string", &strVal));
-    testCond((STILL_OK(s)) && (strVal != NULL) && (nats_strcmp(strVal->data, "Hello, World!") == 0));
+    natsString _string = NATS_STR("string");
+    natsString strVal = NATS_EMPTY;
+    IFOK(s, nats_refJSONStr(&strVal, json, &_string));
+    testCond((STILL_OK(s)) && safe_streq(strVal.text, "Hello, World!"));
 
     test("check string value (copy)");
     const char *strValCopy = NULL;
-    IFOK(s, nats_copyJSONStringC(json, pool, "string", &strValCopy));
-    testCond((STILL_OK(s)) && (strValCopy != NULL) && (strcmp(strValCopy, "Hello, World!") == 0) && ((uint8_t*)strValCopy != strVal->data));
+    IFOK(s, nats_strdupJSON(&strValCopy, json, pool, &_string));
+    testCond((STILL_OK(s)) && safe_streq(strValCopy, "Hello, World!"));
+
+    test("check strdupJSONIfDiff - with no diff");
+    const char *first = strValCopy;
+    IFOK(s, nats_strdupJSONIfDiff(&strValCopy, json, pool, &_string));
+    testCond((STILL_OK(s)) && (strValCopy == first));
+
+    test("check strdupJSONIfDiff - with a diff");
+    strValCopy = (char*) "something different";
+    const char *second = strValCopy;
+    IFOK(s, nats_strdupJSONIfDiff(&strValCopy, json, pool, &_string));
+    testCond((STILL_OK(s)) && (strValCopy != NULL) && (strValCopy != second) && strValCopy != first);
 }
 // Test_JSON(void)
 // {

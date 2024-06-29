@@ -307,13 +307,13 @@ nats_setErrorReal(const char *fileName, const char *funcName, int line, natsStat
     nats_vsnprintf(tmp, sizeof(tmp), errTxtFmt, ap);
     va_end(ap);
 
-    if (strlen(tmp) > 0)
+    if (unsafe_strlen(tmp) > 0)
     {
         n = snprintf(errTL->text, sizeof(errTL->text), "(%s:%d): %s",
                      _getErrorShortFileName(fileName), line, tmp);
         if ((n < 0) || (n >= (int)sizeof(errTL->text)))
         {
-            int pos = ((int)strlen(errTL->text)) - 1;
+            int pos = ((int)safe_strlen(errTL->text)) - 1;
             int i;
 
             for (i = 0; i < 3; i++)
@@ -346,13 +346,13 @@ nats_updateErrTxt(const char *fileName, const char *funcName, int line, const ch
     nats_vsnprintf(tmp, sizeof(tmp), errTxtFmt, ap);
     va_end(ap);
 
-    if (strlen(tmp) > 0)
+    if (unsafe_strlen(tmp) > 0)
     {
         n = snprintf(errTL->text, sizeof(errTL->text), "(%s:%d): %s",
                      _getErrorShortFileName(fileName), line, tmp);
         if ((n < 0) || (n >= (int)sizeof(errTL->text)))
         {
-            int pos = ((int)strlen(errTL->text)) - 1;
+            int pos = ((int)safe_strlen(errTL->text)) - 1;
             int i;
 
             for (i = 0; i < 3; i++)

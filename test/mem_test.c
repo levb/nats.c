@@ -45,7 +45,7 @@ void Test_MemPoolAlloc(void)
     char name[] = "mem-test";
     test("Create pool");
     natsStatus s = nats_createPool(&pool, &opts, name);
-    size_t expectedLength = sizeof(natsPool) + sizeof(natsSmall) + strlen(name) + 1;
+    size_t expectedLength = sizeof(natsPool) + sizeof(natsSmall) + unsafe_strlen(name) + 1;
     testCond((STILL_OK(s)) &&
              (pool != NULL) &&
              (pool->small != NULL) &&
@@ -99,7 +99,7 @@ void Test_MemPoolAlloc(void)
              (pool->small->next->next != NULL) &&
              (pool->small->next->next->next == NULL) &&
              (pool->small->next->next->len == expectedLength) &&
-             (buf->buf.data == (uint8_t *)pool->small->next->next + sizeof(natsSmall)));
+             (buf->buf.bytes == (uint8_t *)pool->small->next->next + sizeof(natsSmall)));
 
     test("Check that natsBuf struct is allocated in the second chunk");
     expectedCurrentFreeBlockLen += sizeof(natsBuf);
@@ -123,11 +123,11 @@ void Test_MemPoolAlloc(void)
 
     test("Expand natsBuf into the heap, and allocate again, in the 3rd chunk that's returned");
     uint8_t aLotOfGarbage[2031];
-    s = nats_addBufBB(buf, aLotOfGarbage, sizeof(aLotOfGarbage));
+    s = nats_append(buf, aLotOfGarbage, sizeof(aLotOfGarbage));
     testCond((STILL_OK(s)) &&
              (pool->small->next->next->len == sizeof(natsSmall)) &&
              (pool->large != NULL) && (pool->large->prev == NULL) &&
-             (buf->buf.data == pool->large->data) &&
+             (buf->buf.bytes == pool->large->data) &&
              (memcmp(pool->large->data, aLotOfGarbage, sizeof(aLotOfGarbage)) == 0) &&
              (buf->buf.len == sizeof(aLotOfGarbage)) &&
              (buf->cap == nats_pageAlignedSize(&opts, sizeof(aLotOfGarbage))));
@@ -186,7 +186,7 @@ void Test_MemPoolRecycle(void)
 
     test("Create pool");
     char name[] = "recycle-test";
-    size_t expectedLengthFirst = sizeof(natsSmall) + sizeof(natsPool) + strlen(name) + 1;
+    size_t expectedLengthFirst = sizeof(natsSmall) + sizeof(natsPool) + unsafe_strlen(name) + 1;
      natsStatus s = nats_createPool(&pool, &opts, name);
     testCond(STILL_OK(s) && 
         pool->small->len == expectedLengthFirst);
@@ -215,11 +215,11 @@ void Test_MemPoolRecycle(void)
     testCond(STILL_OK(s) &&
              (rbuf != NULL) &&
              (rbuf->buf.len == 0) &&
-             (rbuf->readFrom == rbuf->buf.data));
+             (rbuf->readFrom == rbuf->buf.bytes));
 
     test("Mark bytes 100:200 as remaining");
-    memset(rbuf->buf.data, 'D', opts.readBufferSize);
-    rbuf->readFrom = rbuf->buf.data + 100;
+    memset(rbuf->buf.bytes, 'D', opts.readBufferSize);
+    rbuf->readFrom = rbuf->buf.bytes + 100;
     rbuf->buf.len = 200;
     testCond(true);
 

@@ -40,34 +40,34 @@ void Test_ConnWriteChain(void)
              (w.chain != NULL));
 
     test("Add 3 buffers");
-    natsString s0 = NATS_STR("test0");
-    natsString s1 = NATS_STR("test1");
-    natsString s2 = NATS_STR("test2");
-    s = natsWriteChain_add(&w, &s0, NULL, NULL);
-    s = natsWriteChain_add(&w, &s1, NULL, NULL);
-    s = natsWriteChain_add(&w, &s2, NULL, NULL);
+    natsBytes bb0 = NATS_BYTES("test0");
+    natsBytes bb1 = NATS_BYTES("test1");
+    natsBytes bb2 = NATS_BYTES("test2");
+    s = natsWriteChain_add(&w, &bb0, NULL, NULL);
+    s = natsWriteChain_add(&w, &bb1, NULL, NULL);
+    s = natsWriteChain_add(&w, &bb2, NULL, NULL);
     testCond((STILL_OK(s)) &&
              (w.start == 0) &&
              (w.end == 3) &&
-             (w.chain[0].buf.data == s0.data) &&
-             (w.chain[0].buf.len == s0.len) &&
-             (w.chain[1].buf.data == s1.data) &&
-             (w.chain[1].buf.len == s1.len) &&
-             (w.chain[2].buf.data == s2.data) &&
-             (w.chain[2].buf.len == s2.len) &&
+             (w.chain[0].buf.bytes == bb0.bytes) &&
+             (w.chain[0].buf.len == bb0.len) &&
+             (w.chain[1].buf.bytes == bb1.bytes) &&
+             (w.chain[1].buf.len == bb1.len) &&
+             (w.chain[2].buf.bytes == bb2.bytes) &&
+             (w.chain[2].buf.len == bb2.len) &&
              (w.capacity == 4));
 
     test("Get the current buffer, the first we added");
     natsWriteBuffer *wb = natsWriteChain_get(&w);
     testCond((wb != NULL) &&
-             (wb->buf.data == s0.data) &&
-             (wb->buf.len == s0.len));
+             (wb->buf.bytes == bb0.bytes) &&
+             (wb->buf.len == bb0.len));
 
     test("If we get again, we get the same one");
     wb = natsWriteChain_get(&w);
     testCond((wb != NULL) &&
-             (wb->buf.data == s0.data) &&
-             (wb->buf.len == s0.len));
+             (wb->buf.bytes == bb0.bytes) &&
+             (wb->buf.len == bb0.len));
 
     test("Done with the current buffer");
     s = natsWriteChain_done(NULL, &w);
@@ -79,19 +79,19 @@ void Test_ConnWriteChain(void)
     test("Get the current buffer, the second we added");
     wb = natsWriteChain_get(&w);
     testCond((wb != NULL) &&
-             (wb->buf.data == s1.data) &&
-             (wb->buf.len == s1.len));
+             (wb->buf.bytes == bb1.bytes) &&
+             (wb->buf.len == bb1.len));
 
     test("Add/remove 9 times, to accomplish a wraparound of 1 item");
-    natsString s3s11[] = {NATS_STR("test3"), NATS_STR("test4"), NATS_STR("test5"), NATS_STR("test6"),
-                          NATS_STR("test7"), NATS_STR("test8"), NATS_STR("test9"), NATS_STR("test10"),
-                          NATS_STR("test11")};
-    for (size_t i = 0; i < sizeof(s3s11) / sizeof(*s3s11); i++)
+    natsBytes bb3bb11[] = {NATS_BYTES("test3"), NATS_BYTES("test4"), NATS_BYTES("test5"), NATS_BYTES("test6"),
+                          NATS_BYTES("test7"), NATS_BYTES("test8"), NATS_BYTES("test9"), NATS_BYTES("test10"),
+                          NATS_BYTES("test11")};
+    for (size_t i = 0; i < sizeof(bb3bb11) / sizeof(*bb3bb11); i++)
     {
         s = natsWriteChain_done(NULL, &w);
         if (s != NATS_OK)
             break;
-        s = natsWriteChain_add(&w, &s3s11[i], NULL, NULL);
+        s = natsWriteChain_add(&w, &bb3bb11[i], NULL, NULL);
         if (s != NATS_OK)
             break;
     }
@@ -101,16 +101,16 @@ void Test_ConnWriteChain(void)
              natsWriteChain_len(&w) == 2);
 
     test("Add one more");
-    natsString s12 = NATS_STR("test12");
-    s = natsWriteChain_add(&w, &s12, NULL, NULL);
+    natsBytes bb12 = NATS_BYTES("test12");
+    s = natsWriteChain_add(&w, &bb12, NULL, NULL);
     testCond((STILL_OK(s)) &&
              (w.start == 10) &&
              (w.end == 13) &&
              natsWriteChain_len(&w) == 3);
 
     test("Add one more and make sure it grows and resets");
-    natsString s13 = NATS_STR("test13");
-    s = natsWriteChain_add(&w, &s13, NULL, NULL);
+    natsBytes bb13 = NATS_BYTES("test13");
+    s = natsWriteChain_add(&w, &bb13, NULL, NULL);
     testCond((STILL_OK(s)) &&
              (w.start == 2) &&
              (w.end == 6) &&

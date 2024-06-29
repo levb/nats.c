@@ -146,7 +146,7 @@ nats_parseJSON(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t *data,
 #define _jsonError(_f, ...) \
     nats_setErrorf(NATS_ERR, "JSON parsing error line %d, pos %d: " _f, parser->line + 1, parser->pos, __VA_ARGS__)
 
-    JSONDEBUGf("Parsing JSON: LEN:%zu '%.*s'", end - remaining, (int)(end - remaining), remaining);
+    JSONDEBUGf("Parsing JSON: LEN:%zu '%s'", end - remaining, nats_printableU(remaining, end - remaining, 64));
 
     while ((STILL_OK(s)) && (parser->state != stateEnd))
     {
@@ -157,7 +157,6 @@ nats_parseJSON(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t *data,
         case stateArrayValue:
             json = NULL;
             s = nats_parseJSON(&json, parser->nested, remaining, end, &cNested);
-            JSONDEBUGf("<>/<> -%d- Finished nested JSON: consumed:%zu, pos:%zu, remaining:%zu, end:%zu", parser->nestedLevel, cNested, c, end - remaining, end - data);
             if (s != NATS_OK)
                 continue;
             if (json != NULL)
@@ -173,20 +172,17 @@ nats_parseJSON(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t *data,
             // If we have reached the end of the buffer, and there's no "undo" character, we are done.
             if (end - remaining == 0)
             {
-                JSONDEBUGf("<>/<> -%d- NO more: pos:%zu, remaining:%zu, end:%zu", parser->nestedLevel, c, end - remaining, end - data);
                 if (consumed != NULL)
                     *consumed = c;
                 return NATS_OK;
             }
             ch = *remaining;
-            JSONDEBUGf("<>/<> -%d- more: '%c' pos:%zu, remaining:%zu, end:%zu", parser->nestedLevel, ch, c, end - remaining, end - data);
             remaining++;
             c++;
             parser->pos++;
         }
         else
         {
-            JSONDEBUGf("<>/<> -%d-Undo character: '%c'", parser->nestedLevel, ch);
             parser->undoCh = 0;
         }
 
@@ -242,7 +238,7 @@ nats_parseJSON(nats_JSON **newJSON, natsJSONParser *parser, const uint8_t *data,
             {
             case ']':
                 parser->state = stateEnd;
-                parser->skipWhitespace = false; // Do not skip whitespace after the final '}'
+                parser->skipWhitespace = false; // Do not skip whitespace after the final ']'
                 continue;
             case ',':
                 parser->state = stateValue;

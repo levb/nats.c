@@ -218,7 +218,7 @@ static inline natsStatus nats_log_pdupString(natsString *to, natsPool *pool, con
 #define nats_pdupStringFromC(_to, _pool, _from) nats_log_pdupStringFromC((_to), (_pool), (_from)DEV_MODE_CTX)
 static inline natsStatus nats_log_pdupStringFromC(natsString *to, natsPool *pool, const char *str DEV_MODE_ARGS)
 {
-    return (str == NULL) ? ALWAYS_OK(nats_clearString(to)) : nats_log_pdupn((natsBytes *)to, pool, (const uint8_t *)str, strlen(str), true DEV_MODE_PASSARGS);
+    return (str == NULL) ? ALWAYS_OK(nats_clearString(to)) : nats_log_pdupn((natsBytes *)to, pool, (const uint8_t *)str, safe_strlen(str), true DEV_MODE_PASSARGS);
 }
 
 //----------------------------------------------------------------------------
@@ -257,7 +257,7 @@ static inline natsStatus nats_appendCString(natsBuf *buf, const char *str)
 {
     if (nats_strIsEmpty(str))
         return NATS_OK;
-    return nats_append(buf, (const uint8_t *)str, strlen(str)); // don't use nats_strlen, no need.
+    return nats_append(buf, (const uint8_t *)str, unsafe_strlen(str)); // don't use nats_strlen, no need.
 }
 
 static inline natsStatus nats_appendC(natsBuf *buf, const char *str, size_t len)

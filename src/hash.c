@@ -206,7 +206,7 @@ natsStrHash_Get(natsStrHash *hash, natsString *key)
     e = hash->bkts[hk & hash->mask];
     while (e != NULL)
     {
-        if ((e->hk == hk) && nats_equalStrings(&e->key, key) == 0)
+        if ((e->hk == hk) && nats_equalStrings(&e->key, key))
         {
             return e->data;
         }

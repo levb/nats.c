@@ -17,8 +17,8 @@
 #include <stddef.h>
 
 #define NATS_EMPTY {0, NULL}
-#define NATS_BYTES(_quoted_literal) {.len = sizeof(_quoted_literal) - 1, .bytes = (uint8_t*)_quoted_literal}
-#define NATS_STR(_quoted_literal) {.len = sizeof(_quoted_literal) - 1, .text = (char*)_quoted_literal}
+#define NATS_BYTES(_quoted_literal) {.len = sizeof(_quoted_literal) - 1, .bytes = (uint8_t *)_quoted_literal}
+#define NATS_STR(_quoted_literal) {.len = sizeof(_quoted_literal) - 1, .text = (char *)_quoted_literal}
 #define NATS_STRC(_str) {.len = safe_strlen(_str), .text = _str}
 
 static natsString NATS_EMPTY_STRING = NATS_EMPTY;
@@ -42,14 +42,18 @@ static inline void nats_clearBytes(natsBytes *bytes)
     }
 }
 
-
 static inline bool nats_equalStrings(natsString *str1, natsString *str2)
 {
     if (str1 == str2)
         return true;
-    return (str1 != NULL) && (str2 != NULL) &&
-           (str1->len == str2->len) &&
-           (strncmp(str1->text, str2->text, str1->len) == 0);
+
+    if ((str1 == NULL) || (str2 == NULL))
+        return false;
+    if (str1->len != str2->len)
+        return false;       
+
+    int n = strncmp(str1->text, str2->text, str1->len);
+    return n == 0;
 }
 
 static inline bool nats_equalsCString(const natsString *str, const char *cstr)
@@ -59,15 +63,18 @@ static inline bool nats_equalsCString(const natsString *str, const char *cstr)
 }
 
 static inline bool nats_strIsEmpty(const char *p) { return (p == NULL) || (*p == '\0'); }
-
 static inline char nats_toLower(char c) { return (c >= 'A' && c <= 'Z') ? (c | 0x20) : c; }
 static inline char nats_toUpper(char c) { return (c >= 'a' && c <= 'z') ? (c & ~0x20) : c; }
-
 static inline size_t safe_strlen(const char *s) { return nats_strIsEmpty(s) ? 0 : strlen(s); }
 static inline char *safe_strchr(const char *s, uint8_t find) { return nats_strIsEmpty(s) ? NULL : strchr(s, (int)find); }
 static inline char *safe_strrchr(const char *s, uint8_t find) { return nats_strIsEmpty(s) ? NULL : strrchr(s, (int)find); }
 static inline char *safe_strstr(const char *s, const char *find) { return (nats_strIsEmpty(s) || nats_strIsEmpty(find)) ? NULL : strstr(s, find); }
-static inline bool safe_streq(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
+
+static inline bool safe_streq(const char *s1, const char *s2)
+{
+    return ((s1 == s2) ||
+           ((s1 != NULL) && (s2 != NULL) && strcmp(s1, s2) == 0));
+}
 
 #define unsafe_strlen(s) strlen(s)
 #define unsafe_strchr(s, find) strchr((s), (find))
@@ -108,7 +115,7 @@ static inline natsStatus nats_strToSizet(size_t *result, const uint8_t *d, size_
     return s;
 }
 
-static natsBytes *nats_stringAsBytes(natsString *str) { return (natsBytes*)str; }
-static natsString *nats_bytesAsString(natsBytes *bytes) { return (natsString*)bytes; }
+static natsBytes *nats_stringAsBytes(natsString *str) { return (natsBytes *)str; }
+static natsString *nats_bytesAsString(natsBytes *bytes) { return (natsString *)bytes; }
 
 #endif /* MEM_STRING_H_ */
