@@ -541,7 +541,7 @@ nats_Base32_DecodeString(const char *src, char *dst, int dstMax, int *dstLen)
 //     for (i=0; i<l; i++)
 //     {
 //         if (!_base64IsValidChar(src[i], i>=l-2))
-//             return nats_setError(NATS_INVALID_ARG, "invalid base64 character: '%c'", src[i]);
+//             return nats_setError(NATS_INVALID_ARG, "invalid base64 character: %s", nats_printableByte(src[i]));
 
 //         if (src[i] == base64Padding)
 //             dl--;

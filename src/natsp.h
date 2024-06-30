@@ -109,9 +109,12 @@ void nats_sysInit(void);
 #define NATS_MINUS_ERR_LEN (sizeof(NATS_MINUS_ERR) - 1)
 
 static natsBytes CRLF_BYTES = NATS_BYTES("\r\n");
+static natsBytes NATS10_BYTES = NATS_BYTES("NATS/1.0");
 static natsBytes NATS10_CRLF_BYTES = NATS_BYTES("NATS/1.0\r\n");
 static natsBytes PING_CRLF_BYTES = NATS_BYTES("PING\r\n");
 static natsBytes PONG_CRLF_BYTES = NATS_BYTES("PONG\r\n");
+static natsBytes MSG_BYTES = NATS_BYTES("MSG");
+static natsBytes HMSG_BYTES = NATS_BYTES("HMSG");
 
 // These depend on mem.h but are used elsewhere, so define here.
 

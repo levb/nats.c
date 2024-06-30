@@ -286,9 +286,38 @@ natsStatus nats_log_recyclePool(natsPool **poolPtr, natsReadBuffer **outRbuf DEV
         return nats_setDefaultError(NATS_INVALID_ARG);
     if (pool->refs > 1)
     {
-        POOLDEBUGf("%s: refs:%d, NOT recyclable, release", pool->name, pool->refs);
-        nats_releasePool(pool);
-        goto CREATE_NEW_POOL;
+        POOLDEBUGf("%s: refs:%d, NOT recyclable, create a new one", pool->name, pool->refs);
+        natsPool *newPool = NULL;
+        natsStatus s = nats_createPool(&newPool, pool->opts, pool->name);
+
+        // There may be unread data in the pool's read chain (last buffer). If
+        // so, we need to copy it to the new pool.
+        if (STILL_OK(s) &&
+            (pool->readChain != NULL) &&
+            (pool->readChain->tail != NULL) &&
+            nats_readBufferUnreadLen(pool->readChain->tail) > 0)
+        {
+            // Get a buffer to copy into, from the new pool.
+            natsStatus s = nats_getReadBuffer(&rbuf, newPool);
+            if (STILL_OK(s))
+            {
+                // Copy the unread data.
+                memcpy(nats_readBufferData(rbuf), pool->readChain->tail->readFrom, nats_readBufferUnreadLen(pool->readChain->tail));
+                rbuf->buf.len = nats_readBufferUnreadLen(pool->readChain->tail);
+                rbuf->readFrom = nats_readBufferData(rbuf);
+                POOLTRACEx("    ", "%s: copied unread data to new read buffer, heap: %p)", pool->name, (void *)rbuf->buf.data);
+            }
+        }
+
+        if (STILL_OK(s))
+        {
+            nats_releasePool(pool);
+
+            if (outRbuf != NULL)
+                *outRbuf = rbuf;
+            *poolPtr = newPool;
+        }
+        return NATS_UPDATE_ERR_STACK(s);
     }
 
     // need to keep a copy of the name since we will zero out the previous memory.
@@ -354,7 +383,7 @@ natsStatus nats_log_recyclePool(natsPool **poolPtr, natsReadBuffer **outRbuf DEV
         if (pool->readChain != NULL)
             rbuf = nats_palloc(pool, sizeof(natsReadBuffer));
         if (pool->readChain == NULL || rbuf == NULL)
-            return NATS_NO_MEMORY; // the caller will release the pool.
+            return NATS_UPDATE_ERR_STACK(NATS_NO_MEMORY); // the caller will release the pool.
 
         *rbuf = lastToKeep;
         pool->readChain->head = rbuf;
@@ -364,13 +393,6 @@ natsStatus nats_log_recyclePool(natsPool **poolPtr, natsReadBuffer **outRbuf DEV
     POOLDEBUGf("%s: recycled, heap: %p", namebuf, (void *)(pool->small));
     *poolPtr = pool;
     return NATS_OK;
-
-CREATE_NEW_POOL:
-    if (pool != NULL)
-        nats_releasePool(pool);
-    if (outRbuf != NULL)
-        *outRbuf = NULL;
-    return nats_createPool(poolPtr, pool->opts, pool->name);
 }
 
 static inline size_t _newLargeBufSize(natsPool *pool, size_t current, size_t required)

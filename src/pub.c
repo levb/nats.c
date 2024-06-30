@@ -90,7 +90,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
         if (natsConn_initialConnectDone(nc) && !nc->info->headers)
             return nats_setDefaultError(NATS_NO_SERVER_SUPPORT);
 
-        headerLen = natsMessageHeader_encodedLen(msg);
+        headerLen = nats_encodedMessageHeaderLen(msg);
         if (headerLen > 0)
         {
             GETBYTES_SIZE(headerLen, hlb, hli)
@@ -100,7 +100,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
             protoLen = NATS_HPUB_LEN;
         }
     }
-    else if (!msg->flags.outgoing && msg->x.in.buf != NULL)
+    else if (!msg->flags.outgoing)
     {
         // <>/<> FIXME lift headers from msg->in into liftedHeader
         if (natsConn_initialConnectDone(nc) && nc->info->headers)
@@ -152,7 +152,7 @@ nats_asyncPublish(natsConnection *nc, natsMessage *msg, bool copyData)
     {
         if (liftedHeader == NULL)
         {
-            IFOK(s, natsMessageHeader_encode(scratch, msg));
+            IFOK(s, nats_encodeMessageHeader(scratch, msg));
         }
         else
         {

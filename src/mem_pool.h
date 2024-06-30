@@ -230,7 +230,7 @@ static inline natsStatus nats_log_pdupStringFromC(natsString *to, natsPool *pool
 #define nats_readBufferEnd(_rbuf) ((_rbuf)->buf.bytes + (_rbuf)->buf.len)
 #define nats_readBufferUnreadLen(_rbuf) (nats_readBufferEnd(_rbuf) - (_rbuf)->readFrom)
 #define nats_readBufferAsBytes(_rbuf) (&(_rbuf)->buf)
-#define nats_readBufferAsString(_rbuf) ((nats_bytesAsString(&(_rbuf)->buf))
+#define nats_readBufferAsString(_rbuf) nats_bytesAsString(&(_rbuf)->buf)
 
 natsStatus nats_getReadBuffer(natsReadBuffer **rbuf, natsPool *pool);
 

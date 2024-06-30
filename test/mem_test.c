@@ -187,9 +187,9 @@ void Test_MemPoolRecycle(void)
     test("Create pool");
     char name[] = "recycle-test";
     size_t expectedLengthFirst = sizeof(natsSmall) + sizeof(natsPool) + unsafe_strlen(name) + 1;
-     natsStatus s = nats_createPool(&pool, &opts, name);
-    testCond(STILL_OK(s) && 
-        pool->small->len == expectedLengthFirst);
+    natsStatus s = nats_createPool(&pool, &opts, name);
+    testCond(STILL_OK(s) &&
+             pool->small->len == expectedLengthFirst);
 
     test("fill the rest of the first small chunk with 'A's");
     s = _allocFilledChunk(pool, opts.heapPageSize - pool->small->len, 'A');
@@ -247,7 +247,69 @@ void Test_MemPoolRecycle(void)
     testCond(zeroed);
 
     test("Check the second small's pointers");
-    testCond(  (pool->small->next == second) &&
+    testCond((pool->small->next == second) &&
              (pool->small->next->len == sizeof(natsSmall)) &&
              (pool->small->next->next == NULL));
+}
+
+void Test_IsValidCh(void)
+{
+    natsStatus s = NATS_OK;
+    size_t i;
+
+    nats_initCharacterValidation();
+
+    test("valid digits");
+    const char *validDigits = "0123456789";
+    for (i = 0; (STILL_OK(s)) && (i < strlen(validDigits)); i++)
+        s = nats_validateByte((uint8_t)validDigits[i], NATS_VALID_DIGITS_ONLY);
+    testCond(STILL_OK(s));
+
+    test("invalid digits");
+    const char *invalidDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+-=[]{}|;':\",.<>/?";
+    s = NATS_ERR;
+    for (i = 0; (!STILL_OK(s)) && (i < strlen(invalidDigits)); i++)
+        s = nats_validateByte((uint8_t)invalidDigits[i], NATS_VALID_DIGITS_ONLY);
+    testCond(!STILL_OK(s));
+    s = NATS_OK;
+
+    test("valid name chars");
+    const char *validNameChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'*+-.^_`|~\x80\xA7\xFF";
+    for (i = 0; (STILL_OK(s)) && (i < strlen(validNameChars)); i++)
+        s = nats_validateByte((uint8_t)validNameChars[i], NATS_VALID_HEADER_NAME_CHARS);
+    testCond(STILL_OK(s));
+
+    test("invalid name chars");
+    const char *invalidNameChars = "()=[]{};:,<>/\\";
+    s = NATS_ERR;
+    for (i = 0; (!STILL_OK(s)) && (i < strlen(invalidNameChars)); i++)
+        s = nats_validateByte((uint8_t)invalidNameChars[i], NATS_VALID_HEADER_NAME_CHARS);
+    testCond(!STILL_OK(s));
+    s = NATS_OK;
+
+    test("valid value chars");
+    const char *validValueChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'*+-.^_`|~ \t\x80\xA7\xFF";
+    for (i = 0; (STILL_OK(s)) && (i < strlen(validValueChars)); i++)
+        s = nats_validateByte((uint8_t)validValueChars[i], NATS_VALID_HEADER_VALUE_CHARS);
+    testCond(STILL_OK(s));
+
+    test("invalid value chars");
+    const char *reallyInvalidChars = "\n\x03\x1F\x7F";
+    s = NATS_ERR;
+    for (i = 0; (!STILL_OK(s)) && (i < strlen(reallyInvalidChars)); i++)
+        s = nats_validateByte((uint8_t)reallyInvalidChars[i], NATS_VALID_HEADER_VALUE_CHARS);
+    testCond(!STILL_OK(s));
+    s = NATS_OK;
+
+    test("valid subject chars");
+    const char *validSubjectChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\x80\xA7\xFF";
+    for (i = 0; (STILL_OK(s)) && (i < strlen(validSubjectChars)); i++)
+        s = nats_validateByte((uint8_t)validSubjectChars[i], NATS_VALID_SUBJECT_CHARS);
+    testCond(STILL_OK(s));
+
+    test("invalid subject chars");
+    s = NATS_ERR;
+    for (i = 0; (!STILL_OK(s)) && (i < strlen(reallyInvalidChars)); i++)
+        s = nats_validateByte((uint8_t)reallyInvalidChars[i], NATS_VALID_SUBJECT_CHARS);
+    testCond(!STILL_OK(s));
 }

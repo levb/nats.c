@@ -140,6 +140,7 @@ int main(int argc, char **argv)
     // // Makes valgrind happy
     // nats_CloseAndWait((failed ? 1 : 2000));
 
+    nats_Shutdown();
     if (__failed)
     {
         printf("*** TEST FAILED ***\n");

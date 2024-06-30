@@ -20,7 +20,7 @@
 #include "hash.h"
 #include "conn.h"
 
-size_t natsMessageHeader_encodedLen(natsMessage *msg)
+size_t nats_encodedMessageHeaderLen(natsMessage *msg)
 {
     natsStrHashIter iter;
     natsString key = NATS_EMPTY;
@@ -61,20 +61,20 @@ size_t natsMessageHeader_encodedLen(natsMessage *msg)
 }
 
 natsStatus
-natsMessageHeader_encode(natsBuf *buf, natsMessage *msg)
+nats_encodeMessageHeader(natsBuf *buf, natsMessage *msg)
 {
     natsStrHashIter iter;
     natsStatus s = NATS_OK;
     natsString key = NATS_EMPTY;
     void *p = NULL;
 
-    // See explanation in natsMessageHeader_encodedLen()
+    // See explanation in nats_encodedMessageHeaderLen()
     // if (natsMessage_needsLift(msg))
     // {
     //     s = nats_appendString(buf, &msg->hdr);
     //     return NATS_UPDATE_ERR_STACK(s);
     // }
-    // Based on decision in natsMessageHeader_encodedLen(),
+    // Based on decision in nats_encodedMessageHeaderLen(),
     // getting here with NULL headers is likely a bug.
     if (msg->headers == NULL)
         return nats_setError(NATS_ERR, "trying to encode headers while there is none");
@@ -672,11 +672,12 @@ natsStatus
 nats_createMessage(natsMessage **newm, natsPool *pool, const char *subj)
 {
     natsStatus s = NATS_OK;
-    size_t subjLen = unsafe_strlen(subj);
+    size_t subjLen = safe_strlen(subj);
     natsMessage *m = NULL;
 
     IFOK(s, CHECK_NO_MEMORY(m = nats_palloc(pool, sizeof(natsMessage))));
-    IFOK(s, CHECK_NO_MEMORY(m->subject.text = nats_pstrdup(pool, subj)));
+    if (subjLen > 0)
+        IFOK(s, CHECK_NO_MEMORY(m->subject.text = nats_pstrdup(pool, subj)));
     if (NOT_OK(s))
         return NATS_UPDATE_ERR_STACK(s);
 
@@ -700,15 +701,6 @@ nats_CreateMessage(natsMessage **newm, natsConnection *nc, const char *subj)
     // Always release the pool, the message will hold on to it.
     nats_releasePool(pool);
     return nats_setDefaultError(s);
-}
-
-bool natsMessage_IsNoResponders(natsMessage *m)
-{
-    const char *val = NULL;
-
-    // To be a "no responders" message, it has to be of 0 length,
-    // and have a "Status" header with "503" as a value.
-    return ((m != NULL) && (natsMessage_GetDataLength(m) == 0) && (natsMessageHeader_Get(m, STATUS_HDR, &val) == NATS_OK) && (val != NULL) && (strncmp(val, NO_RESP_STATUS, HDR_STATUS_LEN) == 0));
 }
 
 natsStatus nats_SetOnMessageCleanup(natsMessage *m, void (*f)(void *), void *closure)

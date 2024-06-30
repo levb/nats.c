@@ -103,6 +103,9 @@ _createConnectionObject(natsConnection **newConn, natsEventLoop *ev, natsOptions
     IFOK(s, natsSock_Init(&nc->sockCtx));
     IFOK(s, natsWriteChain_init(&nc->writeChain, &opts->mem)); // TODO <>/<> defer to connect time
 
+    // This will create the parser's growable arg buffer in the global pool;
+    // it's limited to one header line, and is reused.
+    IFOK(s, nats_initMessageParser(&nc->msgps, pool)); 
     if (s != NATS_OK)
     {
         nats_releasePool(pool);

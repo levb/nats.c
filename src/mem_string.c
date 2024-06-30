@@ -106,8 +106,9 @@ const char *nats_printableU(const uint8_t *data, size_t len, size_t limit)
     const uint8_t *end = data + len;
 
     char *out = _printbuf[_printbufIndex++ % NUM_PRINT_BUFFERS];
-    const size_t maxbuf = PRINTBUF_SIZE - 1;
+    const size_t maxbuf = PRINTBUF_SIZE - 1 - 2;
     size_t i = 0;
+    out[i++] = '\'';
     for (const uint8_t *p = data; (p < end) && (i < maxbuf); p++)
     {
         if (isprint(*p))
@@ -136,10 +137,88 @@ const char *nats_printableU(const uint8_t *data, size_t len, size_t limit)
             out[i++] = '.';
         }
     }
+    out[i++] = '\'';
     out[i] = '\0';
     return out;
 }
 
+const char *nats_printableByte(uint8_t ch)
+{
+    char *out = _printbuf[_printbufIndex++ % NUM_PRINT_BUFFERS];
+    const size_t maxbuf = PRINTBUF_SIZE - 1;
+    char chbuf[3] = {0};
 
+    if (isprint(ch))
+    {
+        chbuf[0] = ch;
+    }
+    else if (ch == '\n')
+    {
+        chbuf[0] = '\\';
+        chbuf[1] = 'n';
+    }
+    else if (ch == '\r')
+    {
+        chbuf[0] = '\\';
+        chbuf[1] = 'r';
+    }
+    else
+    {
+        chbuf[0] = '?';
+    }
+
+    snprintf(out, maxbuf, "'%s' (0x%2X)", chbuf, ch);
+    return out;
+}
+
+// NATS_VALID_HEADER_NAME_CHARS reports whether c is a valid byte in a header
+// field name. RFC 7230 says:
+//
+//  - header-field   = field-name ":" OWS field-value OWS
+//  - field-name     = token
+//  - tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." / "^" /
+//          "_" / "`" / "|" / "~" / DIGIT / ALPHA
+//  - token = 1*tchar
+#define _ALPHA "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+#define _DIGITS "0123456789"
+#define _NAME_EXTRA_CHARS "!#$%&'*+-.^_`|~"
+#define _NAMECHARS _ALPHA _DIGITS _NAME_EXTRA_CHARS
+natsValidBitmask NATS_VALID_HEADER_NAME_CHARS = NATS_EMPTY;
+
+// NATS_VALID_HEADER_VALUE_CHARS reports whether c is a valid byte in a header
+// field value. RFC 7230 says:
+//
+//	- field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+//	- field-vchar    = VCHAR | obs-text
+//	- obs-text       = %x80-FF
+//
+// RFC 5234 says:
+//
+//	- HTAB           =  %x09
+//	- SP             =  %x20
+//	- VCHAR          =  %x21-7E
+
+#define _VCHAR "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+#define _VALUE_EXTRA_CHARS " \t"
+#define _VALUECHARS _VCHAR _VALUE_EXTRA_CHARS
+natsValidBitmask NATS_VALID_HEADER_VALUE_CHARS = NATS_EMPTY;
+
+// NATS_VALID_SUBJECT_CHARS reports whether c is a valid byte in a subject.
+natsValidBitmask NATS_VALID_SUBJECT_CHARS = NATS_EMPTY;
+
+void nats_initCharacterValidation(void)
+{
+    nats_setValidASCII(&NATS_VALID_HEADER_NAME_CHARS, _NAMECHARS);
+    nats_setValidASCII(&NATS_VALID_HEADER_VALUE_CHARS, _VALUECHARS);
+
+    // In subjects, everything is allowed except for spaces and control
+    // characters.
+    NATS_VALID_SUBJECT_CHARS.lower = 0xFFFFFFFFFFFFFFFF;
+    NATS_VALID_SUBJECT_CHARS.upper = 0xFFFFFFFFFFFFFFFF;
+    for (int i = 0; i < 0x20; i++)
+        nats_setInvalidASCIIChar(&NATS_VALID_SUBJECT_CHARS, i);
+    nats_setInvalidASCIIChar(&NATS_VALID_SUBJECT_CHARS, 0x7F);
+    nats_setInvalidASCIIChar(&NATS_VALID_SUBJECT_CHARS, ' ');
+}
 
 #endif // DEV_MODE

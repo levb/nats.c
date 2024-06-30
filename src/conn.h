@@ -80,6 +80,7 @@ struct __natsConnection
     natsStatus err;
     char errStr[256];
     natsParser *ps;
+    natsMessageParser msgps;
     natsWriteQueue writeChain;
     int pingsOut;
 
@@ -147,18 +148,20 @@ natsStatus
 nats_sendUnsubscribe(natsConnection *nc, uint64_t sid, uint64_t afterNMessagesReceived);
 
 #ifdef DEV_MODE_CONN
+#define CONNTRACE(s) DEVTRACE("CONN", s)
 #define CONNTRACEf(fmt, ...) DEVTRACEf("CONN", fmt, __VA_ARGS__)
 #define CONNDEBUGf(fmt, ...) DEVDEBUGf("CONN", fmt, __VA_ARGS__)
 #define CONNERROR(str) DEVERROR("CONN", str)
 #else
+#define CONNTRACE DEVNOLOG
 #define CONNTRACEf DEVNOLOGf
 #define CONNDEBUGf DEVNOLOGf
 #define CONNERROR DEVNOLOG
 #endif
 
 #ifdef DEV_MODE_CONN_TRACE
-#define CONNTRACE_out(_buf) DEVTRACEf("->  ", "%zu: '%s'", (_buf)->len, (nats_printableBytes(_buf, 0)));
-#define CONNTRACE_in(_buf) DEVTRACEf("<-  ", "%zu: '%s'", (_buf)->len, (nats_printableBytes(_buf, 0)));
+#define CONNTRACE_out(_buf) DEVTRACEf("->  ", "%zu: %s", (_buf)->len, (nats_printableBytes(_buf, 0)));
+#define CONNTRACE_in(_buf) DEVTRACEf("<-  ", "%zu: %s", (_buf)->len, (nats_printableBytes(_buf, 0)));
 #else
 #define CONNTRACE_out(_buf)
 #define CONNTRACE_in(_buf)

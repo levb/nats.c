@@ -69,7 +69,6 @@ struct __natsParser
         } json;
         struct
         {
-            natsMessageParser *parser;
             natsMessage *msg;
         } msg;
     } args;
@@ -163,7 +162,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_I;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected an operation, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected an operation, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -175,7 +174,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = END_LINE_CR;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a CRLF, got: '%x'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a CRLF, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -188,7 +187,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->nextState = 0;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a CRLF, got: '%x'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a CRLF, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -201,7 +200,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_IN;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected INFO, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected INFO, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -214,7 +213,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_INF;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected INFO, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected INFO, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -227,7 +226,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_INFO;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected INFO, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected INFO, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -245,7 +244,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->skipWhitespace = true;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a space, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a space, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -274,7 +273,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_M;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a [H]MSG, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a [H]MSG, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -288,7 +287,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 continue;
                 ;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a [H]MSG, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a [H]MSG, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -302,7 +301,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 continue;
                 ;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a HMSG, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a HMSG, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -312,7 +311,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
             {
             case ' ':
             case '\t':
-                s = nats_createMessageParser(&(ps->args.msg.parser), nc->opPool, ps->expectHeadersInMessage);
+                s = nats_prepareToParseMessage(&nc->msgps, nc->opPool, ps->expectHeadersInMessage, p-buf);
                 if (s != NATS_OK)
                     continue;
                 ps->args.msg.msg = NULL;
@@ -320,14 +319,14 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->skipWhitespace = true;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a space, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a space, got: %s", nats_printableByte(b));
             }
             continue;
         }
         case MSG_ARG:
         {
             size_t consumedByMsg = 0;
-            s = nats_parseMessage(&ps->args.msg.msg, ps->args.msg.parser, p, end, &consumedByMsg);
+            s = nats_parseMessage(&ps->args.msg.msg, &nc->msgps, p, end, &consumedByMsg);
             p += consumedByMsg;
             if (s != NATS_OK)
                 continue;
@@ -354,7 +353,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_PO;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING or PONG, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING or PONG, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -367,7 +366,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_PON;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PONG, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PONG, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -382,7 +381,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->nextState = OP_END;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -395,7 +394,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->state = OP_PIN;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING, got: %s", nats_printableByte(b));
             }
             continue;
         }
@@ -410,7 +409,7 @@ natsConn_parseOp(natsConnection *nc, uint8_t *buf, uint8_t *end, size_t *consume
                 ps->nextState = OP_END;
                 continue;
             default:
-                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING, got: '%c'", b);
+                s = nats_setErrorf(NATS_PROTOCOL_ERROR, "Expected a PING, got: %s", nats_printableByte(b));
             }
             continue;
         }

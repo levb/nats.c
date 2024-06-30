@@ -101,7 +101,7 @@ nats_refJSONField(nats_JSONField **retField, nats_JSON *json, natsString *name, 
     case TYPE_DOUBLE:
         if (field->typ != TYPE_NUM)
             return nats_setErrorf(NATS_INVALID_ARG,
-                                  "Asked for field '%s' as type %d, but got type %d when parsing",
+                                  "Asked for field %s as type %d, but got type %d when parsing",
                                   nats_printableString(&field->name), fieldType, field->typ);
         break;
     case TYPE_BOOL:
@@ -109,12 +109,12 @@ nats_refJSONField(nats_JSONField **retField, nats_JSON *json, natsString *name, 
     case TYPE_OBJECT:
         if (field->typ != fieldType)
             return nats_setErrorf(NATS_INVALID_ARG,
-                                  "Asked for field '%.*s' as type %d, but got type %d when parsing",
+                                  "Asked for field %s as type %d, but got type %d when parsing",
                                   nats_printableString(&field->name), fieldType, field->typ);
         break;
     default:
         return nats_setErrorf(NATS_INVALID_ARG,
-                              "Asked for field '%.*s' as type %d, but this type does not exist",
+                              "Asked for field %s as type %d, but this type does not exist",
                               nats_printableString(&field->name), fieldType);
     }
     *retField = field;
@@ -300,7 +300,7 @@ nats_refJSONArray(nats_JSONField **retField, nats_JSON *json, natsString *name, 
     // Check parsed type matches what is being asked.
     if (field->typ != TYPE_ARRAY)
         return nats_setErrorf(NATS_INVALID_ARG,
-                              "Field '%s' is not an array, it has type: %d", nats_printableString(&field->name), field->typ);
+                              "Field %s is not an array, it has type: %d", nats_printableString(&field->name), field->typ);
     // If empty array, return NULL/OK
     if (field->value.varr->typ == TYPE_NULL)
     {
@@ -309,7 +309,7 @@ nats_refJSONArray(nats_JSONField **retField, nats_JSON *json, natsString *name, 
     }
     if (fieldType != field->value.varr->typ)
         return nats_setErrorf(NATS_INVALID_ARG,
-                              "Asked for field '%s' as an array of type: %d, but it is an array of type: %d",
+                              "Asked for field %s as an array of type: %d, but it is an array of type: %d",
                               nats_printableString(&field->name), fieldType, field->typ);
 
     *retField = field;
@@ -487,10 +487,10 @@ nats_rangeJSON(nats_JSON *json, int expectedType, int expectedNumType, jsonRange
         nats_JSONField *f = (nats_JSONField *)val;
 
         if (f->typ != expectedType)
-            s = nats_setErrorf(NATS_ERR, "field '%s': expected value type of %d, got %d",
+            s = nats_setErrorf(NATS_ERR, "field %s: expected value type of %d, got %d",
                                nats_printableString(&f->name), expectedType, f->typ);
         else if ((f->typ == TYPE_NUM) && (f->numTyp != expectedNumType))
-            s = nats_setErrorf(NATS_ERR, "field '%.s': expected numeric type of %d, got %d",
+            s = nats_setErrorf(NATS_ERR, "field %s: expected numeric type of %d, got %d",
                                nats_printableString(&f->name), expectedNumType, f->numTyp);
         else
             s = cb(userInfo, &f->name, f);

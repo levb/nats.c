@@ -143,6 +143,7 @@ nats_open(void)
 
     nats_sysInit();
     nats_Base32_Init();
+    nats_initCharacterValidation();
 
     // Initialize the heap
     s = CHECK_NO_MEMORY(gLib.heap = nats_NewMallocHeap());
