@@ -393,7 +393,11 @@ typedef struct __jsSub
     bool                ordered;
     bool                dc; // delete JS consumer in Unsub()/Drain()
     bool                ackNone;
-    uint64_t            fetchID;
+    
+    // while processing a fetch request we use sub->subject+.fetchID to detect
+    // messages of interest.
+    uint64_t            fetchID; 
+    int64_t             fetchDeadline;
 
     // This is ConsumerInfo's Pending+Consumer.Delivered that we get from the
     // add consumer response. Note that some versions of the server gather the

@@ -219,12 +219,16 @@ natsSub_deliverMsgs(void *arg)
     jsi = sub->jsi;
     natsSub_Unlock(sub);
 
+    // bool needToPull = true;
     while (true)
     {
         natsSub_Lock(sub);
 
         s = NATS_OK;
-        while (((msg = sub->msgList.head) == NULL) && !(sub->closed) && !(sub->draining) && (s != NATS_TIMEOUT))
+        // while (((!needToPull) || ((msg = sub->msgList.head) == NULL)) &&
+        while (((msg = sub->msgList.head) == NULL) &&
+               !(sub->closed) &&
+               !(sub->draining) && (s != NATS_TIMEOUT))
         {
             if (timeout != 0)
                 s = natsCondition_TimedWait(sub->cond, sub->mu, timeout);
@@ -238,6 +242,14 @@ natsSub_deliverMsgs(void *arg)
             break;
         }
         draining = sub->draining;
+
+        // if (needToPull)
+        // {
+        //     // TODO: _sendPullRequestMessage
+        //     needToPull = false;
+        //     natsSub_Unlock(sub);
+        //     continue;
+        // }
 
         // Will happen with timeout subscription
         if (msg == NULL)

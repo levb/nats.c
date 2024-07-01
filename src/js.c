@@ -1782,8 +1782,49 @@ _sendPullRequest(natsConnection *nc, const char *subj, const char *rply,
     // Sent the request to get more messages.
     IFOK(s, natsConnection_PublishRequest(nc, subj, rply,
         natsBuf_Data(buf), natsBuf_Len(buf)));
+    IFOK(s, natsConnection_Flush(nc));
 
     return NATS_UPDATE_ERR_STACK(s);
+}
+
+static inline /* used once */ natsStatus 
+_setupSubForFetch(char **batchDeliverySubj, natsSubscription *sub, int64_t heartbeatNano)
+{
+    natsStatus s = NATS_OK;
+    jsSub *jsi =  sub->jsi;
+    
+    if ((jsi == NULL) || !jsi->pull)
+    {
+        return nats_setError(NATS_INVALID_SUBSCRIPTION, "%s", jsErrNotAPullSubscription);
+    }
+    if (jsi->inFetch)
+    {
+        return nats_setError(NATS_ERR, "%s", jsErrConcurrentFetchNotAllowed);
+    }
+    jsi->inFetch = true;
+    jsi->fetchID++;
+    if (nats_asprintf(batchDeliverySubj, "%.*s%" PRIu64, (int)strlen(sub->subject) - 1, sub->subject, jsi->fetchID) < 0)
+        return nats_setDefaultError(NATS_NO_MEMORY);
+
+    if (heartbeatNano > 0)
+    {
+        int64_t heartbeatMilli = heartbeatNano / 1000000;
+        sub->refs++;
+        if (jsi->hbTimer == NULL)
+        {
+            s = natsMsg_create(&jsi->mhMsg, NULL, 0, NULL, 0, NULL, 0, -1);
+            if (s == NATS_OK)
+            {
+                natsMsg_setNoDestroy(jsi->mhMsg);
+                s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _hbTimerStopped, heartbeatMilli * 2, (void *)sub);
+            }
+            if (s != NATS_OK)
+                sub->refs--;
+        }
+        else
+            natsTimer_Reset(jsi->hbTimer, heartbeatMilli);
+    }
+    return s;
 }
 
 natsStatus
@@ -1795,19 +1836,19 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     int             batch   = 0;
     natsConnection  *nc     = NULL;
     const char      *subj   = NULL;
-    const char      *rply   = NULL;
+    char      *rply   = NULL;
     int             pmc     = 0;
     char            buffer[64];
     natsBuffer      buf;
     int64_t         start    = 0;
-    int64_t         deadline = 0;
     int64_t         timeout  = 0;
     int             size     = 0;
     bool            sendReq  = true;
     jsSub           *jsi     = NULL;
     natsMsg         *mhMsg   = NULL;
-    char            *reqSubj = NULL;
     bool            noWait;
+
+    printf("<>/<> _fetch !!!!!!!!!!!!!!!!!!!!\n");
 
     if (list == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
@@ -1820,61 +1861,37 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     if (!req->NoWait && req->Expires <= 0)
         return nats_setDefaultError(NATS_INVALID_TIMEOUT);
 
+    // Set up the sub for fetching, extract local vars under lock.
     natsSub_Lock(sub);
     jsi = sub->jsi;
-    if ((jsi == NULL) || !jsi->pull)
+    nc = sub->conn;
+    subj = jsi->nxtMsgSubj;
+    pmc = (sub->msgList.msgs > 0);
+    s = _setupSubForFetch(&rply, sub, req->Heartbeat);
+    if (s != NATS_OK)
     {
         natsSub_Unlock(sub);
-        return nats_setError(NATS_INVALID_SUBSCRIPTION, "%s", jsErrNotAPullSubscription);
+        return s;
     }
-    if (jsi->inFetch)
-    {
-        natsSub_Unlock(sub);
-        return nats_setError(NATS_ERR, "%s", jsErrConcurrentFetchNotAllowed);
-    }
-    msgs = (natsMsg**) NATS_CALLOC(req->Batch, sizeof(natsMsg*));
+    mhMsg = jsi->mhMsg; // shortcut, was created by _setupSubForFetch()
+    natsSub_Unlock(sub);
+
+    // Initialize the buffers for receiving messages.
+    msgs = (natsMsg **)NATS_CALLOC(req->Batch, sizeof(natsMsg *));
     if (msgs == NULL)
     {
         natsSub_Unlock(sub);
         return nats_setDefaultError(NATS_NO_MEMORY);
     }
+    // Initialize the buffers for sending messages.
     natsBuf_InitWithBackend(&buf, buffer, 0, sizeof(buffer));
-    nc   = sub->conn;
-    subj = jsi->nxtMsgSubj;
-    pmc  = (sub->msgList.msgs > 0);
-    jsi->inFetch = true;
-    jsi->fetchID++;
-    if (nats_asprintf(&reqSubj, "%.*s%" PRIu64, (int) strlen(sub->subject)-1, sub->subject, jsi->fetchID) < 0)
-        s = nats_setDefaultError(NATS_NO_MEMORY);
-    else
-        rply = (const char*) reqSubj;
-    if ((s == NATS_OK) && req->Heartbeat)
-    {
-        int64_t hbi = req->Heartbeat / 1000000;
-        sub->refs++;
-        if (jsi->hbTimer == NULL)
-        {
-            s = natsMsg_create(&jsi->mhMsg, NULL, 0, NULL, 0, NULL, 0, -1);
-            if (s == NATS_OK)
-            {
-                natsMsg_setNoDestroy(jsi->mhMsg);
-                s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _hbTimerStopped, hbi*2, (void*) sub);
-            }
-            if (s != NATS_OK)
-                sub->refs--;
-        }
-        else
-            natsTimer_Reset(jsi->hbTimer, hbi);
 
-        mhMsg = jsi->mhMsg;
-    }
-    natsSub_Unlock(sub);
-
+    jsi->fetchDeadline = 0;
     if (req->Expires > 0)
     {
         start = nats_Now();
         timeout = req->Expires / (int64_t) 1E6;
-        deadline = start + timeout;
+        jsi->fetchDeadline = start + timeout;
     }
 
     // First, if there are already pending messages in the internal sub,
@@ -1887,6 +1904,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
         // This call will pull messages from the internal sync subscription
         // but will not wait (and return NATS_TIMEOUT without updating
         // the error stack) if there are no messages.
+        printf("<>/<> calling natsSub_nextMsg\n");
         s = natsSub_nextMsg(&msg, sub, 0, true);
         if (s == NATS_TIMEOUT)
         {
@@ -1927,7 +1945,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
 
         if (req->Expires > 0)
         {
-            timeout = deadline - nats_Now();
+            timeout = jsi->fetchDeadline - nats_Now();
             if (timeout <= 0)
                 s = NATS_TIMEOUT;
         }
@@ -1993,7 +2011,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
         natsTimer_Stop(jsi->hbTimer);
     natsSub_Unlock(sub);
 
-    NATS_FREE(reqSubj);
+    NATS_FREE(rply);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -2022,6 +2040,56 @@ natsSubscription_Fetch(natsMsgList *list, natsSubscription *sub, int batch, int6
     req.Batch = batch;
     req.Expires = NATS_MILLIS_TO_NANOS(timeout);
     s = _fetch(list, sub, &req, true);
+    return NATS_UPDATE_ERR_STACK(s);
+}
+
+// For now, cut&pasted from _fetch with no shame.
+natsStatus
+natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req,
+                         void (*msgf)(natsConnection *, natsSubscription *, natsMsg *, void *), void *msgClosure,
+                         void (*donef)(natsConnection *, natsSubscription *, natsStatus, void *), void *doneClosure,
+                         jsErrCode *errCode)
+{
+    natsStatus s = NATS_OK;
+    char *batchDeliverySubject = NULL;
+    char buffer[64];
+    const char *nextMsgSubject = NULL;
+    // int64_t start = 0;
+    // int64_t timeout = 0;
+    jsSub *jsi = NULL;
+    natsBuffer buf;
+    natsConnection *nc = NULL;
+
+    if ((sub == NULL) || (req == NULL) || (req->Batch <= 0) || (req->MaxBytes < 0))
+        return nats_setDefaultError(NATS_INVALID_ARG);
+    if (req->Expires <= 0)
+        return nats_setDefaultError(NATS_INVALID_TIMEOUT);
+
+    if (errCode != NULL)
+        *errCode = 0;
+
+    // Set up the sub for fetching, extract local vars under lock.
+    natsSub_Lock(sub);
+    nc = sub->conn;
+    jsi = sub->jsi;
+    nextMsgSubject = jsi->nxtMsgSubj;
+    s = _setupSubForFetch(&batchDeliverySubject, sub, req->Heartbeat);
+    if (s != NATS_OK)
+    {
+        natsSub_Unlock(sub);
+        return s;
+    }
+    natsSub_Unlock(sub);
+
+    natsBuf_InitWithBackend(&buf, buffer, 0, sizeof(buffer));
+    s = _sendPullRequest(nc, nextMsgSubject, batchDeliverySubject, &buf, req);
+    natsBuf_Cleanup(&buf);
+
+
+    // kick off heartbeat
+    // kickoff batch timeout timer    
+
+    NATS_FREE(batchDeliverySubject);
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -2360,9 +2428,17 @@ js_checkConsName(const char *cons, bool isDurable)
 }
 
 static natsStatus
-_subscribeMulti(natsSubscription **new_sub, jsCtx *js, const char **subjects, int numSubjects, const char *pullDurable,
-           natsMsgHandler usrCB, void *usrCBClosure, bool isPullMode,
-           jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode)
+_subscribeMulti(natsSubscription **new_sub,
+                jsCtx *js,
+                const char **subjects,
+                int numSubjects,
+                const char *pullDurable, // <>/<> bind or create?
+                natsMsgHandler usrCB,
+                void *usrCBClosure,
+                bool isPullMode,
+                jsOptions *jsOpts,
+                jsSubOptions *opts,
+                jsErrCode *errCode)
 {
     natsStatus          s           = NATS_OK;
     const char          *stream     = NULL;
