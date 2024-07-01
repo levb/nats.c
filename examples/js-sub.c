@@ -150,7 +150,14 @@ int main(int argc, char **argv)
 
         for (count = 0; (s == NATS_OK) && (count < total); )
         {
-            s = natsSubscription_Fetch(&list, sub, 1024, 5000, &jerr);
+            s = natsSubscription_Fetch(&list, sub, 5, 30000, &jerr);
+            // jsFetchRequest fr = {
+            //     .Batch = 1024,
+            //     .NoWait = true,
+            //     .Heartbeat = 1000000000,
+            //     .Expires = 5000,
+            // };
+            // s = natsSubscription_GoFetch(sub, 1024, 5000, msgf, msgClosure, donef, doneClosure, &jerr);
             if (s != NATS_OK)
                 break;
 
