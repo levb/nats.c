@@ -251,7 +251,7 @@ _processBatchMessage(natsSubscription *sub, natsMsg *msg)
     if (!isUserMessage)
     {
         batchID = _batchIDFromSubject(sub, natsMsg_GetSubject(msg));
-        if (batchID == jsi->fetchID)
+        if (batchID == jsi->batchID)
         {
             bool isHeaderOnly = ((msg->dataLen == 0) && (msg->hdrLen > 0));
             if (isHeaderOnly)

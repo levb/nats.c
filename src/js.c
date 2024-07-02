@@ -50,8 +50,9 @@ const int64_t    jsOrderedHBInterval     = NATS_SECONDS_TO_NANOS(5);
 #define jsLastConsumerSeqHdr    "Nats-Last-Consumer"
 
 // Forward declarations
-static void _hbTimerFired(natsTimer *timer, void* closure);
-static void _releaseSubWhenStoped(natsTimer *timer, void* closure);
+static void _onMissedHeartbeatTimer(natsTimer *timer, void *closure);
+static void _onBatchExpiresTimer(natsTimer *timer, void *closure);
+static void _onStoppedReleaseSub(natsTimer *timer, void* closure);
 
 typedef struct __jsOrderedConsInfo
 {
@@ -1226,36 +1227,41 @@ _lookupStreamBySubject(const char **stream, natsConnection *nc, const char *subj
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-static inline void _destroyBatch(jsBatch *f)
+static inline void _destroySyntheticMessageTimer(jsSyntheticMessageTimer *t, bool freeStruct)
 {
-    if (f == NULL)
+    if (t == NULL)
         return;
 
-    natsTimer_Destroy(f->timeoutTimer);
-    natsTimer_Destroy(f->missedHearteatTimer);
-
-    if (f->missedHeartbeatMsg != NULL)
+    natsTimer_Destroy(t->timer);
+    if (t->synthetic != NULL)
     {
-        natsMsg_clearNoDestroy(f->missedHeartbeatMsg);
-        natsMsg_Destroy(f->missedHeartbeatMsg);
+        natsMsg_clearNoDestroy(t->synthetic);
+        natsMsg_Destroy(t->synthetic);
     }
-    if (f->timeoutMsg != NULL)
+    if (freeStruct)
+        NATS_FREE(t);
+}
+
+static inline void _destroyBatch(jsBatch *batch)
+{
+    if (batch == NULL)
+        return;
+
+    _destroySyntheticMessageTimer(&batch->expires, false);
+    _destroySyntheticMessageTimer(&batch->missedHearbeat, false);
+
+    if (batch->endOfBatch != NULL)
     {
-        natsMsg_clearNoDestroy(f->timeoutMsg);
-        natsMsg_Destroy(f->timeoutMsg);
-    }
-    if (f->endOfBatchMsg != NULL)
-    {
-        natsMsg_clearNoDestroy(f->endOfBatchMsg);
-        natsMsg_Destroy(f->endOfBatchMsg);
+        natsMsg_clearNoDestroy(batch->endOfBatch);
+        natsMsg_Destroy(batch->endOfBatch);
     }
 
-    for (int i = 0; i < f->numMsgs; i++)
-        natsMsg_Destroy(f->msgs[i]);
+    for (int i = 0; i < batch->numMsgs; i++)
+        natsMsg_Destroy(batch->msgs[i]);
 
-    NATS_FREE(f->msgs);
-    NATS_FREE(f->statusSubject);
-    NATS_FREE(f);
+    NATS_FREE(batch->msgs);
+    NATS_FREE(batch->statusSubject);
+    NATS_FREE(batch);
 }
 
 void
@@ -1267,12 +1273,12 @@ jsSub_free(jsSub *jsi)
         return;
 
     _destroyBatch(jsi->batch);
+    _destroySyntheticMessageTimer(jsi->hb, true);
 
     js = jsi->js;
-    natsTimer_Destroy(jsi->hbTimer);
     NATS_FREE(jsi->stream);
     NATS_FREE(jsi->consumer);
-    NATS_FREE(jsi->nxtMsgSubj);
+    NATS_FREE(jsi->pullRequestSubject);
     NATS_FREE(jsi->cmeta);
     NATS_FREE(jsi->fcReply);
     NATS_FREE(jsi->psubj);
@@ -1288,6 +1294,9 @@ _autoAckCB(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closur
     jsSub   *jsi = (jsSub*) closure;
 
     natsMsg_setNoDestroy(msg);
+
+    // <>/<> TODO: If pull mode and there is no current batch, don't ack since
+    // it will not be delivered to the user!
 
     // Invoke user callback
     if (jsi->usrCb != NULL)
@@ -1822,38 +1831,62 @@ _sendPullRequest(natsConnection *nc, const char *subj, const char *rply, jsFetch
 
 // Initialize a new Batch structure. Does not require the sub lock.
 static natsStatus
-_newBatch(jsBatch **newBatch, jsFetchRequest *req, bool accumulate)
+_newBatch(jsBatch **newBatch, jsFetchRequest *req, bool accumulate,
+          natsBatchHandler batchf, void *batchClosure)
 {
     jsBatch *batch = (jsBatch *)NATS_CALLOC(1, sizeof(jsBatch));
     if (batch == NULL)
         return NATS_NO_MEMORY;
 
-    // Save a copy of the user's request.
-    batch->req = *req;
-
-    // set the deadline, and create the expiration (timeout) timer.
-    if (req->Expires > 0)
-    {
-        int64_t start = nats_Now();
-        int64_t timeout = req->Expires / (int64_t)1E6;
-        batch->deadline = start + timeout;
-    }
-
     // Initialize the buffer for receiving messages.
-    batch->msgs = (natsMsg **)NATS_CALLOC(req->Batch, sizeof(natsMsg *));
-    if (batch->msgs == NULL)
+    if (accumulate)
     {
-        _destroyBatch(batch);
-        return NATS_NO_MEMORY;
+        batch->msgs = (natsMsg **)NATS_CALLOC(req->Batch, sizeof(natsMsg *));
+        if (batch->msgs == NULL)
+        {
+            _destroyBatch(batch);
+            return NATS_NO_MEMORY;
+        }
     }
 
+    batch->req = *req;
+    batch->cb = batchf;
+    batch->closure = batchClosure;
     *newBatch = batch;
     return NATS_OK;
 }
 
+static inline natsStatus
+_initSyntheticMessageTimer(jsSyntheticMessageTimer *t, natsSubscription *sub, int64_t tick, natsTimerCb cb)
+{
+    natsStatus s = NATS_OK;
+
+    sub->refs++;
+    t->sub = sub;
+    s = natsMsg_create(&t->synthetic, NULL, 0, NULL, 0, NULL, 0, -1);
+    if (s == NATS_OK)
+    {
+        natsMsg_setNoDestroy(t->synthetic);
+        s = natsTimer_Create(&t->timer, cb, _onStoppedReleaseSub, tick, (void *)t);
+    }
+    if (s != NATS_OK)
+        sub->refs--;
+    return s;
+}
+
+static inline natsStatus
+_createSyntheticMessageTimer(jsSyntheticMessageTimer **t, natsSubscription *sub, int64_t tick, natsTimerCb cb)
+{
+    *t = (jsSyntheticMessageTimer *)NATS_CALLOC(1, sizeof(jsSyntheticMessageTimer));
+    if (*t == NULL)
+        return NATS_NO_MEMORY;
+
+    return _initSyntheticMessageTimer(*t, sub, tick, cb);
+}
+
 // Sub lock must be held.
 static natsStatus
-_startBatch(natsSubscription *sub, jsBatch *batch)
+_startBatch(natsSubscription *sub, jsBatch *batch, natsMsgHandler msgf, void *msgClosure)
 {
     natsStatus s = NATS_OK;
 
@@ -1862,54 +1895,33 @@ _startBatch(natsSubscription *sub, jsBatch *batch)
 
     // js_PullSubscribe is set up with a .* wildcard, this subject allows us to
     // deliver status to its delivery queue, where they will be processed.
-    if (nats_asprintf(&batch->statusSubject, "%.*s%" PRIu64, (int)strlen(sub->subject) - 1, sub->subject, sub->jsi->fetchID) < 0)
+    if (nats_asprintf(&batch->statusSubject, "%.*s%" PRIu64, (int)strlen(sub->subject) - 1, sub->subject, sub->jsi->batchID) < 0)
         s = NATS_NO_MEMORY;
 
     // Create the synthetic message for the end of batch.
     if (s == NATS_OK)
-    {
-        s = natsMsg_create(&batch->endOfBatchMsg, NULL, 0, NULL, 0, NULL, 0, -1);
-    }
+        s = natsMsg_create(&batch->endOfBatch, NULL, 0, NULL, 0, NULL, 0, -1);
 
-    // Set the deadline, and create the expiration (timeout) timer.
+    // Set the timer for expiring the entire batch.
     if ((s == NATS_OK) && (batch->req.Expires > 0))
-    {
-        int64_t start = nats_Now();
-        int64_t timeoutMilli = batch->req.Expires / (int64_t)1E6;
-        batch->deadline = start + timeoutMilli; // <>/<> Why do I care if the timer is set?
-        sub->refs++;
-        s = natsMsg_create(&batch->timeoutMsg, NULL, 0, NULL, 0, NULL, 0, -1);
-        if (s == NATS_OK)
-        {
-            natsMsg_setNoDestroy(batch->timeoutMsg);
-            s = natsTimer_Create(&batch->timeoutTimer, _timeoutTimerFired, _releaseSubWhenStoped, timeoutMilli, (void *)sub);
-        }
-        if (s != NATS_OK)
-            sub->refs--;
-    }
+        s = _initSyntheticMessageTimer(&batch->expires, sub, batch->req.Expires / (int64_t)1E6, _onBatchExpiresTimer);
 
-    // Create the missed heartbeat message, and the timer to fire if we miss 2 heartbeats.
+    // Set the timer for checking missed heartbeats.
     if ((s == NATS_OK) && (batch->req.Heartbeat > 0))
-    {
-        int64_t heartbeatMilli = batch->req.Heartbeat / (int64_t)1E6;
-        sub->refs++;
-        s = natsMsg_create(&batch->missedHeartbeatMsg, NULL, 0, NULL, 0, NULL, 0, -1);
-        if (s == NATS_OK)
-        {
-            natsMsg_setNoDestroy(batch->missedHeartbeatMsg);
+        s = _initSyntheticMessageTimer(&batch->missedHearbeat, sub, (2 * batch->req.Heartbeat) / (int64_t)1E6, _onMissedHeartbeatTimer);
 
-            s = natsTimer_Create(&batch->missedHearteatTimer, _hbTimerFired, _releaseSubWhenStoped, heartbeatMilli * 2, (void *)sub);
-        }
-        if (s != NATS_OK)
-            sub->refs--;
-    }
+    if (s != NATS_OK)
+        return s;
 
-    if (s == NATS_OK)
-    {
-        sub->jsi->fetchID++;
-        sub->jsi->batch = batch;
-    }
-    return s;
+    // We leverage the normal user callback handling, so set it up.
+    sub->msgCb = msgf;
+    sub->msgCbClosure = msgClosure;
+
+    // Add the batch to the subscription, this indicates that a fetch is in
+    // progress.
+    sub->jsi->batchID++;
+    sub->jsi->batch = batch;
+    return NATS_OK;
 }
 
 natsStatus
@@ -1962,7 +1974,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     //     natsSub_Unlock(sub);
     //     return nats_setError(NATS_ERR, "%s", jsErrConcurrentFetchNotAllowed);
     // }
-    // subj = jsi->nxtMsgSubj;
+    // subj = jsi->pullRequestSubject;
 
     // nc = sub->conn;
     // pmc = (sub->msgList.msgs > 0);
@@ -2155,11 +2167,8 @@ natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req, bool accumu
     jsBatch *batch = NULL;
     const char *pullRequestSubject = NULL; // was set up when the sub was set up for fetch <>/<> todo why not just here?
     char *statusSubject = NULL; // used as a reply in "pull request" nad to receive batch status messages 
-    const char *subSubject = NULL;    
     jsSub *jsi = NULL;
-    natsBuffer buf;
     natsConnection *nc = NULL;
-    uint64_t fetchID = 0;
 
     if ((sub == NULL) || (req == NULL) || (req->Batch <= 0) || (req->MaxBytes < 0))
         return nats_setDefaultError(NATS_INVALID_ARG);
@@ -2169,7 +2178,7 @@ natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req, bool accumu
     if (errCode != NULL)
         *errCode = 0;
 
-    s = _newBatch(&batch, req, accumulate);
+    s = _newBatch(&batch, req, accumulate, batchf, batchClosure);
     if (s == NATS_OK)
     {
         // Get what we need from the subscription under lock.
@@ -2186,16 +2195,17 @@ natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req, bool accumu
             return nats_setError(NATS_ERR, "%s", jsErrConcurrentFetchNotAllowed);
         }
         nc = sub->conn;
-        s = _startBatch(sub, batch);
+        s = _startBatch(sub, batch, msgf, msgClosure);
 
-        pullRequestSubject = jsi->nxtMsgSubj;
+        pullRequestSubject = jsi->pullRequestSubject;
         statusSubject = jsi->batch->statusSubject;
-        natSub_Unlock(sub);
+        natsSub_Unlock(sub);
     }
 
-    // Send the pull request.
-    // From here, everything is handled in the delivery thread and timer callbacks.
-    IFOK(s, _sendPullRequest(nc, pullRequestSubject, statusSubject, req));
+    // Send the pull request. From here, everything is handled in the delivery
+    // thread and timer callbacks.
+    if (s == NATS_OK)
+        _sendPullRequest(nc, pullRequestSubject, statusSubject, req);
 
     if (s != NATS_OK)
     {
@@ -2215,14 +2225,15 @@ natsSubscription_FetchRequest(natsMsgList *list, natsSubscription *sub, jsFetchR
 }
 
 static void
-_timeoutTimerFired(natsTimer *timer, void *closure)
+_onBatchExpiresTimer(natsTimer *timer, void *closure)
 {
     printf("<>/<> Batch expired\n");
 }
 
-static void _hbTimerFired(natsTimer *timer, void *closure)
+static void _onMissedHeartbeatTimer(natsTimer *timer, void *closure)
 {
-    natsSubscription    *sub = (natsSubscription*) closure;
+    jsSyntheticMessageTimer *t = (jsSyntheticMessageTimer*) closure;
+    natsSubscription    *sub = t->sub;
     jsSub               *jsi = sub->jsi;
     bool                alert= false;
     natsConnection      *nc  = NULL;
@@ -2244,6 +2255,7 @@ static void _hbTimerFired(natsTimer *timer, void *closure)
         // we will check missed HBs again.
         if (sub->msgList.msgs == 0)
         {
+            natsSub_addFirstMsgForDelivery(sub, t->synthetic);
             sub->msgList.msgs++;
             sub->msgList.head = jsi->mhMsg;
             sub->msgList.tail = jsi->mhMsg;
@@ -2304,7 +2316,7 @@ static void _hbTimerFired(natsTimer *timer, void *closure)
 // timer has been stopped (and we are ready to destroy it). Note that this
 // callback used up by both batch heartbeat, and batch timeout timers.
 static void
-_releaseSubWhenStoped(natsTimer *timer, void* closure)
+_onStoppedReleaseSub(natsTimer *timer, void* closure)
 {
     natsSubscription *sub = (natsSubscription*) closure;
 
@@ -2808,7 +2820,7 @@ PROCESS_INFO:
         {
             if (isPullMode && !nats_IsStringEmpty(consumer))
             {
-                if (nats_asprintf(&(jsi->nxtMsgSubj), jsApiRequestNextT, jo.Prefix, stream, consumer) < 0)
+                if (nats_asprintf(&(jsi->pullRequestSubject), jsApiRequestNextT, jo.Prefix, stream, consumer) < 0)
                     s = nats_setDefaultError(NATS_NO_MEMORY);
             }
             IF_OK_DUP_STRING(s, jsi->stream, stream);
@@ -2865,7 +2877,7 @@ PROCESS_INFO:
         {
             natsSub_Lock(sub);
             sub->refs++;
-            s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _releaseSubWhenStoped, hbi*2, (void*) sub);
+            s = natsTimer_Create(&jsi->hbTimer, _onMissedHeartbeatTimer, _onStoppedReleaseSub, hbi*2, (void*) sub);
             if (s != NATS_OK)
                 sub->refs--;
             natsSub_Unlock(sub);
@@ -2913,9 +2925,9 @@ PROCESS_INFO:
                 DUP_STRING(s, jsi->consumer, info->Name);
                 if (s == NATS_OK)
                 {
-                    NATS_FREE(jsi->nxtMsgSubj);
-                    jsi->nxtMsgSubj = NULL;
-                    if (nats_asprintf(&(jsi->nxtMsgSubj), jsApiRequestNextT, jo.Prefix, stream, jsi->consumer) < 0)
+                    NATS_FREE(jsi->pullRequestSubject);
+                    jsi->pullRequestSubject = NULL;
+                    if (nats_asprintf(&(jsi->pullRequestSubject), jsApiRequestNextT, jo.Prefix, stream, jsi->consumer) < 0)
                         s = nats_setDefaultError(NATS_NO_MEMORY);
                 }
             }

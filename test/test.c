@@ -28393,7 +28393,7 @@ _sendToPullSub(void *closure)
     natsMutex_Lock(args->m);
     sub = args->sub;
     natsSub_Lock(sub);
-    id = sub->jsi->fetchID;
+    id = sub->jsi->batchID;
     if (args->sum != 0)
         id = (uint64_t) args->sum;
     if (nats_asprintf(&subj, "%.*s%" PRIu64, (int) strlen(sub->subject)-1, sub->subject, id) < 0)

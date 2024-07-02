@@ -381,6 +381,18 @@ struct __jsCtx
     bool                closed;
 };
 
+typedef struct __jsSyntheticMessageOnTimer
+{
+    // A unique "control" synthetic message, used by the timer handler to signal
+    // the message delivery worker/thread. Effectively, it is a unique (thus
+    // comparable) pointer to an empty valid message.
+    natsMsg *synthetic;
+
+    natsTimer *timer;
+
+    natsSubscription *sub; // for use in the callback closure
+} jsSyntheticMessageTimer;
+
 typedef struct __jsBatch
 {
     // the list to accumulate messages to.
@@ -392,27 +404,22 @@ typedef struct __jsBatch
     // natsMsg instances) to signal events like missed heartbeat, batch
     // fulfilled, and batch timed out. We need to keep track of these messages
     // for comparison, and free them when the batch is done.
-    natsMsg *endOfBatchMsg;
+    natsMsg *endOfBatch;
 
-    // When a batch is started, we set a timer to catch its expiration on the
-    // client side. If we reach that and the timer is invoked, we will place a
-    // synthetic message (effectively, a unique pointer) onto the message
-    // delivery list, and call the user batch callback when processed in the
-    // delivery thread.
-    int64_t deadline; // <>/<> do I need it or is setting the timer enough?
-    natsTimer *timeoutTimer;
-    natsMsg *timeoutMsg;
+    jsSyntheticMessageTimer missedHearbeat;
 
-    // Works similar to the above, but for missed heartbeats.
-    natsMsg *missedHeartbeatMsg;
-    natsTimer *missedHearteatTimer;
+    // Leverage jsHearbeat for a 1-time timer to signal the timeout of the entire batch.
+    jsSyntheticMessageTimer expires;
 
     // The subject to send the status updates to.
     // <>/<> is this where heartbeats are sent?
     char *statusSubject;
     jsFetchRequest req;
 
-    int64_t size;
+    natsBatchHandler cb;
+    void *closure;
+
+    int64_t userBytesReceived;
 } jsBatch;
 
 typedef struct __jsSub
@@ -427,21 +434,21 @@ typedef struct __jsSub
 
     // A pull subscription fetches in batches
     bool                pull;
-    uint64_t            fetchID;
-    char                *nxtMsgSubj; // same for all batches
+    char                *pullRequestSubject; // same for all batches
+    uint64_t            batchID;
     jsBatch             *batch;
 
     // An ordered consumer subscription also uses hearbeats
     //
     // <>/<> todo: how is the implementation really different from a pull
     // consumer since we only allow 1 concurrent fetch/sub?
-    bool ordered;
-    // The heartbeat timer used for non-pull consumers. Each pull batch sets up
-    // its own timer, stored in batch.missedHearteatTimer.
-    natsTimer           *hbTimer;
+    bool                ordered;
     
     // Used for flow control.
     bool                active;
+    // The heartbeat timer used for non-pull consumers. Each pull batch sets up
+    // its own timer, stored in batch.missedHearteatTimer.
+    jsSyntheticMessageTimer *hb;
 
     // This is ConsumerInfo's Pending+Consumer.Delivered that we get from the
     // add consumer response. Note that some versions of the server gather the
