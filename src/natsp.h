@@ -405,6 +405,7 @@ typedef struct __jsBatch
 
     // Works similar to the above, but for missed heartbeats.
     natsMsg *missedHeartbeatMsg;
+    natsTimer *missedHearteatTimer;
 
     // The subject to send the status updates to.
     // <>/<> is this where heartbeats are sent?
@@ -420,16 +421,26 @@ typedef struct __jsSub
     char                *stream;
     char                *consumer;
     char                *psubj;
-    char                *nxtMsgSubj;
-    bool                pull;
-    // bool                inFetch; // <>/<> fetch poiner != NULL should be sufficient
-    bool                ordered;
     bool                dc; // delete JS consumer in Unsub()/Drain()
     bool                ackNone;
 
+
+    // A pull subscription fetches in batches
+    bool                pull;
     uint64_t            fetchID;
+    char                *nxtMsgSubj; // same for all batches
     jsBatch             *batch;
+
+    // An ordered consumer subscription also uses hearbeats
+    //
+    // <>/<> todo: how is the implementation really different from a pull
+    // consumer since we only allow 1 concurrent fetch/sub?
+    bool ordered;
+    // The heartbeat timer used for non-pull consumers. Each pull batch sets up
+    // its own timer, stored in batch.missedHearteatTimer.
     natsTimer           *hbTimer;
+    
+    // Used for flow control.
     bool                active;
 
     // This is ConsumerInfo's Pending+Consumer.Delivered that we get from the
