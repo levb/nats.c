@@ -6458,6 +6458,13 @@ NATS_EXTERN natsStatus
 natsSubscription_Fetch(natsMsgList *list, natsSubscription *sub, int batch, int64_t timeout,
                        jsErrCode *errCode);
 
+natsStatus
+natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req, bool accumulate,
+                         natsMsgHandler msgf, void *msgClosure,
+                         natsBatchHandler batchf, void *batchClosure,
+                         jsErrCode *errCode);
+
+
 /** \brief Initializes a fetch request options structure.
  *
  * Use this before setting specific fetch options and passing it to #natsSubscription_FetchRequest.

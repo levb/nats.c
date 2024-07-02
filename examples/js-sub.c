@@ -21,13 +21,26 @@ static const char *usage = ""\
 "-count         number of expected messages\n";
 
 static void
-onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
+onBatchFinished(natsConnection *nc, natsSubscription *sub, jsFetchRequest *req, natsStatus s, natsMsg **msgs, int numMsgs, void *closure)
+{
+    if (print)
+    {
+        printf("Received BATCH of %d out of %dmessages, status: %d\n", numMsgs, req->Batch, s);
+        printf("  fetch request: %d, %lld, %lld, %lld\n", req->NoWait, req->Heartbeat, req->Expires, req->MaxBytes);    
+    }
+
+    for (int i = 0; i < numMsgs; i++)
+        natsMsg_Destroy(msgs[i]);
+}
+
+static void
+onMsg(natsConnection * nc, natsSubscription * sub, natsMsg * msg, void *closure)
 {
     if (print)
         printf("Received msg: %s - %.*s\n",
-               natsMsg_GetSubject(msg),
-               natsMsg_GetDataLength(msg),
-               natsMsg_GetData(msg));
+                natsMsg_GetSubject(msg),
+                natsMsg_GetDataLength(msg),
+                natsMsg_GetData(msg));
 
     if (start == 0)
         start = nats_Now();
@@ -43,31 +56,31 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 }
 
 static void
-asyncCb(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure)
+asyncCb(natsConnection * nc, natsSubscription * sub, natsStatus err, void *closure)
 {
     printf("Async error: %u - %s\n", err, natsStatus_GetText(err));
 
-    natsSubscription_GetDropped(sub, (int64_t*) &dropped);
+    natsSubscription_GetDropped(sub, (int64_t *)&dropped);
 }
 
 int main(int argc, char **argv)
 {
-    natsConnection      *conn  = NULL;
-    natsStatistics      *stats = NULL;
-    natsOptions         *opts  = NULL;
-    natsSubscription    *sub   = NULL;
-    natsMsg             *msg   = NULL;
-    jsCtx               *js    = NULL;
-    jsErrCode           jerr   = 0;
-    jsOptions           jsOpts;
-    jsSubOptions        so;
-    natsStatus          s;
-    bool                delStream = false;
+    natsConnection *conn = NULL;
+    natsStatistics *stats = NULL;
+    natsOptions *opts = NULL;
+    natsSubscription *sub = NULL;
+    natsMsg *msg = NULL;
+    jsCtx *js = NULL;
+    jsErrCode jerr = 0;
+    jsOptions jsOpts;
+    jsSubOptions so;
+    natsStatus s;
+    bool delStream = false;
 
     opts = parseArgs(argc, argv, usage);
 
     printf("Created %s subscription on '%s'.\n",
-        (pull ? "pull" : (async ? "asynchronous" : "synchronous")), subj);
+            (pull ? "pull" : (async ? "asynchronous" : "synchronous")), subj);
 
     s = natsOptions_SetErrorHandler(opts, asyncCb, NULL);
 
@@ -95,13 +108,13 @@ int main(int argc, char **argv)
 
     if (s == NATS_OK)
     {
-        jsStreamInfo    *si = NULL;
+        jsStreamInfo *si = NULL;
 
         // First check if the stream already exists.
         s = js_GetStreamInfo(&si, js, stream, NULL, &jerr);
         if (s == NATS_NOT_FOUND)
         {
-            jsStreamConfig  cfg;
+            jsStreamConfig cfg;
 
             // Since we are the one creating this stream, we can delete at the end.
             delStream = true;
@@ -110,7 +123,7 @@ int main(int argc, char **argv)
             jsStreamConfig_Init(&cfg);
             cfg.Name = stream;
             // Set the subject
-            cfg.Subjects = (const char*[1]){subj};
+            cfg.Subjects = (const char *[1]){subj};
             // Set the subject count
             cfg.SubjectsLen = 1;
             // Make it a memory stream.
@@ -121,7 +134,7 @@ int main(int argc, char **argv)
         if (s == NATS_OK)
         {
             printf("Stream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-                si->Config->Name, si->State.Msgs, si->State.Bytes);
+                    si->Config->Name, si->State.Msgs, si->State.Bytes);
 
             // Need to destroy the returned stream object.
             jsStreamInfo_Destroy(si);
@@ -146,31 +159,31 @@ int main(int argc, char **argv)
     if ((s == NATS_OK) && pull)
     {
         natsMsgList list = {0};
-        int         i;
+        int i;
 
-        for (count = 0; (s == NATS_OK) && (count < total); )
+        for (count = 0; (s == NATS_OK) && (count < total);)
         {
-            printf("<>/<> USER: Fetch! %d messages\n", total-count);
+            printf("<>/<> USER: Fetch! %lld messages\n", total - count);
             jsFetchRequest fr = {
                 .Batch = 1024,
                 .NoWait = true,
                 .Heartbeat = 1000000000,
                 .Expires = 5000,
             };
-            s = natsSubscription_GoFetch(sub, 1024, 5000, msgf, msgClosure, donef, doneClosure, &jerr);
+            s = natsSubscription_GoFetch(sub, &fr, true, onMsg, NULL, onBatchFinished, NULL, &jerr);
             // s = natsSubscription_Fetch(&list, sub, total - count, 60 * 1000 /* 1 minute */, &jerr);
             if (s == NATS_TIMEOUT)
             {
                 printf("<>/<> USER: Timeout fetching messages, got back %d\n", list.Count);
-            }                
+            }
             else if (s != NATS_OK)
                 break;
 
             if (start == 0)
                 start = nats_Now();
 
-            count += (int64_t) list.Count;
-            for (i=0; (s == NATS_OK) && (i<list.Count); i++)
+            count += (int64_t)list.Count;
+            for (i = 0; (s == NATS_OK) && (i < list.Count); i++)
                 s = natsMsg_Ack(list.Msgs[i], &jsOpts);
 
             natsMsgList_Destroy(&list);
@@ -204,7 +217,7 @@ int main(int argc, char **argv)
 
     if (s == NATS_OK)
     {
-        printStats(STATS_IN|STATS_COUNT, conn, sub, stats);
+        printStats(STATS_IN | STATS_COUNT, conn, sub, stats);
         printPerf("Received");
     }
     if (s == NATS_OK)
@@ -216,7 +229,7 @@ int main(int argc, char **argv)
         if (s == NATS_OK)
         {
             printf("\nStream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-                si->Config->Name, si->State.Msgs, si->State.Bytes);
+                    si->Config->Name, si->State.Msgs, si->State.Bytes);
 
             jsStreamInfo_Destroy(si);
         }

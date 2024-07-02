@@ -51,7 +51,7 @@ natsSub_create(natsSubscription **newSub, natsConnection *nc, const char *subj,
 bool
 natsSub_setMax(natsSubscription *sub, uint64_t max);
 
-void natsSub_addFirstMsgForDelivery(natsSubscription *sub, natsMsg *msg);
+void natsSub_deliverNext(natsSubscription *sub, natsMsg *msg);
 
 void
 natsSub_initDrain(natsSubscription *sub);

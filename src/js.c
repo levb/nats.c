@@ -2227,7 +2227,11 @@ natsSubscription_FetchRequest(natsMsgList *list, natsSubscription *sub, jsFetchR
 static void
 _onBatchExpiresTimer(natsTimer *timer, void *closure)
 {
-    printf("<>/<> Batch expired\n");
+    jsSyntheticMessageTimer *t = (jsSyntheticMessageTimer *)closure;
+    natsSubscription *sub = t->sub;
+    
+    natsSub_deliverNext(sub, t->synthetic);
+    natsTimer_Stop(timer);
 }
 
 static void _onMissedHeartbeatTimer(natsTimer *timer, void *closure)
@@ -2250,17 +2254,18 @@ static void _onMissedHeartbeatTimer(natsTimer *timer, void *closure)
     jsi->active = false;
     if (alert && jsi->pull)
     {
-        // If there are messages pending then we can't really consider
-        // that we missed hearbeats. Wait for those to be processed and
-        // we will check missed HBs again.
+        // If there are messages pending then we can't really consider that we
+        // missed hearbeats. Wait for those to be processed and we will check
+        // missed HBs again.
+        //
+        // When there are no messages pending we consider it a missed heartbeat.
+        // Signal the delivery queue, and stop the timer since the "missed
+        // heartbeat error" is lethal to the operation in progress.
+        //
+        // <>/<> TODO: should we check a timestamp instead?
         if (sub->msgList.msgs == 0)
         {
-            natsSub_addFirstMsgForDelivery(sub, t->synthetic);
-            sub->msgList.msgs++;
-            sub->msgList.head = jsi->mhMsg;
-            sub->msgList.tail = jsi->mhMsg;
-            sub->msgList.bytes = natsMsg_dataAndHdrLen(jsi->mhMsg);
-            natsCondition_Signal(sub->cond);
+            natsSub_deliverNext(sub, t->synthetic);
             natsTimer_Stop(timer);
         }
         if (sub->libDlvWorker != NULL)
@@ -2828,7 +2833,6 @@ PROCESS_INFO:
             if (s == NATS_OK)
             {
                 jsi->js     = js;
-                jsi->hbi    = hbi;
                 jsi->pull   = isPullMode;
                 jsi->ordered= opts->Ordered;
                 jsi->ocCfg  = ocCfg;
@@ -2876,10 +2880,7 @@ PROCESS_INFO:
         if ((s == NATS_OK) && (hbi > 0) && !isPullMode)
         {
             natsSub_Lock(sub);
-            sub->refs++;
-            s = natsTimer_Create(&jsi->hbTimer, _onMissedHeartbeatTimer, _onStoppedReleaseSub, hbi*2, (void*) sub);
-            if (s != NATS_OK)
-                sub->refs--;
+            s = _createSyntheticMessageTimer(&jsi->hb, sub, hbi, _onMissedHeartbeatTimer);
             natsSub_Unlock(sub);
         }
         NATS_FREE(pullWCInbox);
