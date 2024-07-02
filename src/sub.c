@@ -190,6 +190,145 @@ natsSub_setDrainCompleteState(natsSubscription *sub)
     natsSub_Unlock(sub);
 }
 
+// returns the batchID from subj, or -1 if not the batch status subject for the
+// sub.
+static inline int64_t _batchIDFromSubject(natsSubscription *sub, const char *subj)
+{
+    int len = strlen(sub->subject);
+    int64_t batchID = -1;
+    
+    if (strncmp(sub->subject, subj, len) != 0)
+        return -1;
+
+    subj = subj + len;
+    len = strlen(subj);
+    if (len < 2) // .(digit)
+        return -1;
+
+    for (subj++; *subj != '\0'; subj++)
+    {
+        if ((*subj < '0') || (*subj > '9'))
+            return -1;
+        if (batchID == -1)
+            batchID = 0;
+        batchID = (batchID * 10) + (*subj - '0');
+    }
+    return batchID;    
+}
+
+static bool /* consumed message */
+_processBatchMessage(natsSubscription *sub, natsMsg *msg)
+{
+    natsStatus s = NATS_OK;
+    const char *val = NULL;
+    const char *desc = NULL;
+    jsSub *jsi = sub->jsi;
+    jsBatch *batch = jsi->batch;
+    int64_t batchID = -1;
+
+    if (msg == NULL)
+    {
+        return false;
+    }
+    else if (msg == batch->missedHeartbeatMsg)
+    {
+        // <>/<> process missed heartbeat
+        return true;
+    }
+    else if (msg == batch->timeoutMsg)
+    {
+        // <>/<> timeout on the batch
+        return true;
+    }
+    else if (msg == batch->endOfBatchMsg)
+    {
+        // <>/<> timeout on the batch
+        return true;
+    }
+
+    // Is it a user message or a status message?
+    bool isUserMessage = (strcmp(msg->subject, sub->subject) == 0);
+    if (!isUserMessage)
+    {
+        batchID = _batchIDFromSubject(sub, natsMsg_GetSubject(msg));
+        if (batchID == jsi->fetchID)
+        {
+            bool isHeaderOnly = ((msg->dataLen == 0) && (msg->hdrLen > 0));
+            if (isHeaderOnly)
+            {
+                s = natsMsgHeader_Get(msg, STATUS_HDR, &val);
+                if (s == NATS_OK)
+
+                    // We have a matching subject, it's a header-only message, and
+                    // it contains a status header.
+                    isUserMessage = false;
+                else if (s != NATS_NOT_FOUND)
+                {
+                    // <>/<> serious error !!!!
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            // An orphaned message, rid of it. We can't get status messages from
+            // a future batch here because we don't allow concurrent fetches.
+            natsMsg_Destroy(msg);
+            return true;
+        }
+    }
+
+    if (isUserMessage)
+    {
+        if (((batch->numMsgs + 1) > batch->req.Batch) ||
+            ((batch->req.MaxBytes > 0) && ((batch->size + natsMsg_dataAndHdrLen(msg)) > batch->req.MaxBytes)))
+        {
+            // We have reached the limit, we are done. Add the end-of-batch
+            // message to the head of the queue to process next.
+
+            // <>/<>
+            return true;
+        }
+
+        // Accumulate as applicable
+        if (batch->msgs != NULL)
+        {
+            batch->msgs[batch->numMsgs] = msg;
+        }
+        batch->numMsgs++;
+
+        // Let the delivery logic deliver to the sub's (AutoAck) callback, and
+        // to the user, as normal.
+        return false;
+    }
+    else if (strncmp(val, CTRL_STATUS, HDR_STATUS_LEN) == 0)
+    {
+        // <>/<> heartbeat received
+        return true;
+    }
+    else if (strncmp(val, NOT_FOUND_STATUS, HDR_STATUS_LEN) == 0)
+    {
+        // <>/<> skip for now
+        return true;
+    }
+    else if (strncmp(val, REQ_TIMEOUT, HDR_STATUS_LEN) == 0)
+    {
+        // <>/<> skip for now
+        return true;
+    }
+    else if (strncmp(val, REQ_TIMEOUT, HDR_STATUS_LEN) == 0)
+    {
+        // <>/<> skip for now
+        return true;
+    }
+
+    // The possible 503 is handled directly in natsSub_nextMsg(), so we
+    // would never get it here in this function.
+
+    // <>/<> serious error !!!!
+    return true;
+}
+
 // _deliverMsgs is used to deliver messages to asynchronous subscribers.
 void
 natsSub_deliverMsgs(void *arg)
@@ -219,13 +358,11 @@ natsSub_deliverMsgs(void *arg)
     jsi = sub->jsi;
     natsSub_Unlock(sub);
 
-    // bool needToPull = true;
     while (true)
     {
         natsSub_Lock(sub);
 
         s = NATS_OK;
-        // while (((!needToPull) || ((msg = sub->msgList.head) == NULL)) &&
         while (((msg = sub->msgList.head) == NULL) &&
                !(sub->closed) &&
                !(sub->draining) && (s != NATS_TIMEOUT))
@@ -243,13 +380,11 @@ natsSub_deliverMsgs(void *arg)
         }
         draining = sub->draining;
 
-        // if (needToPull)
-        // {
-        //     // TODO: _sendPullRequestMessage
-        //     needToPull = false;
-        //     natsSub_Unlock(sub);
-        //     continue;
-        // }
+        if (jsi->batch != NULL)
+        {
+            if (_processBatchMessage(sub, msg))
+                continue;
+        }
 
         // Will happen with timeout subscription
         if (msg == NULL)
