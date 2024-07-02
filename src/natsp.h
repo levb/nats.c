@@ -420,6 +420,7 @@ typedef struct __jsBatch
     void *closure;
 
     int64_t userBytesReceived;
+    natsStatus status;
 } jsBatch;
 
 typedef struct __jsSub

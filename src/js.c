@@ -1824,7 +1824,6 @@ _sendPullRequest(natsConnection *nc, const char *subj, const char *rply, jsFetch
     // Sent the request to get more messages.
     IFOK(s, natsConnection_PublishRequest(nc, subj, rply,
         natsBuf_Data(&buf), natsBuf_Len(&buf)));
-    IFOK(s, natsConnection_Flush(nc));
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -1901,6 +1900,9 @@ _startBatch(natsSubscription *sub, jsBatch *batch, natsMsgHandler msgf, void *ms
     // Create the synthetic message for the end of batch.
     if (s == NATS_OK)
         s = natsMsg_create(&batch->endOfBatch, NULL, 0, NULL, 0, NULL, 0, -1);
+
+    printf("<>/<> expires: %lld\n", batch->req.Expires);
+    printf("<>/<> heartbeat: %lld\n", batch->req.Heartbeat);
 
     // Set the timer for expiring the entire batch.
     if ((s == NATS_OK) && (batch->req.Expires > 0))
@@ -2229,7 +2231,9 @@ _onBatchExpiresTimer(natsTimer *timer, void *closure)
 {
     jsSyntheticMessageTimer *t = (jsSyntheticMessageTimer *)closure;
     natsSubscription *sub = t->sub;
-    
+
+    printf("<>/<> _onBatchExpiresTimer\n");
+
     natsSub_deliverNext(sub, t->synthetic);
     natsTimer_Stop(timer);
 }
@@ -2243,6 +2247,8 @@ static void _onMissedHeartbeatTimer(natsTimer *timer, void *closure)
     natsConnection      *nc  = NULL;
     bool                oc   = false;
     natsStatus          s    = NATS_OK;
+
+    printf("<>/<> _onMissedHeartbeatTimer\n");
 
     natsSub_Lock(sub);
     if (sub->libDlvWorker != NULL)
@@ -2323,7 +2329,8 @@ static void _onMissedHeartbeatTimer(natsTimer *timer, void *closure)
 static void
 _onStoppedReleaseSub(natsTimer *timer, void* closure)
 {
-    natsSubscription *sub = (natsSubscription*) closure;
+    jsSyntheticMessageTimer *t = (jsSyntheticMessageTimer*) closure;
+    natsSubscription *sub = t->sub;
 
     natsSub_release(sub);
 }

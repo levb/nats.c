@@ -63,6 +63,10 @@ asyncCb(natsConnection * nc, natsSubscription * sub, natsStatus err, void *closu
     natsSubscription_GetDropped(sub, (int64_t *)&dropped);
 }
 
+#define MILLISECOND (1000L * 1000L)
+#define SECOND (1000L * MILLISECOND)
+#define MINUTE (60 * SECOND)
+
 int main(int argc, char **argv)
 {
     natsConnection *conn = NULL;
@@ -164,29 +168,22 @@ int main(int argc, char **argv)
         for (count = 0; (s == NATS_OK) && (count < total);)
         {
             printf("<>/<> USER: Fetch! %lld messages\n", total - count);
+
             jsFetchRequest fr = {
                 .Batch = 1024,
                 .NoWait = true,
-                .Heartbeat = 1000000000,
-                .Expires = 5000,
+                .Heartbeat = 10 * SECOND,
+                .Expires = 5 * MINUTE,
             };
-            s = natsSubscription_GoFetch(sub, &fr, true, onMsg, NULL, onBatchFinished, NULL, &jerr);
-            // s = natsSubscription_Fetch(&list, sub, total - count, 60 * 1000 /* 1 minute */, &jerr);
-            if (s == NATS_TIMEOUT)
-            {
-                printf("<>/<> USER: Timeout fetching messages, got back %d\n", list.Count);
-            }
-            else if (s != NATS_OK)
-                break;
-
             if (start == 0)
                 start = nats_Now();
 
-            count += (int64_t)list.Count;
-            for (i = 0; (s == NATS_OK) && (i < list.Count); i++)
-                s = natsMsg_Ack(list.Msgs[i], &jsOpts);
+            s = natsSubscription_GoFetch(sub, &fr, true, onMsg, NULL, onBatchFinished, NULL, &jerr);
+            if (s != NATS_OK)
+                break;
 
-            natsMsgList_Destroy(&list);
+            printf("<>/<> USER: Fetch request submitted, sleeping now for 10 minutes\n");
+            nats_Sleep(600000);            
         }
     }
     else if ((s == NATS_OK) && async)

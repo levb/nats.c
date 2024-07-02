@@ -218,6 +218,8 @@ static inline int64_t _batchIDFromSubject(natsSubscription *sub, const char *sub
 
 void natsSub_deliverNext(natsSubscription *sub, natsMsg *msg)
 {
+    printf("<>/<> natsSub_deliverNEXT!\n");
+
     sub->msgList.msgs++;
     msg->next = sub->msgList.head;
     sub->msgList.head = msg;
@@ -228,11 +230,37 @@ void natsSub_deliverNext(natsSubscription *sub, natsMsg *msg)
     natsCondition_Signal(sub->cond);
 }
 
+static inline bool _dispose(natsSubscription *sub, natsMsg *msg)
+{
+    sub->msgList.head = msg->next;
+    if (sub->msgList.tail == msg)
+        sub->msgList.tail = NULL;
+    sub->msgList.msgs--;
+    sub->msgList.bytes -= natsMsg_dataAndHdrLen(msg);
+
+    // it's ok to call on synthetic and NULL messages that may be passed in here.
+    natsMsg_Destroy(msg); 
+    return true;
+}
+
+static inline bool _finishBatch(natsSubscription *sub, natsMsg *msg, jsBatch **finishedBatch, natsStatus s, bool internal)
+{
+    *finishedBatch = sub->jsi->batch;
+    (*finishedBatch)->status = s;
+
+    // <>/<> stop the timers now
+
+    if (internal)
+        _dispose(sub, msg);
+
+    sub->jsi->batch = NULL;
+
+    return internal;
+}
 
 // Returning true means that the message was an internal-only message, is fully
 // consumed and must not be processed as a used message.
-static bool 
-_processBatchMessage(natsSubscription *sub, natsMsg *msg, bool *finishedBatch, natsStatus *batchStatus)
+static bool _processBatchMessage(natsSubscription *sub, natsMsg *msg, jsBatch **finishedBatch)
 {
     natsStatus s = NATS_OK;
     const char *val = NULL;
@@ -241,29 +269,19 @@ _processBatchMessage(natsSubscription *sub, natsMsg *msg, bool *finishedBatch, n
     jsBatch *batch = jsi->batch;
     int64_t batchID = -1;
 
-    *finishedBatch = false;
-#define _finishBatch(s) (*finishedBatch = true, *batchStatus = (s))
+    printf("<>/<> _processBatchMessage: '%s'\n", natsMsg_GetSubject(msg));
 
+    *finishedBatch = false;
     if (msg == NULL)
-    {        
-        // Ignore NULL messages while in a batch.
-        return true;
+    { 
+        return _dispose(sub, msg);
     }
     else if (msg == batch->missedHearbeat.synthetic)
-    {
-        _finishBatch(NATS_MISSED_HEARTBEAT);
-        return true;
-    }
+        return _finishBatch(sub, msg, finishedBatch, NATS_MISSED_HEARTBEAT, true);
     else if (msg == batch->expires.synthetic)
-    {
-        _finishBatch(NATS_TIMEOUT);
-        return true;
-    }
+        return _finishBatch(sub, msg, finishedBatch, NATS_TIMEOUT, true);
     else if (msg == batch->endOfBatch)
-    {
-        _finishBatch(NATS_OK);
-        return true;
-    }
+        return _finishBatch(sub, msg, finishedBatch, NATS_OK, true);
 
     // Is it a user message or a status message?
     bool isUserMessage = (strcmp(msg->subject, sub->subject) == 0);
@@ -282,9 +300,9 @@ _processBatchMessage(natsSubscription *sub, natsMsg *msg, bool *finishedBatch, n
                     isUserMessage = false;
                 else if (s != NATS_NOT_FOUND)
                 {
-                    _finishBatch(s);
-                    natsMsg_Destroy(msg);
-                    return true;
+                    // A serious enough error to terminate here.
+                    // <>/<> TODO send async err
+                    return _finishBatch(sub, msg, finishedBatch, s, true);
                 }
             }
         }
@@ -292,8 +310,7 @@ _processBatchMessage(natsSubscription *sub, natsMsg *msg, bool *finishedBatch, n
         {
             // An orphaned message, rid of it. We can't get status messages from
             // a future batch here because we don't allow concurrent fetches.
-            natsMsg_Destroy(msg);
-            return true;
+            return _dispose(sub, msg);
         }
     }
 
@@ -302,8 +319,7 @@ _processBatchMessage(natsSubscription *sub, natsMsg *msg, bool *finishedBatch, n
         if (((batch->numMsgs + 1) > batch->req.Batch) ||
             ((batch->req.MaxBytes > 0) && ((batch->userBytesReceived + natsMsg_dataAndHdrLen(msg)) > batch->req.MaxBytes)))
         {
-            *finishedBatch = true;
-            *batchStatus = NATS_MAX_DELIVERED_MSGS; // <>/<> should it be NATS_INSUFFICIENT_BUFFER? A new status?
+            _finishBatch(sub, msg, finishedBatch, NATS_MAX_DELIVERED_MSGS, false);
 
             // We still want this message in the batch, so do not return, proceed.
         }
@@ -321,42 +337,30 @@ _processBatchMessage(natsSubscription *sub, natsMsg *msg, bool *finishedBatch, n
     }
     else if (strncmp(val, CTRL_STATUS, HDR_STATUS_LEN) == 0)
     {
-        // <>/<> heartbeat received
-        natsMsg_Destroy(msg);
-        return true;
+        return _dispose(sub, msg);
     }
     else if (strncmp(val, NOT_FOUND_STATUS, HDR_STATUS_LEN) == 0)
     {
-        _finishBatch(NATS_NOT_FOUND);
-        natsMsg_Destroy(msg);
-        return true;
+        return _finishBatch(sub, msg, finishedBatch, NATS_NOT_FOUND, true);
     }
     else if (strncmp(val, REQ_TIMEOUT, HDR_STATUS_LEN) == 0)
     {
-        _finishBatch(NATS_TIMEOUT);
-        natsMsg_Destroy(msg);
-        return true;
+        return _finishBatch(sub, msg, finishedBatch, NATS_TIMEOUT, true);
     }
     else if (strncmp(val, MAX_ACK_PENDING_REACHED, HDR_STATUS_LEN) == 0)
     {
-        _finishBatch(NATS_MAX_DELIVERED_MSGS); // <>/<> ?????
-        natsMsg_Destroy(msg);
-        return true;
+        return _finishBatch(sub, msg, finishedBatch, NATS_MAX_DELIVERED_MSGS, true);
     }
     else if (strncmp(val, NO_RESP_STATUS, HDR_STATUS_LEN) == 0)
     {
-        _finishBatch(NATS_NO_RESPONDERS);
-        natsMsg_Destroy(msg);
-        return true;
+        return _finishBatch(sub, msg, finishedBatch, NATS_NO_RESPONDERS, true);
     }
     else
     {
         // We have a status message, but it's not one we recognize.
         // <>/<> TODO send async error?
         // natsMsgHeader_Get(msg, DESCRIPTION_HDR, &desc);
-        _finishBatch(NATS_PROTOCOL_ERROR);
-        natsMsg_Destroy(msg);
-        return true;
+        return _finishBatch(sub, msg, finishedBatch, NATS_PROTOCOL_ERROR, true);
     }
 }
 
@@ -377,11 +381,8 @@ natsSub_deliverMsgs(void *arg)
     bool                rmSub    = false;
     natsOnCompleteCB    onCompleteCB = NULL;
     void                *onCompleteCBClosure = NULL;
-    natsBatchHandler    batchCb = NULL;
-    void                *batchCbClosure = NULL;
-    natsMsg             **batchMsgs = NULL;
-    int                 batchMsgsLen = 0;
-    natsStatus          batchStatus = NATS_OK;
+    jsBatch             *finishedBatch = NULL;
+    jsBatch             *batch = NULL;
     bool                handleAsUserMessage = true;
     char                *fcReply = NULL;
     jsSub               *jsi = NULL;
@@ -407,12 +408,14 @@ natsSub_deliverMsgs(void *arg)
                !(sub->closed) &&
                !(sub->draining) && (s != NATS_TIMEOUT))
         {
+            printf("<>/<> _deliverMsgs %lld: '%s':waiting...\n", sub->sid, sub->subject);
             if (timeout != 0)
                 s = natsCondition_TimedWait(sub->cond, sub->mu, timeout);
             else
                 natsCondition_Wait(sub->cond, sub->mu);
         }
 
+        printf("<>/<> _deliverMsgs %lld: '%s':got a message\n", sub->sid, sub->subject);
         if (sub->closed)
         {
             natsSub_Unlock(sub);
@@ -420,72 +423,77 @@ natsSub_deliverMsgs(void *arg)
         }
         draining = sub->draining;
 
-        if (jsi->batch != NULL)
+        batch = (jsi != NULL) && (jsi->batch != NULL) ? jsi->batch : NULL;
+        if (batch != NULL)
         {
-            bool batchFinished = false;
-            handleAsUserMessage = _processBatchMessage(sub, msg, &batchFinished, &batchStatus);
-            if (batchFinished)
-            {
-                batchCb = jsi->batch->cb;
-                batchCbClosure = jsi->batch->closure;
-                batchMsgs = jsi->batch->msgs;
-                batchMsgsLen = jsi->batch->numMsgs;
-            }
-            if (!handleAsUserMessage)
+            handleAsUserMessage = _processBatchMessage(sub, msg, &finishedBatch);
+        }
+
+        printf("<>/<> _deliverMsgs %lld: '%s':is a user message\n", sub->sid, sub->subject);
+        if (handleAsUserMessage)
+        {
+            // Will happen with timeout subscription
+            if (msg == NULL)
             {
                 natsSub_Unlock(sub);
+                if (draining)
+                {
+                    rmSub = true;
+                    break;
+                }
+                // If subscription timed-out, invoke callback with NULL message.
+                if ((s == NATS_TIMEOUT) && (mcb != NULL))
+                    (*mcb)(nc, sub, NULL, mcbClosure);
                 continue;
             }
+
+            delivered = ++(sub->delivered);
+
+            sub->msgList.head = msg->next;
+
+            if (sub->msgList.tail == msg)
+                sub->msgList.tail = NULL;
+
+            sub->msgList.msgs--;
+            sub->msgList.bytes -= natsMsg_dataAndHdrLen(msg);
+
+            msg->next = NULL;
+
+            // Capture this under lock.
+            max = sub->max;
+
+            // Check for JS flow control
+            fcReply = (jsi == NULL ? NULL : jsSub_checkForFlowControlResponse(sub));
         }
-
-        // Will happen with timeout subscription
-        if (msg == NULL)
-        {
-            natsSub_Unlock(sub);
-            if (draining)
-            {
-                rmSub = true;
-                break;
-            }
-            // If subscription timed-out, invoke callback with NULL message.
-            if ((s == NATS_TIMEOUT) && (mcb != NULL))
-                (*mcb)(nc, sub, NULL, mcbClosure);
-            continue;
-        }
-
-        delivered = ++(sub->delivered);
-
-        sub->msgList.head = msg->next;
-
-        if (sub->msgList.tail == msg)
-            sub->msgList.tail = NULL;
-
-        sub->msgList.msgs--;
-        sub->msgList.bytes -= natsMsg_dataAndHdrLen(msg);
-
-        msg->next = NULL;
-
-        // Capture this under lock.
-        max = sub->max;
-
-        // Check for JS flow control
-        fcReply = (jsi == NULL ? NULL : jsSub_checkForFlowControlResponse(sub));
-
         natsSub_Unlock(sub);
 
-        if (((max == 0) || (delivered <= max)) && (mcb != NULL))
+        // Call the user message handler first, if we have one and we haven't
+        // ran up against the subscription limit.
+        cleanupMsg = msg;
+        if (handleAsUserMessage && (mcb != NULL) && ((max == 0) || (delivered <= max)))
         {
-           (*mcb)(nc, sub, msg, mcbClosure);
-        }
-        else if ((jsi->batch == NULL) || (jsi->batch->msgs == NULL))
-        {
-            cleanupMsg = msg;
-        }
-        
-        if (batchCb != NULL)
-            batchCb(nc, sub, &jsi->batch->req, batchStatus, batchMsgs, batchMsgsLen, batchCbClosure);
+            // This auto-acks the message if applicable.
+            (*mcb)(nc, sub, msg, mcbClosure);
 
-        // We need to destroy the message if it is not passed to the user
+            // Don't clean up the message, it's been handed to the user.
+            cleanupMsg = NULL;
+        }
+        else if ((batch != NULL) && (batch->msgs != NULL))
+        {
+            // We are accumulating messages in a batch, they will be handed to
+            // the user. Ack, but do not cleanup.
+            
+            //<>/<> !!!!! TODO !!! ACK here? Yes, to avoid double-acking with ^^
+            cleanupMsg = NULL;
+        }
+
+        if ((finishedBatch != NULL) && (finishedBatch->cb != NULL))
+        {
+            finishedBatch->cb(nc, sub, &finishedBatch->req, 
+                finishedBatch->status, finishedBatch->msgs, finishedBatch->numMsgs, finishedBatch->closure);
+        }
+
+        // Destroy messages not passed to the user
         natsMsg_Destroy(cleanupMsg);
 
         if (fcReply != NULL)
@@ -903,6 +911,7 @@ natsSub_nextMsg(natsMsg **nextMsg, natsSubscription *sub, int64_t timeout, bool 
         }
         else if (!pullSubInternal && sub->jsi->pull)
         {
+            // internal invocations only apply to pull subscriptions
             natsSub_Unlock(sub);
             return nats_setError(NATS_INVALID_SUBSCRIPTION, "%s", jsErrNotApplicableToPullSub);
         }

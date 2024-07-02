@@ -2680,6 +2680,8 @@ natsConn_processMsg(natsConnection *nc, char *buf, int bufLen)
     natsMsgFilter    mf      = NULL;
     void             *mfc    = NULL;
 
+    // printf("<>/<> natsConn_processMsg: %.*s\n", bufLen, buf);
+
     // Do this outside of locks, even if we end-up having to destroy
     // it because we have reached the maxPendingMsgs count or other
     // conditions. This reduces lock contention.
@@ -2809,16 +2811,23 @@ natsConn_processMsg(natsConnection *nc, char *buf, int bufLen)
 
             if (list->head == NULL)
             {
+                printf("<>/<> natsConn_processMsg: added message to head, will signal +++++++++++++++++++\n");
                 list->head = msg;
                 signal = true;
             }
             else
+            {
+                printf("<>/<> natsConn_processMsg: added message to tail, will not signal\n");
+                printf("<>/<> natsConn_processMsg: head message '%s' '%.*s'\n", list->head->subject, list->head->dataLen, list->head->data);
                 list->tail->next = msg;
+            }
 
             list->tail = msg;
 
             if (signal)
                 natsCondition_Signal(cond);
+
+            printf("<>/<> natsConn_processMsg: SIGNALED OR NOT, added: '%.*s'\n", bufLen, buf);
 
             // Store the ACK metadata from the message to
             // compare later on with the received heartbeat.
