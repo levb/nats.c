@@ -430,7 +430,11 @@ typedef struct __jsSub
     bool                ordered;
     bool                dc; // delete JS consumer in Unsub()/Drain()
     bool                ackNone;
-    
+
+    uint64_t fetchID;
+    jsBatch *batch;
+    natsTimer *hbTimer;
+
     // This is ConsumerInfo's Pending+Consumer.Delivered that we get from the
     // add consumer response. Note that some versions of the server gather the
     // consumer info *after* the creation of the consumer, which means that
@@ -439,9 +443,6 @@ typedef struct __jsSub
     // in the process of being delivered to the subscription when created.
     uint64_t            pending;
 
-    uint64_t            fetchID;
-    natsTimer           *hbTimer;
-    jsBatch             *batch;
 
     char                *cmeta;
     uint64_t            sseq;

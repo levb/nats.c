@@ -32,9 +32,9 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
     if (start == 0)
         start = nats_Now();
 
-    // We should be using a mutex to protect those variables since
-    // they are used from the subscription's delivery, the  and the main
-    // threads. For demo purposes, this is fine.
+    // We should be using a mutex to protect those variables since they are used
+    // from the subscription's delivery, and the main threads. For demo
+    // purposes, this is fine.
     if (++count == total)
         elapsed = nats_Now() - start;
 
