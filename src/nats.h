@@ -1461,6 +1461,10 @@ typedef struct __stanSubOptions     stanSubOptions;
 typedef void (*natsMsgHandler)(
         natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure);
 
+// <>/<> TODO doc
+typedef void (*natsBatchHandler)(
+        natsConnection *nc, natsSubscription *sub, jsFetchRequest *req, natsStatus s, natsMsg **msgs, int numMsgs, void *closure);
+
 /** \brief Callback used to notify the user of asynchronous connection events.
  *
  * This callback is used for asynchronous events such as disconnected

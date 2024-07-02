@@ -381,6 +381,43 @@ struct __jsCtx
     bool                closed;
 };
 
+typedef struct __jsBatch
+{
+    // while processing a fetch request we use sub->subject+.fetchID to detect
+    // messages of interest.
+    bool active;
+
+    // the list to accumulate messages to.
+    natsMsg **msgs;
+    int numMsgs;
+
+    // The logic for processing a batch runs in the message delivery thread. We
+    // use synthetic messages (unique pointers to valid but otherwise unused
+    // natsMsg instances) to signal events like missed heartbeat, batch
+    // fulfilled, and batch timed out. We need to keep track of these messages
+    // for comparison, and free them when the batch is done.
+    natsMsg *endOfBatchMsg;
+
+    // When a batch is started, we set a timer to catch its expiration on the
+    // client side. If we reach that and the timer is invoked, we will place a
+    // synthetic message (effectively, a unique pointer) onto the message
+    // delivery list, and call the user batch callback when processed in the
+    // delivery thread.
+    int64_t deadline; // <>/<> do I need it or is setting the timer enough?
+    natsTimer *timeoutTimer;
+    natsMsg *timeoutMsg;
+
+    // Works similar to the above, but for missed heartbeats.
+    natsMsg *missedHeartbeatMsg;
+
+    // The subject to send the status updates to.
+    // <>/<> is this where heartbeats are sent?
+    char *statusSubject;
+    jsFetchRequest req;
+
+    int64_t size;
+} jsBatch;
+
 typedef struct __jsSub
 {
     jsCtx               *js;
@@ -389,16 +426,11 @@ typedef struct __jsSub
     char                *psubj;
     char                *nxtMsgSubj;
     bool                pull;
-    bool                inFetch;
+    // bool                inFetch; // <>/<> fetch poiner != NULL should be sufficient
     bool                ordered;
     bool                dc; // delete JS consumer in Unsub()/Drain()
     bool                ackNone;
     
-    // while processing a fetch request we use sub->subject+.fetchID to detect
-    // messages of interest.
-    uint64_t            fetchID; 
-    int64_t             fetchDeadline;
-
     // This is ConsumerInfo's Pending+Consumer.Delivered that we get from the
     // add consumer response. Note that some versions of the server gather the
     // consumer info *after* the creation of the consumer, which means that
@@ -407,10 +439,9 @@ typedef struct __jsSub
     // in the process of being delivered to the subscription when created.
     uint64_t            pending;
 
-    int64_t             hbi;
-    bool                active;
+    uint64_t            fetchID;
     natsTimer           *hbTimer;
-    natsMsg             *mhMsg;
+    jsBatch             *batch;
 
     char                *cmeta;
     uint64_t            sseq;

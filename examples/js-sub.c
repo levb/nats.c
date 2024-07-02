@@ -33,7 +33,7 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
         start = nats_Now();
 
     // We should be using a mutex to protect those variables since
-    // they are used from the subscription's delivery and the main
+    // they are used from the subscription's delivery, the  and the main
     // threads. For demo purposes, this is fine.
     if (++count == total)
         elapsed = nats_Now() - start;
@@ -145,20 +145,25 @@ int main(int argc, char **argv)
 
     if ((s == NATS_OK) && pull)
     {
-        natsMsgList list;
+        natsMsgList list = {0};
         int         i;
 
         for (count = 0; (s == NATS_OK) && (count < total); )
         {
-            s = natsSubscription_Fetch(&list, sub, 5, 30000, &jerr);
-            // jsFetchRequest fr = {
-            //     .Batch = 1024,
-            //     .NoWait = true,
-            //     .Heartbeat = 1000000000,
-            //     .Expires = 5000,
-            // };
-            // s = natsSubscription_GoFetch(sub, 1024, 5000, msgf, msgClosure, donef, doneClosure, &jerr);
-            if (s != NATS_OK)
+            printf("<>/<> USER: Fetch! %d messages\n", total-count);
+            jsFetchRequest fr = {
+                .Batch = 1024,
+                .NoWait = true,
+                .Heartbeat = 1000000000,
+                .Expires = 5000,
+            };
+            s = natsSubscription_GoFetch(sub, 1024, 5000, msgf, msgClosure, donef, doneClosure, &jerr);
+            // s = natsSubscription_Fetch(&list, sub, total - count, 60 * 1000 /* 1 minute */, &jerr);
+            if (s == NATS_TIMEOUT)
+            {
+                printf("<>/<> USER: Timeout fetching messages, got back %d\n", list.Count);
+            }                
+            else if (s != NATS_OK)
                 break;
 
             if (start == 0)
