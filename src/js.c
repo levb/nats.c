@@ -1231,8 +1231,8 @@ static inline void _destroyBatch(jsBatch *f)
     if (f == NULL)
         return;
 
-    natsTimer_Destroy(f->heartbeatTimer);
     natsTimer_Destroy(f->timeoutTimer);
+    natsTimer_Destroy(f->missedHearteatTimer);
 
     if (f->missedHeartbeatMsg != NULL)
     {
@@ -1269,6 +1269,7 @@ jsSub_free(jsSub *jsi)
     _destroyBatch(jsi->batch);
 
     js = jsi->js;
+    natsTimer_Destroy(jsi->hbTimer);
     NATS_FREE(jsi->stream);
     NATS_FREE(jsi->consumer);
     NATS_FREE(jsi->nxtMsgSubj);
@@ -1546,7 +1547,7 @@ jsSub_trackSequences(jsSub *jsi, const char *reply)
     natsStatus  s = NATS_OK;
 
     // Data is equivalent to HB, so consider active.
-    jsi->batch->active = true;
+    jsi->active = true;
 
     if ((reply == NULL) || (strstr(reply, jsAckPrefix) != reply))
         return NATS_OK;
@@ -1571,7 +1572,7 @@ jsSub_processSequenceMismatch(natsSubscription *sub, natsMsg *msg, bool *sm)
     *sm = false;
 
     // This is an HB, so update that we are active.
-    jsi->batch->active = true;
+    jsi->active = true;
 
     if (jsi->cmeta == NULL)
         return NATS_OK;
@@ -1700,7 +1701,7 @@ jsSub_checkForFlowControlResponse(natsSubscription *sub)
     jsSub *jsi     = sub->jsi;
     char  *fcReply = NULL;
 
-    jsi->batch->active = true;
+    jsi->active = true;
     if (sub->delivered >= jsi->fcDelivered)
     {
         fcReply = jsi->fcReply;
@@ -1897,7 +1898,7 @@ _startBatch(natsSubscription *sub, jsBatch *batch)
         {
             natsMsg_setNoDestroy(batch->missedHeartbeatMsg);
 
-            s = natsTimer_Create(&batch->heartbeatTimer, _hbTimerFired, _releaseSubWhenStoped, heartbeatMilli * 2, (void *)sub);
+            s = natsTimer_Create(&batch->missedHearteatTimer, _hbTimerFired, _releaseSubWhenStoped, heartbeatMilli * 2, (void *)sub);
         }
         if (s != NATS_OK)
             sub->refs--;
