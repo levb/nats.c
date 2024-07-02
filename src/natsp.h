@@ -383,10 +383,6 @@ struct __jsCtx
 
 typedef struct __jsBatch
 {
-    // while processing a fetch request we use sub->subject+.fetchID to detect
-    // messages of interest.
-    bool active;
-
     // the list to accumulate messages to.
     natsMsg **msgs;
     int numMsgs;
@@ -431,9 +427,10 @@ typedef struct __jsSub
     bool                dc; // delete JS consumer in Unsub()/Drain()
     bool                ackNone;
 
-    uint64_t fetchID;
-    jsBatch *batch;
-    natsTimer *hbTimer;
+    uint64_t            fetchID;
+    jsBatch             *batch;
+    natsTimer           *hbTimer;
+    bool                active;
 
     // This is ConsumerInfo's Pending+Consumer.Delivered that we get from the
     // add consumer response. Note that some versions of the server gather the
@@ -442,7 +439,6 @@ typedef struct __jsSub
     // is a more accurate representation of the number of messages pending or
     // in the process of being delivered to the subscription when created.
     uint64_t            pending;
-
 
     char                *cmeta;
     uint64_t            sseq;
