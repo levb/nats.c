@@ -2159,11 +2159,11 @@ natsSubscription_Fetch(natsMsgList *list, natsSubscription *sub, int batch, int6
 }
 
 // For now, cut&pasted from _fetch with no shame.
-natsStatus
-natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req, bool accumulate,
+static natsStatus
+natsSubscription_goFetch(natsSubscription *sub, jsFetchRequest *req, 
                          natsMsgHandler msgf, void *msgClosure,
-                         natsBatchHandler batchf, void *batchClosure,
-                         jsErrCode *errCode)
+                         natsBatchHandler batchf, void *batchClosure, 
+                         jsErrCode *errCode, bool block)
 {
     natsStatus s = NATS_OK;
     jsBatch *batch = NULL;
@@ -2171,15 +2171,22 @@ natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req, bool accumu
     char *statusSubject = NULL; // used as a reply in "pull request" nad to receive batch status messages 
     jsSub *jsi = NULL;
     natsConnection *nc = NULL;
+    bool accumulate;
 
     if ((sub == NULL) || (req == NULL) || (req->Batch <= 0) || (req->MaxBytes < 0))
         return nats_setDefaultError(NATS_INVALID_ARG);
     if (req->Expires <= 0)
         return nats_setDefaultError(NATS_INVALID_TIMEOUT);
+    if ((msgf == NULL) && (batchf == NULL))
+        return nats_setError(NATS_INVALID_ARG, "%s", "a message or batch callback must be provided");
 
     if (errCode != NULL)
         *errCode = 0;
 
+    // If the per-message callback is provided, the user takes over the natsMsg
+    // message and may destroy it. We can not accumulate them without
+    // ref-counting, or copying.
+    accumulate = (msgf == NULL);
     s = _newBatch(&batch, req, accumulate, batchf, batchClosure);
     if (s == NATS_OK)
     {
@@ -2209,11 +2216,21 @@ natsSubscription_GoFetch(natsSubscription *sub, jsFetchRequest *req, bool accumu
     if (s == NATS_OK)
         _sendPullRequest(nc, pullRequestSubject, statusSubject, req);
 
+    // If non-blocking, initiate the normal delivery loop for the subscription.
+    // It will self-destruct when the batch is done, success or failure. If we
+    // block, run the loop here and now.
+    if (s == NATS_OK) 
+    if (block)
+        natsSub_deliverMsgs((void *)sub);
+    else 
+        natsSub_initiateDe
+
     if (s != NATS_OK)
     {
         _destroyBatch(batch);
         jsi->batch = NULL;
     }
+
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -2268,7 +2285,7 @@ static void _onMissedHeartbeatTimer(natsTimer *timer, void *closure)
         // Signal the delivery queue, and stop the timer since the "missed
         // heartbeat error" is lethal to the operation in progress.
         //
-        // <>/<> TODO: should we check a timestamp instead?
+        // <>/<> TODO: HAS TO CHANGE!!!!! FIXME! should we check a timestamp instead?
         if (sub->msgList.msgs == 0)
         {
             natsSub_deliverNext(sub, t->synthetic);

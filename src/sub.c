@@ -282,6 +282,8 @@ static bool _processBatchMessage(natsSubscription *sub, natsMsg *msg, jsBatch **
         return _finishBatch(sub, msg, finishedBatch, NATS_TIMEOUT, true);
     else if (msg == batch->endOfBatch)
         return _finishBatch(sub, msg, finishedBatch, NATS_OK, true);
+    else if ((msg->subject != NULL) && *msg->subject == '\0')
+        return false; // A control message, but not ours. Ignore.
 
     // Is it a user message or a status message?
     bool isUserMessage = (strcmp(msg->subject, sub->subject) == 0);
@@ -636,6 +638,46 @@ _asyncTimeoutStopCb(natsTimer *timer, void* closure)
     natsSub_release(sub);
 }
 
+natsStatus natsSub_startDeliveries(natsConnection *nc, natsSubscription *sub, bool preventUseOfLibDlvPool)
+{
+    natsStatus s = natsCondition_Create(&(sub->cond));
+    if (s != NATS_OK) 
+        return(s);
+    
+    // <>/<> do we need the nc lock for this?
+    if (!(nc->opts->libMsgDelivery) || preventUseOfLibDlvPool)
+    {
+        natsSub_Lock(sub);
+        // Let's not rely on the created thread acquiring the lock that
+        // would make it safe to retain only on success.
+        _retain(sub);
+
+        // If we have an async callback, start up a sub specific
+        // thread to deliver the messages.
+        s = natsThread_Create(&(sub->deliverMsgsThread), natsSub_deliverMsgs, (void *)sub);
+        if (s != NATS_OK)
+            _release(sub);
+        natsSub_Unlock(sub);
+    }
+    else
+    {
+        _retain(sub);
+        s = natsLib_msgDeliveryAssignWorker(sub); // FIXME for fetching batches
+        if ((s == NATS_OK) && (sub->timeout > 0))
+        {
+            _retain(sub);
+            s = natsTimer_Create(&sub->timeoutTimer, _asyncTimeoutCb,
+                                    _asyncTimeoutStopCb, sub->timeout, (void *)sub);
+            if (s != NATS_OK)
+                _release(sub);
+        }
+        if (s != NATS_OK)
+            _release(sub);
+    }
+
+    return s;
+}
+
 natsStatus
 natsSub_create(natsSubscription **newSub, natsConnection *nc, const char *subj,
                const char *queueGroup, int64_t timeout, natsMsgHandler cb, void *cbClosure,
@@ -677,38 +719,7 @@ natsSub_create(natsSubscription **newSub, natsConnection *nc, const char *subj,
             s = nats_setDefaultError(NATS_NO_MEMORY);
     }
     if (s == NATS_OK)
-        s = natsCondition_Create(&(sub->cond));
-    if ((s == NATS_OK) && (cb != NULL))
-    {
-        if (!(nc->opts->libMsgDelivery) || preventUseOfLibDlvPool)
-        {
-            // Let's not rely on the created thread acquiring the lock that
-            // would make it safe to retain only on success.
-            _retain(sub);
-
-            // If we have an async callback, start up a sub specific
-            // thread to deliver the messages.
-            s = natsThread_Create(&(sub->deliverMsgsThread), natsSub_deliverMsgs,
-                                  (void*) sub);
-            if (s != NATS_OK)
-                _release(sub);
-        }
-        else
-        {
-            _retain(sub);
-            s = natsLib_msgDeliveryAssignWorker(sub);
-            if ((s == NATS_OK) && (timeout > 0))
-            {
-                _retain(sub);
-                s = natsTimer_Create(&sub->timeoutTimer, _asyncTimeoutCb,
-                                     _asyncTimeoutStopCb, timeout, (void*) sub);
-                if (s != NATS_OK)
-                    _release(sub);
-            }
-            if (s != NATS_OK)
-                _release(sub);
-        }
-    }
+        s = _startDeliveries(nc, sub, preventUseOfLibDlvPool);
 
     if (s == NATS_OK)
         *newSub = sub;
