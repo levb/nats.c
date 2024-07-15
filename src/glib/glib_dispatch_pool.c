@@ -21,7 +21,7 @@ _destroyDispatcher(natsDispatcher *d)
         return;
 
     natsThread_Destroy(d->thread);
-    nats_destroyQueuedMessages(&d->queue); // FIXME there's NEVER anything there, remove?
+    nats_destroyQueuedMessages(&d->queue); // there's NEVER anything there, remove?
     natsCondition_Destroy(d->cond);
     natsMutex_Destroy(d->mu);
     memset(d, 0, sizeof(*d));
