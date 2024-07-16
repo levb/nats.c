@@ -1703,8 +1703,32 @@ jsSub_scheduleFlowControlResponse(jsSub *jsi, const char *reply)
     return NATS_OK;
 }
 
+// returns the fetchID from subj, or -1 if not the batch status subject for the
+// sub.
+static inline int64_t
+_fetchIDFromSubject(natsSubscription *sub, const char *subj)
+{
+    int len = NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 1; // {INBOX}. but without the *
+    int64_t id = 0;
+
+    if (strncmp(sub->subject, subj, len) != 0)
+        return -1;
+
+    subj += len;
+    if (*subj == '\0')
+        return -1;
+
+    for (; *subj != '\0'; subj++)
+    {
+        if ((*subj < '0') || (*subj > '9'))
+            return -1;
+        id = (id * 10) + (*subj - '0');
+    }
+    return id;
+}
+
 static natsStatus
-_checkMsg(natsMsg *msg, bool checkSts, bool *usrMsg, natsMsg *mhMsg, const char* reqSubj)
+_checkMsg(natsSubscription *sub, natsMsg *msg, bool checkSts, bool *usrMsg, natsMsg *mhMsg, int64_t fetchID)
 {
     natsStatus  s    = NATS_OK;
     const char  *val = NULL;
@@ -1745,7 +1769,8 @@ _checkMsg(natsMsg *msg, bool checkSts, bool *usrMsg, natsMsg *mhMsg, const char*
     // for a previous request (message's subject is not reqSubj), then
     // simply return NATS_OK. The caller will destroy the message and
     // proceed as if nothing was received.
-    if (strcmp(natsMsg_GetSubject(msg), reqSubj) != 0)
+    int64_t id = _fetchIDFromSubject(sub, natsMsg_GetSubject(msg));
+    if (id != (int64_t)fetchID)
         return NATS_OK;
 
     // 404 indicating that there are no messages.
@@ -1816,6 +1841,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     jsSub           *jsi     = NULL;
     natsMsg         *mhMsg   = NULL;
     bool            noWait;
+    uint64_t        fetchID  = 0;
 
     if (list == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
@@ -1852,7 +1878,8 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     pmc  = (sub->ownDispatcher.queue.msgs > 0);
     jsi->inFetch = true;
     jsi->fetchID++;
-    snprintf(rply, sizeof(rply), "%.*s%" PRIu64, (int)strlen(sub->subject) - 1, sub->subject, jsi->fetchID);
+    fetchID = jsi->fetchID;
+    snprintf(rply, sizeof(rply), "%.*s%" PRIu64, (int)strlen(sub->subject) - 1, sub->subject, fetchID);
     if ((s == NATS_OK) && req->Heartbeat)
     {
         s = nats_createControlMessages(sub);
@@ -1901,7 +1928,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
         {
             // Here we care only about user messages. We don't need to pass
             // the request subject since it is not even checked in this case.
-            s = _checkMsg(msg, false, &usrMsg, mhMsg, NULL);
+            s = _checkMsg(sub, msg, false, &usrMsg, mhMsg, 0);
             if ((s == NATS_OK) && usrMsg)
             {
                 msgs[count++] = msg;
@@ -1947,7 +1974,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
         IFOK(s, natsSub_nextMsg(&msg, sub, timeout, true));
         if (s == NATS_OK)
         {
-            s = _checkMsg(msg, true, &usrMsg, mhMsg, rply);
+            s = _checkMsg(sub, msg, true, &usrMsg, mhMsg, fetchID);
             if ((s == NATS_OK) && usrMsg)
             {
                 msgs[count++] = msg;
@@ -3050,6 +3077,84 @@ js_PullMessages(natsSubscription **newsub, jsCtx *js, const char *subject, const
     *newsub = sub;
     return NATS_OK;
 }
+
+static bool /* true if consumed the message and no further action needed */
+_processFetchStatusMessage(natsSubscription *sub, natsMsg *msg)
+{
+    natsStatus s = NATS_OK;
+    bool isUserMessage = false;
+    jsFetch *fetch = NULL;
+
+    // Are we not running a fetch?
+    if ((sub->jsi == NULL) || (sub->jsi->fetch == NULL))
+        return false;
+    fetch = sub->jsi->fetch;
+
+    // Leave control messages untouched.
+    if ((msg == NULL) || (msg->subject[0] == '\0'))
+        return false;
+
+    // Check if it's a status message or a user message, but ignore optional
+    // checks, we'll do them ourselves.
+    s = _checkMsg(sub, msg, true, &isUserMessage, NULL, sub->jsi->fetchID);
+    if (isUserMessage)
+    {
+        fetch->receivedMsgs++;
+        fetch->receivedBytes += natsMsg_dataAndHdrLen(msg);
+
+        if (((fetch->receivedMsgs) > fetch->lifetime.Batch) ||
+            ((fetch->lifetime.MaxBytes > 0) && ((fetch->receivedBytes) > fetch->lifetime.MaxBytes)))
+        {
+            // FIXME: implement
+
+            // We have reached the limit, we are done. Add the end-of-batch
+            // message to the head of the queue to process next.
+
+            // We still want to deliver this message to the user, so don't break.
+        }
+
+        // FIXME: fire off next fetch request if needed
+
+        // Let the delivery logic deliver to the sub's (AutoAck) callback, and
+        // to the user, as normal.
+        return false;
+    }
+
+    switch (s)
+    {
+    case NATS_OK:
+        // It was a heartbeat, or a status message from a previous batch. Make
+        // it disappear.
+
+        // FIXME: reset the heartbeat timer needed?
+        break;
+
+    case NATS_NOT_FOUND:
+        // No messages
+
+        // FIXME: implement
+        break;
+
+    case NATS_TIMEOUT:
+        // Maybe the expiry notification from the server, or NoWait was set and
+        // there are no more messages.
+
+        // FIXME: implement
+        break;
+
+    // FIXME: The possible 503 is handled directly in natsSub_nextMsg(), so we
+    // would never get it here in this function.
+
+    default:
+        // <>/<> serious error !!!!
+        // FIXME: implement
+        break;
+    }
+
+    natsMsg_Destroy(msg);
+    return true;
+}
+
 
 natsStatus
 js_PullBatches(natsSubscription **newsub, jsCtx *js, const char *subject, const char *durable,
