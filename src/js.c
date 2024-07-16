@@ -1252,7 +1252,6 @@ void jsSub_free(jsSub *jsi)
     NATS_FREE(jsi->stream);
     NATS_FREE(jsi->consumer);
     NATS_FREE(jsi->nxtMsgSubj);
-    NATS_FREE(jsi->replySubjectBuf);
     NATS_FREE(jsi->cmeta);
     NATS_FREE(jsi->fcReply);
     NATS_FREE(jsi->psubj);
@@ -1804,8 +1803,8 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     int             batch   = 0;
     natsConnection  *nc     = NULL;
     const char      *subj   = NULL;
-    const char      *rply   = NULL;
-    int             pmc     = 0;
+    char            rply[NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 32];
+    int             pmc = 0;
     char            buffer[64];
     natsBuffer      buf;
     int64_t         start    = 0;
@@ -1815,7 +1814,6 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     bool            sendReq  = true;
     jsSub           *jsi     = NULL;
     natsMsg         *mhMsg   = NULL;
-    char            *reqSubj = NULL;
     bool            noWait;
 
     if (list == NULL)
@@ -1853,10 +1851,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     pmc  = (sub->ownDispatcher.queue.msgs > 0);
     jsi->inFetch = true;
     jsi->fetchID++;
-    if (nats_asprintf(&reqSubj, "%.*s%" PRIu64, (int) strlen(sub->subject)-1, sub->subject, jsi->fetchID) < 0)
-        s = nats_setDefaultError(NATS_NO_MEMORY);
-    else
-        rply = (const char*) reqSubj;
+    snprintf(rply, sizeof(rply), "%.*s%" PRIu64, (int)strlen(sub->subject) - 1, sub->subject, jsi->fetchID);
     if ((s == NATS_OK) && req->Heartbeat)
     {
         s = nats_createControlMessages(sub);
@@ -2000,8 +1995,6 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
     if (req->Heartbeat && (jsi->hbTimer != NULL))
         natsTimer_Stop(jsi->hbTimer);
     natsSub_Unlock(sub);
-
-    NATS_FREE(reqSubj);
 
     return NATS_UPDATE_ERR_STACK(s);
 }
@@ -2608,11 +2601,7 @@ PROCESS_INFO:
         {
             if (isPullMode && !nats_IsStringEmpty(consumer))
             {
-                jsi->replySubjectBuf = NATS_MALLOC(js_replySubjectBufLen(sub)); // for subject.123
-                if (jsi->replySubjectBuf == NULL)
-                    s = nats_setDefaultError(NATS_NO_MEMORY);
-                if ((s == NATS_OK) &&
-                    (nats_asprintf(&(jsi->nxtMsgSubj), jsApiRequestNextT, jo.Prefix, stream, consumer) < 0))
+                if (nats_asprintf(&(jsi->nxtMsgSubj), jsApiRequestNextT, jo.Prefix, stream, consumer) < 0)
                     s = nats_setDefaultError(NATS_NO_MEMORY);
             }
             IF_OK_DUP_STRING(s, jsi->stream, stream);
@@ -2879,16 +2868,16 @@ static bool _prepareNextFetchRequest(jsFetchRequest *req, natsConnection *nc, na
     if (fetch->lifetime.Batch > 0)
     {
         remaining = fetch->lifetime.Batch - fetch->requestedMsgs;
+        if (remaining <= 0)
+            return false;
     }
-    if (remaining <= 0)
-        return false;
 
     if (fetch->lifetime.MaxBytes > 0)
     {
         remainingBytes = fetch->lifetime.MaxBytes - fetch->receivedBytes;
+        if (remainingBytes <= 0)
+            return false;
     }
-    if (remainingBytes <= 0)
-        return false;
 
     want = fetch->batchCap + fetch->fetchAhead - fetch->batch.Count;
     if (want == 0)
@@ -2907,7 +2896,7 @@ static bool _prepareNextFetchRequest(jsFetchRequest *req, natsConnection *nc, na
     req->Batch = want;
     req->MaxBytes = remainingBytes;
 
-    return NATS_OK;
+    return true;
 }
 
 
@@ -2923,7 +2912,7 @@ js_PullBatches(natsSubscription **newsub, jsCtx *js, const char *subject, const 
     natsSubscription *sub = NULL;
     jsSub *jsi = NULL;
     jsFetch *fetch = NULL;
-    int id = 0;
+    uint64_t id = 0;
     jsFetchRequest req;
     jsFetchRequest defaultLifetime = {
         .Expires = 0, // never
@@ -2941,12 +2930,6 @@ js_PullBatches(natsSubscription **newsub, jsCtx *js, const char *subject, const 
     if (errCode != NULL)
         *errCode = 0;
 
-    // If there is no custom next fetch handler, we will use the default one.
-    if (nextf == NULL)
-    {
-        nextf = _prepareNextFetchRequest;
-        nextClosure = NULL;
-    }
     if (lifetime == NULL)
         lifetime = &defaultLifetime;
 
@@ -2968,8 +2951,15 @@ js_PullBatches(natsSubscription **newsub, jsCtx *js, const char *subject, const 
         fetch->lifetime = *lifetime;
         fetch->fetchRequestMin = fetchRequestMin;
         fetch->fetchAhead = fetchAhead;
-        fetch->nextf = nextf;
         fetch->nextClosure = nextClosure;
+
+        // If there is no custom next fetch handler, we will use the default one.
+        if (nextf == NULL)
+        {
+            nextf = _prepareNextFetchRequest;
+            nextClosure = fetch;
+        }
+        fetch->nextf = nextf;
     }
 
     // Prepare the first fetch request
@@ -3029,8 +3019,10 @@ js_PullBatches(natsSubscription **newsub, jsCtx *js, const char *subject, const 
 
     if (s == NATS_OK)
     {
-        snprintf(jsi->replySubjectBuf, js_replySubjectBufLen(sub), "%s.%d", sub->subject, id);
-        s = _sendPullRequest(js->nc, jsi->nxtMsgSubj, jsi->replySubjectBuf, &buf, &req);
+        // The sub's subscribe subject is {INBOX}.*, we need to have replies sent {INBOX}.fetchID
+        char replySubject[NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 32];
+        snprintf(replySubject, sizeof(replySubject), "%.*s%" PRIu64, (int)strlen(sub->subject) - 1, sub->subject, id);
+        s = _sendPullRequest(js->nc, jsi->nxtMsgSubj, replySubject, &buf, &req);
     }
 
     natsBuf_Cleanup(&buf);

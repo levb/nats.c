@@ -397,6 +397,8 @@ typedef struct __jsFetch
     // Timer for the batch expiration. Leverage the existing jsi->hbTimer for
     // checking missed heartbeats.
     natsTimer *expiresTimer;
+
+    char *replySubjectBuf;
 } jsFetch;
 
 typedef struct __jsSub
@@ -406,7 +408,6 @@ typedef struct __jsSub
     char                *consumer;
     char                *psubj;
     char                *nxtMsgSubj;
-    char                *replySubjectBuf;
     uint64_t            fetchID;
     jsFetch             *fetch;
 
