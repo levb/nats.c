@@ -17,6 +17,8 @@ static const char *usage = ""\
 "-gd            use global message delivery thread pool\n" \
 "-sync          receive synchronously (default is asynchronous)\n" \
 "-pull          use pull subscription\n" \
+"-pull-batch N  use an async pull subscription in batch mode, N is batch size\n" \ 
+"-pull-messages use an async pull subscription in message-by-message mode\n" \ 
 "-fc            enable flow control\n" \
 "-count         number of expected messages\n";
 
@@ -66,8 +68,16 @@ int main(int argc, char **argv)
 
     opts = parseArgs(argc, argv, usage);
 
-    printf("Created %s subscription on '%s'.\n",
-        (pull ? "pull" : (async ? "asynchronous" : "synchronous")), subj);
+    if (print)
+        if (pull)
+            if (!async)
+                printf("Creating a synchronous pull subscription on '%s'",subj);
+            else if (batch > 0)
+                printf("Creating an asynchronous pull subscription in batch mode on '%s' with batch size %d",subj,batch);
+            else
+                printf("Creating an asynchronous pull subscription in message-by-message mode on '%s'",subj);
+        else
+            printf("Creating %s subscription on '%s'", async ? "an asynchronous" : "a synchronous", subj);
 
     s = natsOptions_SetErrorHandler(opts, asyncCb, NULL);
 
@@ -120,8 +130,9 @@ int main(int argc, char **argv)
         }
         if (s == NATS_OK)
         {
-            printf("Stream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-                si->Config->Name, si->State.Msgs, si->State.Bytes);
+            if (print)
+                printf("Stream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
+                    si->Config->Name, si->State.Msgs, si->State.Bytes);
 
             // Need to destroy the returned stream object.
             jsStreamInfo_Destroy(si);
@@ -130,6 +141,67 @@ int main(int argc, char **argv)
 
     if (s == NATS_OK)
     {
+        if (pull && async)
+        {
+            // FIXME: options for params
+            // FIXME: demo: set msg delivery pool
+            // FIXME: demo: set auto-ack
+            if (batch > 0)
+                s = js_PullBatches(&sub, js, subj, durable, 
+                    // Dispatch control
+                    
+                    batch, onBatch, NULL,
+
+                    // Lifetime control
+
+                    NEVER, // MAX_BYTES
+                    total, // MAX_MSGS
+                    NEVER, // MAX_ELAPSED
+                    WAIT_FOR_MORE, // vs NO_WAIT
+                    IF_HEARTBEAT_IS_LOST, // if heartbeat is lost (or default)
+
+                    // Flow control: automatic
+
+                    // Minimum number of messages to request from the server.
+                    // Defaults to 1xbatch size.
+                    FETCH_REQUEST_MIN, 
+
+                    // defaults to 1*batch, meaning we start fetching the next
+                    // batch just after we have received all messages for the
+                    // callback, but before invoking it.
+                    //
+                    // For maximum performance set to 2x batch size, meaning we
+                    // ask for 2x to start with, and then for 1x before we
+                    // invoke the callback for the batch received. This
+                    // guarantees that there are always enough messages for the
+                    // callback to process if we are receiving them fast enough.
+                    //
+                    // If set to 0, we will only request the next batch after
+                    // the callback successfully returns.
+                    //
+                    // Fetch request parameters are then set as follows:
+                    // - Expires: lifetime expiration
+                    // - Batch: calculated based on the above settings
+                    // - MaxBytes: remaining bytes for the subscription, if set
+                    // - NoWait: lifetime no_wait value
+                    // - Heartbeat: lifetime heartbeat value
+                    //
+                    // FIXME: maybe just 3 settings, safe, normal, fast?
+                    FETCH_KEEP_AHEAD,  
+
+                    // -- or --
+
+                    nextFetchRequestCB, NULL, // bool cb(natsFetchRequest *req, void *closure)
+
+                    onComplete, NULL,
+
+                    &jsOpts, &so, &jerr);
+            // else
+            //     s = js_PullMessages(&sub, js, subj, durable,
+            //         onMsg, NULL,
+            //         ...
+            //         &jsOpts, &so, &jerr);
+        }
         if (pull)
             s = js_PullSubscribe(&sub, js, subj, durable, &jsOpts, &so, &jerr);
         else if (async)
@@ -145,24 +217,24 @@ int main(int argc, char **argv)
 
     if ((s == NATS_OK) && pull)
     {
-        // natsMsgList list;
-        // int         i;
+        natsMsgList list;
+        int         i;
 
-        // for (count = 0; (s == NATS_OK) && (count < total); )
-        // {
-        //     s = natsSubscription_Fetch(&list, sub, 1024, 5000, &jerr);
-        //     if (s != NATS_OK)
-        //         break;
+        for (count = 0; (s == NATS_OK) && (count < total); )
+        {
+            s = natsSubscription_Fetch(&list, sub, 1024, 5000, &jerr);
+            if (s != NATS_OK)
+                break;
 
-        //     if (start == 0)
-        //         start = nats_Now();
+            if (start == 0)
+                start = nats_Now();
 
-        //     count += (int64_t) list.Count;
-        //     for (i=0; (s == NATS_OK) && (i<list.Count); i++)
-        //         s = natsMsg_Ack(list.Msgs[i], &jsOpts);
+            count += (int64_t) list.Count;
+            for (i=0; (s == NATS_OK) && (i<list.Count); i++)
+                s = natsMsg_Ack(list.Msgs[i], &jsOpts);
 
-        //     natsMsgList_Destroy(&list);
-        // }
+            natsMsgList_Destroy(&list);
+        }
     }
     else if ((s == NATS_OK) && async)
     {

@@ -61,6 +61,7 @@ bool        unsubscribe = false;
 
 const char  *stream     = NULL;
 bool        pull        = false;
+int         batch       = false;
 bool        flowctrl    = false;
 
 static natsStatus
@@ -397,6 +398,20 @@ parseArgs(int argc, char **argv, const char *usage)
         {
             async = false;
             pull  = true;
+        }
+        else if (strcasecmp(argv[i], "-pull-messages") == 0)
+        {
+            async = true;
+            pull = true;
+        }
+        else if (strcasecmp(argv[i], "-pull-batch") == 0)
+        {
+            if (i + 1 == argc)
+                printUsageAndExit(argv[0], usage);
+
+            async = true;
+            pull = true;
+            batch = atol(argv[++i]);
         }
         else if (strcasecmp(argv[i], "-fc") == 0)
         {
