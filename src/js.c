@@ -2828,6 +2828,56 @@ js_PullSubscribe(natsSubscription **sub, jsCtx *js, const char *subject, const c
     return NATS_UPDATE_ERR_STACK(s);
 }
 
+natsStatus
+js_PullBatches(natsSubscription **sub, jsCtx *js, const char *subject, const char *durable,
+               // Dispatch control
+               int N,
+               natsBatchHandler batchCB,
+               void *batchCBClosure,
+
+               // Lifetime control
+               jsFetchRequest *lifetime,
+
+               // Flow control: automatic
+
+               // Minimum number of messages to request from the server.
+               // Defaults to 1xbatch size.
+               int fetchRequestMin,
+
+               // defaults to 1*batch, meaning we start fetching the next
+               // batch just after we have received all messages for the
+               // callback, but before invoking it.
+               //
+               // For maximum performance set to 2x batch size, meaning we
+               // ask for 2x to start with, and then for 1x before we
+               // invoke the callback for the batch received. This
+               // guarantees that there are always enough messages for the
+               // callback to process if we are receiving them fast enough.
+               //
+               // If set to 0, we will only request the next batch after
+               // the callback successfully returns.
+               //
+               // Fetch request parameters are then set as follows:
+               // - Expires: lifetime expiration
+               // - Batch: calculated based on the above settings
+               // - MaxBytes: remaining bytes for the subscription, if set
+               // - NoWait: lifetime no_wait value
+               // - Heartbeat: lifetime heartbeat value
+               //
+               // FIXME: maybe just 3 settings, safe, normal, fast?
+               int fetchAhead,
+
+               // Flow control: custom
+               natsNextFetchHandler nextf,
+               void *nextClosure,
+
+               natsOnCompleteCB completeCB,
+               void *completeClosure,
+               jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode)
+{
+    return nats_setDefaultError(NATS_ERR); // FIXME
+}
+
 typedef struct __ackOpts
 {
     const char  *ackType;

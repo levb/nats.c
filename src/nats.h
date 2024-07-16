@@ -1483,6 +1483,47 @@ typedef struct __stanSubOptions     stanSubOptions;
 typedef void (*natsMsgHandler)(
         natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure);
 
+/** \brief Callback used to deliver batches of messages to the application.
+ *
+ * This is the callback that one provides when creating an asynchronous pull
+ * subscription. The library will invoke this callback once enough messages
+ * arrived through the subscription's connection.
+ *
+ * @param nc - the connection that received the messages
+ * @param sub - the subscription that received the messages
+ * @param batch - the array of messages
+ * @param len - the number of messages in the batch
+ * @param batchStatus - `NATS_OK` indicates the batch was successfully received,
+ * and we are continuing to receive more. `NATS_TIMEOUT` indicates that the
+ * batch has reached its lifetime expiration time and stopped receiving
+ * messages. `NATS_NOT_FOUND` is applicable only when NoWait is set, and is
+ * returned when all existing messages have been fetched and there are none
+ * waiting on the server. `NATS_MAX_DELIVERED_MSGS` indicates that lifetime
+ * `Batch` message limit has been reached. Finally, `NATS_MAX_DELIVERED_BYTES`
+ * is returned when the lifetime byte limit is reached. If there was an error,
+ * batchStatus is set to NATS_ERR, and err has the error code.
+ *
+ * @param err - `NATS_OK` if no error occurred, otherwise an error code
+ *
+ * @see js_PullBatches
+ */
+typedef void (*natsBatchHandler)(
+        natsConnection *nc, natsSubscription *sub, natsMsg **batch, int len, natsStatus batchStatus, natsStatus err, void *closure);
+
+/** \brief Callback used to customize flow control for js_PullBatches and
+ * js_PullMessages.
+ *
+ * The library will invoke this callback when it may be time to request more
+ * messages from the server.
+ *
+ * @return true to fetch more, false to skip. if true, req's attributes can be
+ * overridden as needed.
+ *
+ * @see js_PullBatches
+ */
+typedef bool (*natsNextFetchHandler)(
+    natsConnection *nc, natsSubscription *sub, jsFetchRequest *req, void *closure);
+
 /** \brief Callback used to notify the user of asynchronous connection events.
  *
  * This callback is used for asynchronous events such as disconnected
@@ -6501,6 +6542,21 @@ natsSubscription_Fetch(natsMsgList *list, natsSubscription *sub, int batch, int6
  */
 NATS_EXTERN natsStatus
 jsFetchRequest_Init(jsFetchRequest *request);
+
+
+natsStatus
+js_PullBatches(natsSubscription **sub, jsCtx *js, const char *subject, const char *durable,
+               int N,
+               natsBatchHandler batchCB,
+               void *batchCBClosure,
+               jsFetchRequest *lifetime,
+               int fetchRequestMin,
+               int fetchAhead,
+               natsNextFetchHandler nextf,
+               void *nextClosure,
+               natsOnCompleteCB completeCB, // FIXME - need to pass more info in, err code, etc.
+               void *completeClosure,
+               jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
 
 /** \brief Fetches messages for a pull subscription with a complete request configuration
  *

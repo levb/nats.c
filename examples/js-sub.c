@@ -17,15 +17,15 @@ static const char *usage = ""\
 "-gd            use global message delivery thread pool\n" \
 "-sync          receive synchronously (default is asynchronous)\n" \
 "-pull          use pull subscription\n" \
-"-pull-batch N  use an async pull subscription in batch mode, N is batch size\n" \ 
-"-pull-messages use an async pull subscription in message-by-message mode\n" \ 
+"-pull-batch N  use an async pull subscription in batch mode, N is batch size\n" \
+"-pull-messages use an async pull subscription in message-by-message mode\n" \
 "-fc            enable flow control\n" \
 "-count         number of expected messages\n";
 
 static void
 onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 {
-    // if (print)
+    if (print)
         printf("Received msg: %s - %.*s\n",
                natsMsg_GetSubject(msg),
                natsMsg_GetDataLength(msg),
@@ -42,6 +42,17 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 
     // Since this is auto-ack callback, we don't need to ack here.
     natsMsg_Destroy(msg);
+}
+
+static void
+onBatch(natsConnection *nc, natsSubscription *sub, natsMsg **batch, int len,
+    natsStatus batchStatus, natsStatus err, void *closure)
+{
+    if (print)
+        printf("Received batch of %d messages, status:%d, error code:%d\n", len, batchStatus, err);
+
+    for (int i=0; i < len; i++)
+        onMsg(nc, sub, batch[i], NULL);
 }
 
 static void
@@ -69,16 +80,21 @@ int main(int argc, char **argv)
     opts = parseArgs(argc, argv, usage);
 
     if (print)
+    {
         if (pull)
+        {
             if (!async)
                 printf("Creating a synchronous pull subscription on '%s'",subj);
             else if (batch > 0)
                 printf("Creating an asynchronous pull subscription in batch mode on '%s' with batch size %d",subj,batch);
             else
                 printf("Creating an asynchronous pull subscription in message-by-message mode on '%s'",subj);
+        }
         else
+        {
             printf("Creating %s subscription on '%s'", async ? "an asynchronous" : "a synchronous", subj);
-
+        }
+    }
     s = natsOptions_SetErrorHandler(opts, asyncCb, NULL);
 
     if (s == NATS_OK)
@@ -143,61 +159,27 @@ int main(int argc, char **argv)
     {
         if (pull && async)
         {
+            jsFetchRequest lifetime = {
+                .Batch = total,
+                .NoWait = false,
+                .Heartbeat = (int64_t)1E10, // 10s
+            };
             // FIXME: options for params
             // FIXME: demo: set msg delivery pool
             // FIXME: demo: set auto-ack
             if (batch > 0)
-                s = js_PullBatches(&sub, js, subj, durable, 
-                    // Dispatch control
-                    
-                    batch, onBatch, NULL,
-
-                    // Lifetime control
-
-                    NEVER, // MAX_BYTES
-                    total, // MAX_MSGS
-                    NEVER, // MAX_ELAPSED
-                    WAIT_FOR_MORE, // vs NO_WAIT
-                    IF_HEARTBEAT_IS_LOST, // if heartbeat is lost (or default)
-
-                    // Flow control: automatic
-
-                    // Minimum number of messages to request from the server.
-                    // Defaults to 1xbatch size.
-                    FETCH_REQUEST_MIN, 
-
-                    // defaults to 1*batch, meaning we start fetching the next
-                    // batch just after we have received all messages for the
-                    // callback, but before invoking it.
-                    //
-                    // For maximum performance set to 2x batch size, meaning we
-                    // ask for 2x to start with, and then for 1x before we
-                    // invoke the callback for the batch received. This
-                    // guarantees that there are always enough messages for the
-                    // callback to process if we are receiving them fast enough.
-                    //
-                    // If set to 0, we will only request the next batch after
-                    // the callback successfully returns.
-                    //
-                    // Fetch request parameters are then set as follows:
-                    // - Expires: lifetime expiration
-                    // - Batch: calculated based on the above settings
-                    // - MaxBytes: remaining bytes for the subscription, if set
-                    // - NoWait: lifetime no_wait value
-                    // - Heartbeat: lifetime heartbeat value
-                    //
-                    // FIXME: maybe just 3 settings, safe, normal, fast?
-                    FETCH_KEEP_AHEAD,  
-
-                    // -- or --
-
-                    nextFetchRequestCB, NULL, // bool cb(natsFetchRequest *req, void *closure)
-
-                    onComplete, NULL,
-
-                    &jsOpts, &so, &jerr);
+            {
+                s = js_PullBatches(&sub, js, subj, durable,
+                                   batch, NULL, NULL, // FIXME onBatch
+                                   &lifetime,
+                                   0, // defaults to 1*batch.
+                                   2 * batch,
+                                   NULL, NULL, // FIXME: custom next fetch
+                                   NULL, NULL, // FIXME: on complete
+                                   &jsOpts, &so, &jerr);
+            }
             // else
-            //     s = js_PullMessages(&sub, js, subj, durable,
+            //     s = js_PullMessages(&sub, js, subj, durable, // FIXMR
             //         onMsg, NULL,
             //         ...
             //         &jsOpts, &so, &jerr);
@@ -215,8 +197,9 @@ int main(int argc, char **argv)
     if (s == NATS_OK)
         s = natsStatistics_Create(&stats);
 
-    if ((s == NATS_OK) && pull)
+    if ((s == NATS_OK) && pull && !async)
     {
+        // Pull mode, simple "Fetch" loop
         natsMsgList list;
         int         i;
 
@@ -238,6 +221,7 @@ int main(int argc, char **argv)
     }
     else if ((s == NATS_OK) && async)
     {
+        // All async modes (push and pull)
         while (s == NATS_OK)
         {
             if (count + dropped >= total)
@@ -248,18 +232,19 @@ int main(int argc, char **argv)
     }
     else if (s == NATS_OK)
     {
-        // for (count = 0; (s == NATS_OK) && (count < total); count++)
-        // {
-        //     s = natsSubscription_NextMsg(&msg, sub, 5000);
-        //     if (s != NATS_OK)
-        //         break;
+        // Sync mode
+        for (count = 0; (s == NATS_OK) && (count < total); count++)
+        {
+            s = natsSubscription_NextMsg(&msg, sub, 5000);
+            if (s != NATS_OK)
+                break;
 
-        //     if (start == 0)
-        //         start = nats_Now();
+            if (start == 0)
+                start = nats_Now();
 
-        //     s = natsMsg_Ack(msg, &jsOpts);
-        //     natsMsg_Destroy(msg);
-        // }
+            s = natsMsg_Ack(msg, &jsOpts);
+            natsMsg_Destroy(msg);
+        }
     }
 
     if (s == NATS_OK)
@@ -269,25 +254,25 @@ int main(int argc, char **argv)
     }
     if (s == NATS_OK)
     {
-        // jsStreamInfo *si = NULL;
+        jsStreamInfo *si = NULL;
 
-        // // Let's report some stats after the run
-        // s = js_GetStreamInfo(&si, js, stream, NULL, &jerr);
-        // if (s == NATS_OK)
-        // {
-        //     printf("\nStream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-        //         si->Config->Name, si->State.Msgs, si->State.Bytes);
+        // Let's report some stats after the run
+        s = js_GetStreamInfo(&si, js, stream, NULL, &jerr);
+        if (s == NATS_OK)
+        {
+            printf("\nStream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
+                si->Config->Name, si->State.Msgs, si->State.Bytes);
 
-        //     jsStreamInfo_Destroy(si);
-        // }
-        // if (delStream)
-        // {
-        //     printf("\nDeleting stream %s: ", stream);
-        //     s = js_DeleteStream(js, stream, NULL, &jerr);
-        //     if (s == NATS_OK)
-        //         printf("OK!");
-        //     printf("\n");
-        // }
+            jsStreamInfo_Destroy(si);
+        }
+        if (delStream)
+        {
+            printf("\nDeleting stream %s: ", stream);
+            s = js_DeleteStream(js, stream, NULL, &jerr);
+            if (s == NATS_OK)
+                printf("OK!");
+            printf("\n");
+        }
     }
     else
     {
