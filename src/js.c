@@ -53,7 +53,7 @@ const int64_t    jsOrderedHBInterval     = NATS_SECONDS_TO_NANOS(5);
 
 // Forward declarations
 static void _hbTimerFired(natsTimer *timer, void* closure);
-static void _hbTimerStopped(natsTimer *timer, void* closure);
+static void _releaseSubWhenStopped(natsTimer *timer, void* closure);
 
 typedef struct __jsOrderedConsInfo
 {
@@ -1219,13 +1219,32 @@ _lookupStreamBySubject(const char **stream, natsConnection *nc, const char *subj
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-void
-jsSub_free(jsSub *jsi)
+static void _destroyFetch(jsFetch *fetch)
+{
+    if (fetch == NULL)
+        return;
+
+    if (fetch->expiresTimer != NULL)
+        natsTimer_Stop(fetch->expiresTimer);
+
+    if (fetch->batch.Msgs != NULL)
+    {
+        for (int i = 0; i < fetch->batch.Count; i++)
+            natsMsg_Destroy(fetch->batch.Msgs[i]);
+        NATS_FREE(fetch->batch.Msgs);
+    }
+
+    NATS_FREE(fetch);
+}
+
+void jsSub_free(jsSub *jsi)
 {
     jsCtx *js = NULL;
 
     if (jsi == NULL)
         return;
+
+    _destroyFetch(jsi->fetch);
 
     js = jsi->js;
     natsTimer_Destroy(jsi->hbTimer);
@@ -1233,6 +1252,7 @@ jsSub_free(jsSub *jsi)
     NATS_FREE(jsi->stream);
     NATS_FREE(jsi->consumer);
     NATS_FREE(jsi->nxtMsgSubj);
+    NATS_FREE(jsi->replySubjectBuf);
     NATS_FREE(jsi->cmeta);
     NATS_FREE(jsi->fcReply);
     NATS_FREE(jsi->psubj);
@@ -1846,7 +1866,7 @@ _fetch(natsMsgList *list, natsSubscription *sub, jsFetchRequest *req, bool simpl
             sub->refs++;
             if (jsi->hbTimer == NULL)
             {
-                s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _hbTimerStopped, hbi * 2, (void *)sub);
+                s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _releaseSubWhenStopped, hbi * 2, (void *)sub);
                 if (s != NATS_OK)
                     sub->refs--;
             }
@@ -2023,6 +2043,16 @@ natsSubscription_FetchRequest(natsMsgList *list, natsSubscription *sub, jsFetchR
 }
 
 static void
+_fetchExpiredFired(natsTimer *timer, void *closure)
+{
+    natsSubscription *sub = (natsSubscription *)closure;
+
+    // Let the dispatcher know that the fetch has expired.
+    natsSub_forceEnqueueMsg(sub, sub->control->batch.missedHeartbeat);
+    natsTimer_Stop(timer);
+}
+
+static void
 _hbTimerFired(natsTimer *timer, void* closure)
 {
     natsSubscription    *sub = (natsSubscription*) closure;
@@ -2082,7 +2112,7 @@ _hbTimerFired(natsTimer *timer, void* closure)
 // client, timers will automatically fire again, so this callback is
 // invoked when the timer has been stopped (and we are ready to destroy it).
 static void
-_hbTimerStopped(natsTimer *timer, void* closure)
+_releaseSubWhenStopped(natsTimer *timer, void* closure)
 {
     natsSubscription *sub = (natsSubscription*) closure;
 
@@ -2578,7 +2608,11 @@ PROCESS_INFO:
         {
             if (isPullMode && !nats_IsStringEmpty(consumer))
             {
-                if (nats_asprintf(&(jsi->nxtMsgSubj), jsApiRequestNextT, jo.Prefix, stream, consumer) < 0)
+                jsi->replySubjectBuf = NATS_MALLOC(js_replySubjectBufLen(sub)); // for subject.123
+                if (jsi->replySubjectBuf == NULL)
+                    s = nats_setDefaultError(NATS_NO_MEMORY);
+                if ((s == NATS_OK) &&
+                    (nats_asprintf(&(jsi->nxtMsgSubj), jsApiRequestNextT, jo.Prefix, stream, consumer) < 0))
                     s = nats_setDefaultError(NATS_NO_MEMORY);
             }
             IF_OK_DUP_STRING(s, jsi->stream, stream);
@@ -2635,7 +2669,7 @@ PROCESS_INFO:
         {
             natsSub_Lock(sub);
             sub->refs++;
-            s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _hbTimerStopped, hbi*2, (void*) sub);
+            s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _releaseSubWhenStopped, hbi*2, (void*) sub);
             if (s != NATS_OK)
                 sub->refs--;
             natsSub_Unlock(sub);
@@ -2828,54 +2862,186 @@ js_PullSubscribe(natsSubscription **sub, jsCtx *js, const char *subject, const c
     return NATS_UPDATE_ERR_STACK(s);
 }
 
+static void _batchMsgHandler(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
+{
+    // FIXME
+}
+
+static bool _prepareNextFetchRequest(jsFetchRequest *req, natsConnection *nc, natsSubscription *sub, void *closure)
+{
+    jsFetch *fetch = (jsFetch*) closure;
+
+    int remaining = 0;
+    int64_t remainingBytes = 0;
+    int want = 0;
+    bool lastBatch = false;
+
+    if (fetch->lifetime.Batch > 0)
+    {
+        remaining = fetch->lifetime.Batch - fetch->requestedMsgs;
+    }
+    if (remaining <= 0)
+        return false;
+
+    if (fetch->lifetime.MaxBytes > 0)
+    {
+        remainingBytes = fetch->lifetime.MaxBytes - fetch->receivedBytes;
+    }
+    if (remainingBytes <= 0)
+        return false;
+
+    want = fetch->batchCap + fetch->fetchAhead - fetch->batch.Count;
+    if (want == 0)
+        return false;
+
+    if (want >= remaining)
+    {
+        want = remaining;
+        lastBatch = true;
+    }
+
+    if ((want < fetch->fetchRequestMin) && !lastBatch)
+        return false;
+
+    *req = fetch->lifetime; // copy bytes
+    req->Batch = want;
+    req->MaxBytes = remainingBytes;
+
+    return NATS_OK;
+}
+
+
 natsStatus
-js_PullBatches(natsSubscription **sub, jsCtx *js, const char *subject, const char *durable,
-               // Dispatch control
-               int N,
-               natsBatchHandler batchCB,
-               void *batchCBClosure,
-
-               // Lifetime control
+js_PullBatches(natsSubscription **newsub, jsCtx *js, const char *subject, const char *durable,
+               int N, natsBatchHandler batchCB, void *batchCBClosure,
                jsFetchRequest *lifetime,
-
-               // Flow control: automatic
-
-               // Minimum number of messages to request from the server.
-               // Defaults to 1xbatch size.
-               int fetchRequestMin,
-
-               // defaults to 1*batch, meaning we start fetching the next
-               // batch just after we have received all messages for the
-               // callback, but before invoking it.
-               //
-               // For maximum performance set to 2x batch size, meaning we
-               // ask for 2x to start with, and then for 1x before we
-               // invoke the callback for the batch received. This
-               // guarantees that there are always enough messages for the
-               // callback to process if we are receiving them fast enough.
-               //
-               // If set to 0, we will only request the next batch after
-               // the callback successfully returns.
-               //
-               // Fetch request parameters are then set as follows:
-               // - Expires: lifetime expiration
-               // - Batch: calculated based on the above settings
-               // - MaxBytes: remaining bytes for the subscription, if set
-               // - NoWait: lifetime no_wait value
-               // - Heartbeat: lifetime heartbeat value
-               //
-               // FIXME: maybe just 3 settings, safe, normal, fast?
-               int fetchAhead,
-
-               // Flow control: custom
-               natsNextFetchHandler nextf,
-               void *nextClosure,
-
-               natsOnCompleteCB completeCB,
-               void *completeClosure,
+               int fetchRequestMin, int fetchAhead,
+               natsNextFetchHandler nextf, void *nextClosure,
                jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode)
 {
-    return nats_setDefaultError(NATS_ERR); // FIXME
+    natsStatus s = NATS_OK;
+    natsSubscription *sub = NULL;
+    jsSub *jsi = NULL;
+    jsFetch *fetch = NULL;
+    int id = 0;
+    jsFetchRequest req;
+    jsFetchRequest defaultLifetime = {
+        .Expires = 0, // never
+        .Heartbeat = 0, // none
+        .MaxBytes = 0, // no limit
+        .NoWait = false, // wait forever
+    };
+    char buffer[64];
+    natsBuffer buf;
+
+    natsBuf_InitWithBackend(&buf, buffer, 0, sizeof(buffer));
+
+    defaultLifetime.Batch = N;
+
+    if (errCode != NULL)
+        *errCode = 0;
+
+    // If there is no custom next fetch handler, we will use the default one.
+    if (nextf == NULL)
+    {
+        nextf = _prepareNextFetchRequest;
+        nextClosure = NULL;
+    }
+    if (lifetime == NULL)
+        lifetime = &defaultLifetime;
+
+    // Do a basic pull subscribe first, but provide the batch callback so it is
+    // treated as "async" and assigned to a dispatcher. Since we don't fetch
+    // anything, it will not be active yet.
+    // <>/<> _subscribe should allow this combination.
+    s = _subscribe(&sub, js, subject, durable, _batchMsgHandler, NULL, true, jsOpts, opts, errCode);
+    IFOK(s, (fetch = NATS_CALLOC(1, sizeof(jsFetch))) == NULL ? NATS_NO_MEMORY : NATS_OK);
+    IFOK(s, (fetch->batch.Msgs = NATS_CALLOC(N, sizeof(natsMsg *))) == NULL ? NATS_NO_MEMORY : NATS_OK);
+
+    // Initialize fetch parameters.
+    if (s == NATS_OK)
+    {
+        fetch->batch.Count = 0;
+        fetch->batchCap = N;
+        fetch->batchCB = batchCB;
+        fetch->batchCBClosure = batchCBClosure;
+        fetch->lifetime = *lifetime;
+        fetch->fetchRequestMin = fetchRequestMin;
+        fetch->fetchAhead = fetchAhead;
+        fetch->nextf = nextf;
+        fetch->nextClosure = nextClosure;
+    }
+
+    // Prepare the first fetch request
+    if (s == NATS_OK)
+    {
+        if (!nextf(&req, js->nc, sub, nextClosure))
+            s = nats_setError(NATS_ERR, "%s", "next fetch handler did not provide a fetch request: nothing to fetch?");
+        if (s == NATS_OK)
+        {
+            // These are immutable, only Batch and MaxBytes can be updated.
+            req.Heartbeat = lifetime->Heartbeat;
+            req.Expires = lifetime->Expires;
+            req.NoWait = lifetime->NoWait;
+        }
+    }
+
+    // If we are good so far, set the .
+    if (s == NATS_OK)
+    {
+        natsSub_Lock(sub);
+        jsi = sub->jsi;
+
+        // Set up the fetch options
+        jsi->fetch = fetch;
+        jsi->inFetch = true;
+
+        // Start the timers. They will live for the entire length of the
+        // subscription (the missed heartbeat timer may be reset as needed).
+        if (lifetime->Expires > 0)
+        {
+            sub->refs++;
+            s = natsTimer_Create(&fetch->expiresTimer, _fetchExpiredFired, _releaseSubWhenStopped,
+                                 lifetime->Expires, (void *)sub);
+            if (s != NATS_OK)
+                sub->refs--;
+        }
+
+        if ((s == NATS_OK) && (lifetime->Heartbeat > 0))
+        {
+            int64_t milli = (lifetime->Heartbeat / 1000000) * 2;
+            sub->refs++;
+            if (jsi->hbTimer == NULL)
+            {
+                s = natsTimer_Create(&jsi->hbTimer, _hbTimerFired, _releaseSubWhenStopped, milli, (void *)sub);
+                if (s != NATS_OK)
+                    sub->refs--;
+            }
+            else
+                natsTimer_Reset(jsi->hbTimer, milli);
+        }
+
+        if (s == NATS_OK)
+            id = jsi->fetchID++;
+
+        natsSub_Unlock(sub);
+    }
+
+    if (s == NATS_OK)
+    {
+        snprintf(jsi->replySubjectBuf, js_replySubjectBufLen(sub), "%s.%d", sub->subject, id);
+        s = _sendPullRequest(js->nc, jsi->nxtMsgSubj, jsi->replySubjectBuf, &buf, &req);
+    }
+
+    natsBuf_Cleanup(&buf);
+    if (s != NATS_OK)
+    {
+        natsSubscription_Destroy(sub);
+        return NATS_UPDATE_ERR_STACK(s);
+    }
+    
+    *newsub = sub;
+    return NATS_OK;
 }
 
 typedef struct __ackOpts

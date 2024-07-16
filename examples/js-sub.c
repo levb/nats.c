@@ -169,14 +169,8 @@ int main(int argc, char **argv)
             // FIXME: demo: set auto-ack
             if (batch > 0)
             {
-                s = js_PullBatches(&sub, js, subj, durable,
-                                   batch, NULL, NULL, // FIXME onBatch
-                                   &lifetime,
-                                   0, // defaults to 1*batch.
-                                   2 * batch,
-                                   NULL, NULL, // FIXME: custom next fetch
-                                   NULL, NULL, // FIXME: on complete
-                                   &jsOpts, &so, &jerr);
+                s = js_PullBatches(&sub, js, subj, durable, batch, onBatch, NULL, &lifetime,
+                                   1 * batch, 2 * batch, NULL, NULL, &jsOpts, &so, &jerr);
             }
             // else
             //     s = js_PullMessages(&sub, js, subj, durable, // FIXMR

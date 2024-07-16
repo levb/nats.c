@@ -1521,8 +1521,8 @@ typedef void (*natsBatchHandler)(
  *
  * @see js_PullBatches
  */
-typedef bool (*natsNextFetchHandler)(
-    natsConnection *nc, natsSubscription *sub, jsFetchRequest *req, void *closure);
+typedef bool (*natsNextFetchHandler)(jsFetchRequest *req,
+        natsConnection *nc, natsSubscription *sub, void *closure);
 
 /** \brief Callback used to notify the user of asynchronous connection events.
  *
@@ -6554,8 +6554,6 @@ js_PullBatches(natsSubscription **sub, jsCtx *js, const char *subject, const cha
                int fetchAhead,
                natsNextFetchHandler nextf,
                void *nextClosure,
-               natsOnCompleteCB completeCB, // FIXME - need to pass more info in, err code, etc.
-               void *completeClosure,
                jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
 
 /** \brief Fetches messages for a pull subscription with a complete request configuration

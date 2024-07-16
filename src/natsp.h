@@ -371,6 +371,34 @@ struct __jsCtx
     bool                closed;
 };
 
+typedef struct __jsFetch
+{
+
+    natsMsgList batch;
+    int batchCap;
+    natsBatchHandler batchCB;
+    void *batchCBClosure;
+
+    // Lifetime control
+    jsFetchRequest lifetime;
+    int64_t startTimeMilli;
+    int receivedMsgs;
+    int64_t receivedBytes;
+    int deliveredMsgs;
+    int64_t deliveredBytes;
+    int requestedMsgs;
+
+    int fetchRequestMin;
+    int fetchAhead;
+
+    natsNextFetchHandler nextf;
+    void *nextClosure;
+
+    // Timer for the batch expiration. Leverage the existing jsi->hbTimer for
+    // checking missed heartbeats.
+    natsTimer *expiresTimer;
+} jsFetch;
+
 typedef struct __jsSub
 {
     jsCtx               *js;
@@ -378,7 +406,9 @@ typedef struct __jsSub
     char                *consumer;
     char                *psubj;
     char                *nxtMsgSubj;
+    char                *replySubjectBuf;
     uint64_t            fetchID;
+    jsFetch             *fetch;
 
     // This is ConsumerInfo's Pending+Consumer.Delivered that we get from the
     // add consumer response. Note that some versions of the server gather the
@@ -439,6 +469,8 @@ typedef struct __jsSub
     unsigned sm : 1;
 
 } jsSub;
+
+#define js_replySubjectBufLen(_sub) (strlen((_sub)->subject) + 32)
 
 struct __kvStore
 {
