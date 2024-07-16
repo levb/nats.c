@@ -388,8 +388,8 @@ typedef struct __jsFetch
     int64_t deliveredBytes;
     int requestedMsgs;
 
-    int fetchRequestMin;
-    int fetchAhead;
+    int keepAhead;
+    int pullSize;
 
     natsNextFetchHandler nextf;
     void *nextClosure;

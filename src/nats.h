@@ -1522,7 +1522,7 @@ typedef void (*natsBatchHandler)(
  * @see js_PullBatches
  */
 typedef bool (*natsNextFetchHandler)(jsFetchRequest *req,
-        natsConnection *nc, natsSubscription *sub, void *closure);
+        natsSubscription *sub, void *closure);
 
 /** \brief Callback used to notify the user of asynchronous connection events.
  *
@@ -6545,13 +6545,21 @@ jsFetchRequest_Init(jsFetchRequest *request);
 
 
 natsStatus
+js_PullMessages(natsSubscription **newsub, jsCtx *js, const char *subject, const char *durable,
+               natsMsgHandler msgCB, void *msgCBClosure,
+               jsFetchRequest *lifetime,
+               int pullSize, int keepAhead,
+               natsNextFetchHandler nextf, void *nextClosure,
+               jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
+
+natsStatus
 js_PullBatches(natsSubscription **sub, jsCtx *js, const char *subject, const char *durable,
                int N,
                natsBatchHandler batchCB,
                void *batchCBClosure,
                jsFetchRequest *lifetime,
-               int fetchRequestMin,
-               int fetchAhead,
+               int pullSize,
+               int keepAhead,
                natsNextFetchHandler nextf,
                void *nextClosure,
                jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);

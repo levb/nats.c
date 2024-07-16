@@ -26,11 +26,22 @@ static void
 onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 {
     if (print)
-        printf("Received msg: %s - %.*s\n",
+    {
+        printf("Received msg: %s - '%.*s'\n",
                natsMsg_GetSubject(msg),
                natsMsg_GetDataLength(msg),
                natsMsg_GetData(msg));
 
+        const char **keys;
+        int n;
+        natsStatus s = natsMsgHeader_Keys(msg, &keys, &n);
+        for (int i=0; i<n; i++)
+        {
+            const char *val;
+            s = natsMsgHeader_Get(msg, keys[i], &val);
+            printf("  %s: %s\n", keys[i], val);
+        }
+    }
     if (start == 0)
         start = nats_Now();
 
@@ -84,15 +95,15 @@ int main(int argc, char **argv)
         if (pull)
         {
             if (!async)
-                printf("Creating a synchronous pull subscription on '%s'",subj);
+                printf("Creating a synchronous pull subscription on '%s'\n",subj);
             else if (batch > 0)
-                printf("Creating an asynchronous pull subscription in batch mode on '%s' with batch size %d",subj,batch);
+                printf("Creating an asynchronous pull subscription in batch mode on '%s' with batch size %d\n",subj,batch);
             else
-                printf("Creating an asynchronous pull subscription in message-by-message mode on '%s'",subj);
+                printf("Creating an asynchronous pull subscription in message-by-message mode on '%s'\n",subj);
         }
         else
         {
-            printf("Creating %s subscription on '%s'", async ? "an asynchronous" : "a synchronous", subj);
+            printf("Creating %s subscription on '%s'\n", async ? "an asynchronous" : "a synchronous", subj);
         }
     }
     s = natsOptions_SetErrorHandler(opts, asyncCb, NULL);
@@ -161,7 +172,8 @@ int main(int argc, char **argv)
         {
             jsFetchRequest lifetime = {
                 .Batch = total,
-                .NoWait = false,
+                .NoWait = true,
+                .Expires = (int64_t)60E10, // 60s,
                 .Heartbeat = (int64_t)1E10, // 10s
             };
             // FIXME: options for params
@@ -172,13 +184,11 @@ int main(int argc, char **argv)
                 s = js_PullBatches(&sub, js, subj, durable, batch, onBatch, NULL, &lifetime,
                                    1 * batch, 2 * batch, NULL, NULL, &jsOpts, &so, &jerr);
             }
-            // else
-            //     s = js_PullMessages(&sub, js, subj, durable, // FIXMR
-            //         onMsg, NULL,
-            //         ...
-            //         &jsOpts, &so, &jerr);
+            else
+                s = js_PullMessages(&sub, js, subj, durable, onMsg, NULL, &lifetime,
+                                    10, 5, NULL, NULL, &jsOpts, &so, &jerr);
         }
-        if (pull)
+        else if (pull)
             s = js_PullSubscribe(&sub, js, subj, durable, &jsOpts, &so, &jerr);
         else if (async)
             s = js_Subscribe(&sub, js, subj, onMsg, NULL, &jsOpts, &so, &jerr);
