@@ -66,6 +66,38 @@ asyncCb(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure
     natsSubscription_GetDropped(sub, (int64_t*) &dropped);
 }
 
+static void
+asyncPullCompleteCb(natsStatus s, void *closure)
+{
+    natsSubscription *sub = (natsSubscription *)closure;
+
+    if (!print)
+        return;
+
+    printf("PullSubscribeAsync finished with status: %u - %s\n", s, natsStatus_GetText(s));
+
+    int pendingMsgs;
+    int pendingBytes;
+    int maxPendingMsgs;
+    int maxPendingBytes;
+    int64_t deliveredMsgs;
+    int64_t droppedMsgs;
+    natsSubscription_GetStats(sub, &pendingMsgs, &pendingBytes, &maxPendingMsgs, &maxPendingBytes, &deliveredMsgs, &droppedMsgs);
+    printf("Pending: %d msgs, %d bytes, MaxPending: %d msgs, %d bytes, Delivered: %" PRId64 ", Dropped: %" PRId64 "\n",
+           pendingMsgs, pendingBytes, maxPendingMsgs, maxPendingBytes, deliveredMsgs, droppedMsgs);
+}
+
+static bool
+nextFetchCb(jsFetchRequest *req, natsSubscription *sub, void *closure)
+{
+    if (print)
+        printf("NextFetch: always ask for 1 message, 0 MaxBytes\n");
+
+    req->Batch = 1;
+    req->MaxBytes = 0;
+    return true;
+}
+
 int main(int argc, char **argv)
 {
     natsConnection      *conn  = NULL;
@@ -153,17 +185,20 @@ int main(int argc, char **argv)
     {
         if (pull && async)
         {
-
+            jsOpts.SubscribePullAsync.FetchSize = 10;
+            jsOpts.SubscribePullAsync.KeepAhead = 5;
+            jsOpts.SubscribePullAsync.CompleteHandler = asyncPullCompleteCb;
+            jsOpts.SubscribePullAsync.CompleteHandlerClosure = sub;
+            jsOpts.SubscribePullAsync.NextHandler = nextFetchCb;
             jsFetchRequest lifetime = {
                 .Batch = total,
                 .NoWait = true,
                 .Expires = 1 * HOUR_NANO,
                 .Heartbeat = 10 * SECOND_NANO,
             };
-            // FIXME: options for params
+
             // FIXME: demo: set msg delivery pool and verify threads, on many subs
-            s = js_PullMessages(&sub, js, subj, durable, onMsg, NULL, &lifetime,
-                                10, 5, NULL, NULL, &jsOpts, &so, &jerr);
+            s = js_PullSubscribeAsync(&sub, js, subj, durable, onMsg, NULL, &lifetime, &jsOpts, &so, &jerr);
         }
         else if (pull)
             s = js_PullSubscribe(&sub, js, subj, durable, &jsOpts, &so, &jerr);

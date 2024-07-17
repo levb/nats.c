@@ -252,9 +252,19 @@ void nats_dispatchMessages(natsDispatcher *d)
             if (fetch)
             {
                 bool overMaxBytes = ((fetch->lifetime.MaxBytes > 0) && ((fetch->receivedBytes) > fetch->lifetime.MaxBytes));
+                bool overMaxFetch = ((fetch->deliveredMsgs >= fetch->lifetime.Batch) || overMaxBytes);
                 
-                overMax = overMax || ((fetch->deliveredMsgs >= fetch->lifetime.Batch) || overMaxBytes);
                 lastMessageInFetch = (fetch->deliveredMsgs == (fetch->lifetime.Batch - 1) || overMaxBytes);
+                overMax = (overMax || overMaxFetch || overMaxBytes);
+
+                if (lastMessageInFetch || overMaxFetch)
+                {
+                    fetchStatus = NATS_MAX_DELIVERED_MSGS;
+                }
+                if (overMaxBytes)
+                {
+                    fetchStatus = NATS_MAX_DELIVERED_BYTES;
+                }
             }
 
             if (!overMax)
@@ -353,9 +363,12 @@ void nats_dispatchMessages(natsDispatcher *d)
             natsConn_removeSubscription(nc, sub);
             continue;
         }
-        else if (fetchStatus != NATS_OK)
+        else if ((fetchStatus != NATS_OK) && !lastMessageInFetch)
         {
+            // If last message in fetch, will call the callback after the
+            // message is delievered.
             // FIXME: do we care to send an async error, if serious?
+
             if (fetch->completeCB != NULL)
                 fetch->completeCB(fetchStatus, fetch->completeCBClosure);
 
@@ -411,7 +424,7 @@ void nats_dispatchMessages(natsDispatcher *d)
             if (lastMessageInFetch)
             {
                 if (fetch->completeCB != NULL)
-                    fetch->completeCB(NATS_OK, fetch->completeCBClosure);
+                    fetch->completeCB(fetchStatus, fetch->completeCBClosure);
             }
 
             // If we have reached the sub's message max, we need to remove

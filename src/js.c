@@ -2969,8 +2969,8 @@ static bool _autoNextFetchRequest(jsFetchRequest *req, natsSubscription *sub, vo
     if (maybeMore)
     {
         want = remainingUnrequested;
-        if (want > fetch->pullSize)
-            want = fetch->pullSize;
+        if (want > fetch->fetchSize)
+            want = fetch->fetchSize;
 
         maybeMore = (want > 0);
     }
@@ -2990,11 +2990,9 @@ static bool _autoNextFetchRequest(jsFetchRequest *req, natsSubscription *sub, vo
 }
 
 natsStatus
-js_PullMessages(natsSubscription * *newsub, jsCtx * js, const char *subject, const char *durable,
+js_PullSubscribeAsync(natsSubscription * *newsub, jsCtx * js, const char *subject, const char *durable,
                 natsMsgHandler msgCB, void *msgCBClosure,
                 jsFetchRequest *lifetime,
-                int pullSize, int keepAhead,
-                natsNextFetchHandler nextf, void *nextClosure,
                 jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode)
 {
     natsStatus s = NATS_OK;
@@ -3025,22 +3023,28 @@ js_PullMessages(natsSubscription * *newsub, jsCtx * js, const char *subject, con
     // Initialize fetch parameters.
     if (s == NATS_OK)
     {
+        fetch->startTimeMilli = nats_Now();
         fetch->lifetime = *lifetime;
+
         if (fetch->lifetime.Batch == 0)
             fetch->lifetime.Batch = INT_MAX;
-        fetch->pullSize = pullSize;
-        fetch->keepAhead = keepAhead;
-        if (nextf != NULL)
+
+        fetch->nextf = _autoNextFetchRequest;
+        fetch->nextClosure = (void *)fetch;
+
+        if (jsOpts != NULL)
         {
-            fetch->nextf = nextf;
-            fetch->nextClosure = nextClosure;
+            fetch->fetchSize = jsOpts->SubscribePullAsync.FetchSize;
+            fetch->keepAhead = jsOpts->SubscribePullAsync.KeepAhead;
+            fetch->completeCB = jsOpts->SubscribePullAsync.CompleteHandler;
+            fetch->completeCBClosure = jsOpts->SubscribePullAsync.CompleteHandlerClosure;
+
+            if (jsOpts->SubscribePullAsync.NextHandler != NULL)
+            {
+                fetch->nextf = jsOpts->SubscribePullAsync.NextHandler;
+                fetch->nextClosure = jsOpts->SubscribePullAsync.NextHandlerClosure;
+            }
         }
-        else
-        {
-            fetch->nextf = _autoNextFetchRequest;
-            fetch->nextClosure = (void *)fetch;
-        }
-        fetch->startTimeMilli = nats_Now();
     }
 
     // Set up the sub to process fetch results.

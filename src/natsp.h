@@ -386,9 +386,9 @@ typedef struct __jsFetch
     int requestedMsgs;
 
     int keepAhead;
-    int pullSize;
+    int fetchSize;
 
-    natsNextFetchHandler nextf;
+    natsFetchNextHandler nextf;
     void *nextClosure;
 
     // Timer for the fetch expiration. We leverage the existing jsi->hbTimer for
