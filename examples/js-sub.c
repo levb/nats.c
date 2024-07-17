@@ -161,8 +161,7 @@ int main(int argc, char **argv)
                 .Heartbeat = 10 * SECOND_NANO,
             };
             // FIXME: options for params
-            // FIXME: demo: set msg delivery pool
-            // FIXME: demo: set auto-ack
+            // FIXME: demo: set msg delivery pool and verify threads, on many subs
             s = js_PullMessages(&sub, js, subj, durable, onMsg, NULL, &lifetime,
                                 10, 5, NULL, NULL, &jsOpts, &so, &jerr);
         }
