@@ -25,7 +25,7 @@
 // queue storage to keep track of message stats.
 //
 // sub lock must be held
-natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool force)
+natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool isCtrlMesssage)
 {
     bool signal = false;
     bool shared = (sub->dispatcher->dedicatedTo == NULL);
@@ -37,12 +37,18 @@ natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool forc
     int newMsgs = statsQ->msgs + 1;
     int newBytes = statsQ->bytes + natsMsg_dataAndHdrLen(msg);
 
-    if (!force)
+    if (!isCtrlMesssage)
     {
         if (((sub->msgsLimit > 0) && (newMsgs > sub->msgsLimit)) ||
             ((sub->bytesLimit > 0) && (newBytes > sub->bytesLimit)))
         {
             return NATS_SLOW_CONSUMER;
+        }
+
+        if ((sub->jsi != NULL) && (sub->jsi->fetch != NULL))
+        {
+            sub->jsi->fetch->receivedMsgs++;
+            sub->jsi->fetch->receivedBytes += natsMsg_dataAndHdrLen(msg);
         }
     }
 

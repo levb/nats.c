@@ -17,8 +17,7 @@ static const char *usage = ""\
 "-gd            use global message delivery thread pool\n" \
 "-sync          receive synchronously (default is asynchronous)\n" \
 "-pull          use pull subscription\n" \
-"-pull-batch N  use an async pull subscription in batch mode, N is batch size\n" \
-"-pull-messages use an async pull subscription in message-by-message mode\n" \
+"-pull-async    use an async pull subscription\n" \
 "-fc            enable flow control\n" \
 "-count         number of expected messages\n";
 

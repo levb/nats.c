@@ -2741,14 +2741,6 @@ natsConn_processMsg(natsConnection *nc, char *buf, int bufLen)
             natsMsg_setAcked(msg);
 
         if (s == NATS_OK)
-        {
-            if (js_processIfFetchStatusMessage(sub, msg))
-            {
-                natsSub_unlockRelease(sub);
-                return NATS_OK;
-            }
-        }
-        if (s == NATS_OK)
             s = natsSub_enqueueMsg(sub, msg);
         if (s == NATS_OK)
         {
