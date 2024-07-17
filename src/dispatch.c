@@ -205,7 +205,7 @@ void nats_dispatchMessages(natsDispatcher *d)
             _removeHeadMessage(&d->queue);
 
             userMsg = msg->subject[0] != '\0';
-            // FIXME don't count FC messages as user messages
+            // FIXME don't count FC or fetch status messages as user messages
         }
 
         timeout = ((s == NATS_TIMEOUT) || (msg == sub->control->sub.timeout));

@@ -2874,14 +2874,92 @@ js_PullSubscribe(natsSubscription **sub, jsCtx *js, const char *subject, const c
     return NATS_UPDATE_ERR_STACK(s);
 }
 
-static void _batchMsgHandler(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
+static void
+_autoNextFetchCB(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 {
-    // FIXME
+    jsSub *jsi = (jsSub *) closure;
+    jsFetchRequest req;
+    bool doFetch = false;
+
+    // No need to lock the sub/jsi, these are all immutable.
+    if ((jsi == NULL) || (jsi->fetch == NULL))
+        return;
+    jsFetch *fetch = jsi->fetch;
+
+    if (fetch->nextf != NULL)
+        doFetch = fetch->nextf(&req, sub, fetch->nextClosure);
+
+    // These are not changeable by the callback, only Batch and MaxBytes can be updated.
+    req.Heartbeat = fetch->lifetime.Heartbeat;
+    req.Expires = fetch->lifetime.Expires;
+    req.NoWait = fetch->lifetime.NoWait;
+
+    if (doFetch)
+    {
+        cons char *replySubject = NULL;
+        char buffer[128];
+        natsBuffer buf;
+        natsBuf_InitWithBackend(&buf, buffer, 0, sizeof(buffer));
+
+        natsSub_Lock(sub);
+        
+
+
+        natsStatus s = _sendPullRequest(sub->conn, jsi->nxtMsgSubj, fetch->replySubject, &buf, &req);
+        if (s == NATS_OK)
+        {
+            natsSub_Lock(sub);
+            fetch->requestedMsgs += req.Batch;
+
+    }
+
+
+    natsMsg_setNoDestroy(msg);
+
+    // Invoke user callback
+    (jsi->usrCb)(nc, sub, msg, jsi->usrCbClosure);
+
+    natsMsg_Ack(msg, NULL);
+    natsMsg_clearNoDestroy(msg);
+    natsMsg_Destroy(msg);
 }
 
-static bool _autoFetch(jsFetchRequest *req, natsSubscription *sub, void *closure)
+// sub->mu must NOT be held.
+natsStatus
+js_maybeSendNextPullRequest(natsSubscription *sub, jsFetch *fetch)
 {
-    jsFetch *fetch = (jsFetch*) closure;
+    if (s == NATS_OK)
+    {
+        // The sub's subscribe subject is {INBOX}.*, we need to have replies
+        // sent {INBOX}.fetchID
+        char replySubject[NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 32];
+        snprintf(replySubject, sizeof(replySubject), "%.*s%" PRIu64,
+                 (int)strlen(sub->subject) - 1, sub->subject, id);
+    }
+
+    if (s == NATS_OK)
+        fetch->requestedMsgs += req.Batch;
+
+    if (fetch->nextf == NULL)
+        return NATS_OK;
+
+    // Prepare the next fetch request
+    if (!fetch->nextf(&nextReq, sub, fetch->nextClosure))
+        return NATS_OK;
+
+    // The sub's subscribe subject is {INBOX}.*, we need to have replies
+    // sent {INBOX}.fetchID
+    char replySubject[NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 32];
+
+    // Fix me
+    s = _sendPullRequest(js->nc, jsi->nxtMsgSubj, replySubject, &buf, &req);
+
+    // _sendPullRequest
+}
+
+static bool _autoNextFetch(jsFetchRequest *req, natsSubscription *sub, void *closure)
+{
+    jsFetch *fetch = (jsFetch *)closure;
 
     int remainingUnrequested = 0;
     int64_t remainingBytes = 0;
@@ -2915,7 +2993,7 @@ static bool _autoFetch(jsFetchRequest *req, natsSubscription *sub, void *closure
         want = remainingUnrequested;
         if (want > fetch->pullSize)
             want = fetch->pullSize;
-        
+
         maybeMore = (want > 0);
     }
 
@@ -2930,6 +3008,92 @@ static bool _autoFetch(jsFetchRequest *req, natsSubscription *sub, void *closure
     // received from what is already requested. Still, can serve as a safe
     // upper bounday.
     req->MaxBytes = remainingBytes;
+    return true;
+}
+
+// sub->mu must be held
+bool /* true if consumed the message and no further action needed */
+js_processPullStatusMessage(natsSubscription *sub, natsMsg *msg, jsFetchRequest *nextReq)
+{
+    natsStatus s = NATS_OK;
+    bool isUserMessage = false;
+    jsFetch *fetch = NULL;
+
+    // Are we not running a fetch?
+    if ((sub->jsi == NULL) || (sub->jsi->fetch == NULL))
+        return false;
+    fetch = sub->jsi->fetch;
+
+    // Leave control messages untouched.
+    if ((msg == NULL) || (msg->subject[0] == '\0'))
+        return false;
+
+    // Check if it's a status message or a user message. -1 because fetchID is
+    // already for the next fetch.
+    s = _checkMsg(sub, msg, true, &isUserMessage, NULL, sub->jsi->fetchID - 1);
+    if (isUserMessage)
+    {
+        fetch->receivedMsgs++;
+        fetch->receivedBytes += natsMsg_dataAndHdrLen(msg);
+
+        if (((fetch->receivedMsgs) > fetch->lifetime.Batch) ||
+            ((fetch->lifetime.MaxBytes > 0) && ((fetch->receivedBytes) > fetch->lifetime.MaxBytes)))
+        {
+            printf("<>/<> FIXME: implement - limits exceeded\n");
+
+            // We have reached the limit, we are done. Add the end-of-batch
+            // message to the head of the queue to process next.
+
+            // We still want to deliver this message to the user, so don't break.
+        }
+
+        // Let the delivery logic deliver to the sub's (AutoAck) callback, and
+        // to the user, as normal.
+        return false;
+    }
+
+    printf("<>/<> PROCESSING: %s - '%.*s'\n", natsMsg_GetSubject(msg), natsMsg_GetDataLength(msg), natsMsg_GetData(msg));
+    const char **keys;
+    int n;
+    natsMsgHeader_Keys(msg, &keys, &n);
+    for (int i = 0; i < n; i++)
+    {
+        const char *val;
+        natsMsgHeader_Get(msg, keys[i], &val);
+        printf("<>/<>\t\t%s: %s\n", keys[i], val);
+    }
+
+    switch (s)
+    {
+    case NATS_OK:
+        // It was a heartbeat, or a status message from a previous batch. Make
+        // it disappear.
+        printf("<>/<> FIXME: Heartbeat or old fetch'es message - reset the heartbeat timer needed\n");
+        natsMsg_Destroy(msg);
+        return true;
+
+    case NATS_NOT_FOUND:
+        printf("<>/<> FIXME: No messages\n");
+        break;
+
+    case NATS_TIMEOUT:
+        // Maybe the expiry notification from the server, or NoWait was set and
+        // there are no more messages.
+        s = natsSub_enqueueCtrlMsg(sub, sub->control->fetch.expired);
+        break;
+
+        // FIXME: The possible 503 is handled directly in natsSub_nextMsg(), so we
+        // would never get it here in this function.
+
+    default:
+        printf("<>/<> FIXME: Other (serious error)\n");
+        break;
+    }
+
+    if (s != NATS_OK)
+    {
+        // FIXME finish the batch
+    }
     return true;
 }
 
@@ -2982,28 +3146,8 @@ js_PullMessages(natsSubscription **newsub, jsCtx *js, const char *subject, const
             fetch->lifetime.Batch = INT_MAX;
         fetch->pullSize = pullSize;
         fetch->keepAhead = keepAhead;
-
-        if (nextf == NULL)
-        {
-            nextf = _autoFetch;
-            nextClosure = fetch;
-        }
         fetch->nextf = nextf;
         fetch->nextClosure = nextClosure;
-    }
-
-    // Prepare the first fetch request
-    if (s == NATS_OK)
-    {
-        if (!nextf(&req, sub, nextClosure))
-            s = nats_setError(NATS_ERR, "%s", "next fetch handler did not provide a fetch request: nothing to fetch?");
-        if (s == NATS_OK)
-        {
-            // These are immutable, only Batch and MaxBytes can be updated.
-            req.Heartbeat = lifetime->Heartbeat;
-            req.Expires = lifetime->Expires;
-            req.NoWait = lifetime->NoWait;
-        }
     }
 
     // Set up the sub to process fetch results.
@@ -3041,26 +3185,10 @@ js_PullMessages(natsSubscription **newsub, jsCtx *js, const char *subject, const
                 natsTimer_Reset(jsi->hbTimer, milli);
         }
 
-        if (s == NATS_OK)
-            id = jsi->fetchID++;
-
-        // Send the first fetch request
-        if (s == NATS_OK)
-        {
-            // The sub's subscribe subject is {INBOX}.*, we need to have replies
-            // sent {INBOX}.fetchID
-            char replySubject[NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 32];
-            snprintf(replySubject, sizeof(replySubject), "%.*s%" PRIu64,
-                     (int)strlen(sub->subject) - 1, sub->subject, id);
-
-            s = _sendPullRequest(js->nc, jsi->nxtMsgSubj, replySubject, &buf, &req);
-        }
-
-        if (s == NATS_OK)
-            fetch->requestedMsgs += req.Batch;
-
         natsSub_Unlock(sub);
     }
+
+    // FIXME send the first request
 
     natsBuf_Cleanup(&buf);
     if (s != NATS_OK)
@@ -3073,94 +3201,6 @@ js_PullMessages(natsSubscription **newsub, jsCtx *js, const char *subject, const
     return NATS_OK;
 }
 
-// sub->mu must be held
-bool /* true if consumed the message and no further action needed */
-js_processIfFetchStatusMessage(natsSubscription *sub, natsMsg *msg)
-{
-    natsStatus s = NATS_OK;
-    bool isUserMessage = false;
-    jsFetch *fetch = NULL;
-
-    // Are we not running a fetch?
-    if ((sub->jsi == NULL) || (sub->jsi->fetch == NULL))
-        return false;
-    fetch = sub->jsi->fetch;
-
-    // Leave control messages untouched.
-    if ((msg == NULL) || (msg->subject[0] == '\0'))
-        return false;
-
-    // Check if it's a status message or a user message. -1 because fetchID is
-    // already for the next fetch.
-    s = _checkMsg(sub, msg, true, &isUserMessage, NULL, sub->jsi->fetchID-1);
-    if (isUserMessage)
-    {
-        fetch->receivedMsgs++;
-        fetch->receivedBytes += natsMsg_dataAndHdrLen(msg);
-
-        if (((fetch->receivedMsgs) > fetch->lifetime.Batch) ||
-            ((fetch->lifetime.MaxBytes > 0) && ((fetch->receivedBytes) > fetch->lifetime.MaxBytes)))
-        {
-            printf("<>/<> FIXME: implement - limits exceeded\n");
-
-            // We have reached the limit, we are done. Add the end-of-batch
-            // message to the head of the queue to process next.
-
-            // We still want to deliver this message to the user, so don't break.
-        }
-
-        printf("<>/<> FIXME: implement - fire off next fetch request if needed\n");
-
-        // Let the delivery logic deliver to the sub's (AutoAck) callback, and
-        // to the user, as normal.
-        return false;
-    }
-
-    printf("<>/<> PROCESSING: %s - '%.*s'\n", natsMsg_GetSubject(msg), natsMsg_GetDataLength(msg), natsMsg_GetData(msg));
-    const char **keys;
-    int n;
-    natsMsgHeader_Keys(msg, &keys, &n);
-    for (int i = 0; i < n; i++)
-    {
-        const char *val;
-        natsMsgHeader_Get(msg, keys[i], &val);
-        printf("<>/<>\t\t%s: %s\n", keys[i], val);
-    }
-
-    switch (s)
-    {
-    case NATS_OK:
-        // It was a heartbeat, or a status message from a previous batch. Make
-        // it disappear.
-        printf("<>/<> FIXME: Heartbeat or old fetch'es message - reset the heartbeat timer needed\n");
-        natsMsg_Destroy(msg);
-        return true;
-
-    case NATS_NOT_FOUND:
-        printf("<>/<> FIXME: No messages\n");
-        break;
-
-    case NATS_TIMEOUT:
-        // Maybe the expiry notification from the server, or NoWait was set and
-        // there are no more messages.
-        s = natsSub_enqueueCtrlMsg(sub, sub->control->fetch.expired);
-        break;
-
-    // FIXME: The possible 503 is handled directly in natsSub_nextMsg(), so we
-    // would never get it here in this function.
-
-    default:
-        printf("<>/<> FIXME: Other (serious error)\n");
-        break;
-    }
-
-
-    if (s != NATS_OK)
-    {
-        // FIXME
-    }
-    return true;
-}
 typedef struct __ackOpts
 {
     const char  *ackType;
