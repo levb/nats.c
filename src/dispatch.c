@@ -141,7 +141,7 @@ void nats_dispatchMessages(natsDispatcher *d)
         bool timerNeedReset = false;
         bool userMsg = false;
         bool timeout = false;
-        bool overMax = false;
+        bool overLimit = false;
         bool lastMessageInSub = false;
         bool lastMessageInFetch = false;
         natsStatus fetchStatus = NATS_OK;
@@ -245,7 +245,7 @@ void nats_dispatchMessages(natsDispatcher *d)
         {
             if (sub->max > 0)
             {
-                overMax = (sub->delivered == sub->max);
+                overLimit = (sub->delivered == sub->max);
                 lastMessageInSub = (sub->delivered == (sub->max - 1));
             }
 
@@ -255,7 +255,7 @@ void nats_dispatchMessages(natsDispatcher *d)
                 bool overMaxFetch = ((fetch->deliveredMsgs >= fetch->lifetime.Batch) || overMaxBytes);
                 
                 lastMessageInFetch = (fetch->deliveredMsgs == (fetch->lifetime.Batch - 1) || overMaxBytes);
-                overMax = (overMax || overMaxFetch || overMaxBytes);
+                overLimit = (overLimit || overMaxFetch || overMaxBytes);
 
                 if (lastMessageInFetch || overMaxFetch)
                 {
@@ -267,7 +267,7 @@ void nats_dispatchMessages(natsDispatcher *d)
                 }
             }
 
-            if (!overMax)
+            if (!overLimit)
             {
                 sub->delivered++;
                 if (fetch)
@@ -401,7 +401,7 @@ void nats_dispatchMessages(natsDispatcher *d)
         }
 
         // --- Handle USER messages ---
-        else if (overMax)
+        else if (overLimit)
         {
             // Extraneous message, discard it.
             natsMsg_Destroy(msg);
