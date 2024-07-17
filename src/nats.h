@@ -1300,7 +1300,7 @@ typedef struct jsOptions
                 // not have the status code.
                 natsFetchCompleteHandler CompleteHandler;
                 void *CompleteHandlerClosure;
-        } SubscribePullAsync;
+        } PullSubscribeAsync;
 
         /**
          * Advanced stream options
@@ -6562,10 +6562,10 @@ NATS_EXTERN natsStatus
 jsFetchRequest_Init(jsFetchRequest *request);
 
 /** FIXME doc */
-natsStatus
+NATS_EXTERN natsStatus
 js_PullSubscribeAsync(natsSubscription **newsub, jsCtx *js, const char *subject, const char *durable,
-               natsMsgHandler msgCB, void *msgCBClosure, jsFetchRequest *lifetime,
-               jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
+                      natsMsgHandler msgCB, void *msgCBClosure, jsFetchRequest *lifetime,
+                      jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
 
 /** \brief Fetches messages for a pull subscription with a complete request configuration
  *

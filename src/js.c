@@ -3037,15 +3037,15 @@ js_PullSubscribeAsync(natsSubscription * *newsub, jsCtx * js, const char *subjec
 
         if (jsOpts != NULL)
         {
-            fetch->fetchSize = jsOpts->SubscribePullAsync.FetchSize;
-            fetch->keepAhead = jsOpts->SubscribePullAsync.KeepAhead;
-            fetch->completeCB = jsOpts->SubscribePullAsync.CompleteHandler;
-            fetch->completeCBClosure = jsOpts->SubscribePullAsync.CompleteHandlerClosure;
+            fetch->fetchSize = jsOpts->PullSubscribeAsync.FetchSize;
+            fetch->keepAhead = jsOpts->PullSubscribeAsync.KeepAhead;
+            fetch->completeCB = jsOpts->PullSubscribeAsync.CompleteHandler;
+            fetch->completeCBClosure = jsOpts->PullSubscribeAsync.CompleteHandlerClosure;
 
-            if (jsOpts->SubscribePullAsync.NextHandler != NULL)
+            if (jsOpts->PullSubscribeAsync.NextHandler != NULL)
             {
-                fetch->nextf = jsOpts->SubscribePullAsync.NextHandler;
-                fetch->nextClosure = jsOpts->SubscribePullAsync.NextHandlerClosure;
+                fetch->nextf = jsOpts->PullSubscribeAsync.NextHandler;
+                fetch->nextClosure = jsOpts->PullSubscribeAsync.NextHandlerClosure;
             }
         }
     }

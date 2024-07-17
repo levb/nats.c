@@ -185,11 +185,11 @@ int main(int argc, char **argv)
     {
         if (pull && async)
         {
-            jsOpts.SubscribePullAsync.FetchSize = 10;
-            jsOpts.SubscribePullAsync.KeepAhead = 5;
-            jsOpts.SubscribePullAsync.CompleteHandler = asyncPullCompleteCb;
-            jsOpts.SubscribePullAsync.CompleteHandlerClosure = sub;
-            jsOpts.SubscribePullAsync.NextHandler = nextFetchCb;
+            jsOpts.PullSubscribeAsync.FetchSize = 10;
+            jsOpts.PullSubscribeAsync.KeepAhead = 5;
+            jsOpts.PullSubscribeAsync.CompleteHandler = asyncPullCompleteCb;
+            jsOpts.PullSubscribeAsync.CompleteHandlerClosure = sub;
+            jsOpts.PullSubscribeAsync.NextHandler = nextFetchCb;
             jsFetchRequest lifetime = {
                 .Batch = total,
                 .NoWait = true,
