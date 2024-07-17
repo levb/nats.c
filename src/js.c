@@ -2082,9 +2082,8 @@ _fetchExpiredFired(natsTimer *timer, void *closure)
 {
     natsSubscription *sub = (natsSubscription *)closure;
 
-    // FIXME close (the sub?) for new messages now?
-
-    // Let the dispatcher know that the fetch has expired.
+    // Let the dispatcher know that the fetch has expired. It will deliver all
+    // queued up messages, then do the right termination.
     natsSub_enqueueCtrlMsg(sub, sub->control->fetch.expired);
     natsTimer_Stop(timer);
 }

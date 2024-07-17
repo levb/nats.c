@@ -385,7 +385,6 @@ natsSub_create(natsSubscription **newSub, natsConnection *nc, const char *subj,
     if (s == NATS_OK)
         s = _initOwnDispatcher(sub);
 
-    // FIXME: accumulator cb - implement
     bool useShared = (forReplies ? nc->opts->useSharedReplyDispatcher : nc->opts->useSharedDispatcher);
     bool useAsyncThread = (cb != NULL);
     if ((s == NATS_OK) && useAsyncThread)
