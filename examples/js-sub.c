@@ -21,6 +21,10 @@ static const char *usage = ""\
 "-fc            enable flow control\n" \
 "-count         number of expected messages\n";
 
+#define SECOND_NANO (int64_t)1E9
+#define MINUTE_NANO (SECOND_NANO * 60)
+#define HOUR_NANO (MINUTE_NANO * 60)
+
 static void
 onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 {
@@ -160,11 +164,12 @@ int main(int argc, char **argv)
     {
         if (pull && async)
         {
+
             jsFetchRequest lifetime = {
                 .Batch = total,
                 .NoWait = true,
-                .Expires = (int64_t)60E10, // 60s,
-                .Heartbeat = (int64_t)1E10, // 10s
+                .Expires = 1 * HOUR_NANO,
+                .Heartbeat = 10 * SECOND_NANO,
             };
             // FIXME: options for params
             // FIXME: demo: set msg delivery pool

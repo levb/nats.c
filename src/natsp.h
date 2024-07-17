@@ -395,6 +395,7 @@ typedef struct __jsFetch
     // checking missed heartbeats.
     natsTimer *expiresTimer;
 
+    // Matches jsi->fetchID
     char replySubject[NATS_DEFAULT_INBOX_PRE_LEN + NUID_BUFFER_LEN + 32]; // big enough for {INBOX}.number
 } jsFetch;
 
@@ -529,7 +530,6 @@ typedef struct __natsSubscriptionControlMessages
     struct
     {
         natsMsg *expired;
-        natsMsg *notFound;
         natsMsg *missedHeartbeat;
     } fetch;
 } natsSubscriptionControlMessages;
