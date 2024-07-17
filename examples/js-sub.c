@@ -17,18 +17,31 @@ static const char *usage = ""\
 "-gd            use global message delivery thread pool\n" \
 "-sync          receive synchronously (default is asynchronous)\n" \
 "-pull          use pull subscription\n" \
+"-pull-batch N  use an async pull subscription in batch mode, N is batch size\n" \
+"-pull-messages use an async pull subscription in message-by-message mode\n" \
 "-fc            enable flow control\n" \
 "-count         number of expected messages\n";
 
 static void
 onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 {
-    // if (print)
-        printf("Received msg: %s - %.*s\n",
+    if (print)
+    {
+        printf("Received msg: %s - '%.*s'\n",
                natsMsg_GetSubject(msg),
                natsMsg_GetDataLength(msg),
                natsMsg_GetData(msg));
 
+        const char **keys;
+        int n;
+        natsMsgHeader_Keys(msg, &keys, &n);
+        for (int i=0; i<n; i++)
+        {
+            const char *val;
+            natsMsgHeader_Get(msg, keys[i], &val);
+            printf("  %s: %s\n", keys[i], val);
+        }
+    }
     if (start == 0)
         start = nats_Now();
 
@@ -40,6 +53,17 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 
     // Since this is auto-ack callback, we don't need to ack here.
     natsMsg_Destroy(msg);
+}
+
+static void
+onBatch(natsConnection *nc, natsSubscription *sub, natsMsg **batch, int len,
+    natsStatus batchStatus, natsStatus err, void *closure)
+{
+    if (print)
+        printf("Received batch of %d messages, status:%d, error code:%d\n", len, batchStatus, err);
+
+    for (int i=0; i < len; i++)
+        onMsg(nc, sub, batch[i], NULL);
 }
 
 static void
@@ -66,9 +90,13 @@ int main(int argc, char **argv)
 
     opts = parseArgs(argc, argv, usage);
 
-    printf("Created %s subscription on '%s'.\n",
-        (pull ? "pull" : (async ? "asynchronous" : "synchronous")), subj);
-
+    if (print)
+    {
+        printf("Creating %s%s subscription on '%s'\n",
+               async ? "an asynchronous" : "a synchronous",
+               pull ? " pull" : "",
+               subj);
+    }
     s = natsOptions_SetErrorHandler(opts, asyncCb, NULL);
 
     if (s == NATS_OK)
@@ -120,8 +148,9 @@ int main(int argc, char **argv)
         }
         if (s == NATS_OK)
         {
-            printf("Stream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-                si->Config->Name, si->State.Msgs, si->State.Bytes);
+            if (print)
+                printf("Stream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
+                    si->Config->Name, si->State.Msgs, si->State.Bytes);
 
             // Need to destroy the returned stream object.
             jsStreamInfo_Destroy(si);
@@ -130,7 +159,21 @@ int main(int argc, char **argv)
 
     if (s == NATS_OK)
     {
-        if (pull)
+        if (pull && async)
+        {
+            jsFetchRequest lifetime = {
+                .Batch = total,
+                .NoWait = true,
+                .Expires = (int64_t)60E10, // 60s,
+                .Heartbeat = (int64_t)1E10, // 10s
+            };
+            // FIXME: options for params
+            // FIXME: demo: set msg delivery pool
+            // FIXME: demo: set auto-ack
+            s = js_PullMessages(&sub, js, subj, durable, onMsg, NULL, &lifetime,
+                                10, 5, NULL, NULL, &jsOpts, &so, &jerr);
+        }
+        else if (pull)
             s = js_PullSubscribe(&sub, js, subj, durable, &jsOpts, &so, &jerr);
         else if (async)
             s = js_Subscribe(&sub, js, subj, onMsg, NULL, &jsOpts, &so, &jerr);
@@ -143,29 +186,31 @@ int main(int argc, char **argv)
     if (s == NATS_OK)
         s = natsStatistics_Create(&stats);
 
-    if ((s == NATS_OK) && pull)
+    if ((s == NATS_OK) && pull && !async)
     {
-        // natsMsgList list;
-        // int         i;
+        // Pull mode, simple "Fetch" loop
+        natsMsgList list;
+        int         i;
 
-        // for (count = 0; (s == NATS_OK) && (count < total); )
-        // {
-        //     s = natsSubscription_Fetch(&list, sub, 1024, 5000, &jerr);
-        //     if (s != NATS_OK)
-        //         break;
+        for (count = 0; (s == NATS_OK) && (count < total); )
+        {
+            s = natsSubscription_Fetch(&list, sub, 1024, 5000, &jerr);
+            if (s != NATS_OK)
+                break;
 
-        //     if (start == 0)
-        //         start = nats_Now();
+            if (start == 0)
+                start = nats_Now();
 
-        //     count += (int64_t) list.Count;
-        //     for (i=0; (s == NATS_OK) && (i<list.Count); i++)
-        //         s = natsMsg_Ack(list.Msgs[i], &jsOpts);
+            count += (int64_t) list.Count;
+            for (i=0; (s == NATS_OK) && (i<list.Count); i++)
+                s = natsMsg_Ack(list.Msgs[i], &jsOpts);
 
-        //     natsMsgList_Destroy(&list);
-        // }
+            natsMsgList_Destroy(&list);
+        }
     }
     else if ((s == NATS_OK) && async)
     {
+        // All async modes (push and pull)
         while (s == NATS_OK)
         {
             if (count + dropped >= total)
@@ -176,18 +221,19 @@ int main(int argc, char **argv)
     }
     else if (s == NATS_OK)
     {
-        // for (count = 0; (s == NATS_OK) && (count < total); count++)
-        // {
-        //     s = natsSubscription_NextMsg(&msg, sub, 5000);
-        //     if (s != NATS_OK)
-        //         break;
+        // Sync mode
+        for (count = 0; (s == NATS_OK) && (count < total); count++)
+        {
+            s = natsSubscription_NextMsg(&msg, sub, 5000);
+            if (s != NATS_OK)
+                break;
 
-        //     if (start == 0)
-        //         start = nats_Now();
+            if (start == 0)
+                start = nats_Now();
 
-        //     s = natsMsg_Ack(msg, &jsOpts);
-        //     natsMsg_Destroy(msg);
-        // }
+            s = natsMsg_Ack(msg, &jsOpts);
+            natsMsg_Destroy(msg);
+        }
     }
 
     if (s == NATS_OK)
@@ -197,25 +243,25 @@ int main(int argc, char **argv)
     }
     if (s == NATS_OK)
     {
-        // jsStreamInfo *si = NULL;
+        jsStreamInfo *si = NULL;
 
-        // // Let's report some stats after the run
-        // s = js_GetStreamInfo(&si, js, stream, NULL, &jerr);
-        // if (s == NATS_OK)
-        // {
-        //     printf("\nStream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-        //         si->Config->Name, si->State.Msgs, si->State.Bytes);
+        // Let's report some stats after the run
+        s = js_GetStreamInfo(&si, js, stream, NULL, &jerr);
+        if (s == NATS_OK)
+        {
+            printf("\nStream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
+                si->Config->Name, si->State.Msgs, si->State.Bytes);
 
-        //     jsStreamInfo_Destroy(si);
-        // }
-        // if (delStream)
-        // {
-        //     printf("\nDeleting stream %s: ", stream);
-        //     s = js_DeleteStream(js, stream, NULL, &jerr);
-        //     if (s == NATS_OK)
-        //         printf("OK!");
-        //     printf("\n");
-        // }
+            jsStreamInfo_Destroy(si);
+        }
+        if (delStream)
+        {
+            printf("\nDeleting stream %s: ", stream);
+            s = js_DeleteStream(js, stream, NULL, &jerr);
+            if (s == NATS_OK)
+                printf("OK!");
+            printf("\n");
+        }
     }
     else
     {

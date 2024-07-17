@@ -56,8 +56,9 @@ static inline void _freeControlMessages(natsSubscription *sub)
     _destroyControlMessage(sub->control->sub.timeout);
     _destroyControlMessage(sub->control->sub.close);
     _destroyControlMessage(sub->control->sub.drain);
-    _destroyControlMessage(sub->control->batch.expired);
-    _destroyControlMessage(sub->control->batch.missedHeartbeat);
+    _destroyControlMessage(sub->control->fetch.expired);
+    _destroyControlMessage(sub->control->fetch.notFound);
+    _destroyControlMessage(sub->control->fetch.missedHeartbeat);
     NATS_FREE(sub->control);
 }
 
@@ -332,8 +333,9 @@ natsStatus nats_createControlMessages(natsSubscription *sub)
     IFOK(s, _createControlMessage(&(sub->control->sub.timeout), sub));
     IFOK(s, _createControlMessage(&sub->control->sub.close, sub));
     IFOK(s, _createControlMessage(&sub->control->sub.drain, sub));
-    IFOK(s, _createControlMessage(&sub->control->batch.expired, sub));
-    IFOK(s, _createControlMessage(&sub->control->batch.missedHeartbeat, sub));
+    IFOK(s, _createControlMessage(&sub->control->fetch.expired, sub));
+    IFOK(s, _createControlMessage(&sub->control->fetch.notFound, sub));
+    IFOK(s, _createControlMessage(&sub->control->fetch.missedHeartbeat, sub));
 
     // no need to free on failure, sub's free will clean it up.
     return s;

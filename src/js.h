@@ -274,3 +274,6 @@ js_cloneConsumerConfig(jsConsumerConfig *org, jsConsumerConfig **clone);
 
 void
 js_destroyConsumerConfig(jsConsumerConfig *cc);
+
+bool /* true if consumed the message and no further action needed */
+js_processPullStatusMessage(natsSubscription *sub, natsMsg *msg);

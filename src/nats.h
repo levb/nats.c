@@ -1483,6 +1483,36 @@ typedef struct __stanSubOptions     stanSubOptions;
 typedef void (*natsMsgHandler)(
         natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure);
 
+/** \brief Callback used to indicate that the work of js_PullMessages
+ *
+ * @param s 
+ * - `NATS_OK` happens when??? FIXME.
+ * - `NATS_TIMEOUT` indicates that the fetch has reached its lifetime expiration
+ *   time, or had NoWait set and there are no more messages.
+ * - `NATS_NOT_FOUND` is returned (exactly when??? FIXME).
+ * - `NATS_MAX_DELIVERED_MSGS` indicates that lifetime `Batch` message limit 
+ *   has been reached.
+ * - `NATS_MAX_DELIVERED_BYTES` is returned when the lifetime byte limit is reached.
+ * - Other status values represent error conditions.
+ * @param closure completeClosure that was passed to js_PullMessages
+ *
+ * @see js_PullMessages
+ */
+typedef void (*natsFetchCompleteHandler)(natsStatus s, void *closure);
+
+/** \brief Callback used to customize flow control for js_PullMessages.
+ *
+ * The library will invoke this callback when it may be time to request more
+ * messages from the server.
+ *
+ * @return true to fetch more, false to skip. if true, req's attributes can be
+ * overridden as needed.
+ *
+ * @see js_PullMessages
+ */
+typedef bool (*natsNextFetchHandler)(jsFetchRequest *req,
+        natsSubscription *sub, void *closure);
+
 /** \brief Callback used to notify the user of asynchronous connection events.
  *
  * This callback is used for asynchronous events such as disconnected
@@ -6501,6 +6531,15 @@ natsSubscription_Fetch(natsMsgList *list, natsSubscription *sub, int batch, int6
  */
 NATS_EXTERN natsStatus
 jsFetchRequest_Init(jsFetchRequest *request);
+
+
+natsStatus
+js_PullMessages(natsSubscription **newsub, jsCtx *js, const char *subject, const char *durable,
+               natsMsgHandler msgCB, void *msgCBClosure,
+               jsFetchRequest *lifetime,
+               int pullSize, int keepAhead,
+               natsNextFetchHandler nextf, void *nextClosure,
+               jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
 
 /** \brief Fetches messages for a pull subscription with a complete request configuration
  *
