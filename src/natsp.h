@@ -373,11 +373,8 @@ struct __jsCtx
 
 typedef struct __jsFetch
 {
-
-    natsMsgList batch;
-    int batchCap;
-    natsBatchHandler batchCB;
-    void *batchCBClosure;
+    natsFetchCompleteHandler completeCB;
+    void *completeCBClosure;
 
     // Lifetime control
     jsFetchRequest lifetime;
@@ -532,8 +529,9 @@ typedef struct __natsSubscriptionControlMessages
     struct
     {
         natsMsg *expired;
+        natsMsg *notFound;
         natsMsg *missedHeartbeat;
-    } batch;
+    } fetch;
 } natsSubscriptionControlMessages;
 
 struct __natsSubscription

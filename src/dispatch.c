@@ -25,7 +25,7 @@
 // queue storage to keep track of message stats.
 //
 // sub lock must be held
-natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool force)
+natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool ctrl)
 {
     bool signal = false;
     bool shared = (sub->dispatcher->dedicatedTo == NULL);
@@ -37,28 +37,30 @@ natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool forc
     int newMsgs = statsQ->msgs + 1;
     int newBytes = statsQ->bytes + natsMsg_dataAndHdrLen(msg);
 
-    if (!force)
+    if (!ctrl)
     {
         if (((sub->msgsLimit > 0) && (newMsgs > sub->msgsLimit)) ||
             ((sub->bytesLimit > 0) && (newBytes > sub->bytesLimit)))
         {
             return NATS_SLOW_CONSUMER;
         }
+
+        if (newMsgs > sub->msgsMax)
+            sub->msgsMax = newMsgs;
+        if (newBytes > sub->bytesMax)
+            sub->bytesMax = newBytes;
+
+        // Update the subscription stats if separate, the queue stats will be
+        // updated below.
+        if (toQ != statsQ)
+        {
+            statsQ->msgs++;
+            statsQ->bytes += natsMsg_dataAndHdrLen(msg);
+        }
+
+        sub->slowConsumer = false;
     }
 
-    if (newMsgs > sub->msgsMax)
-        sub->msgsMax = newMsgs;
-    if (newBytes > sub->bytesMax)
-        sub->bytesMax = newBytes;
-
-    // Update the subscription stats if separate, the queue stats will be
-    // updated below.
-    if (toQ != statsQ)
-    {
-        statsQ->msgs++;
-        statsQ->bytes += natsMsg_dataAndHdrLen(msg);
-    }
-    sub->slowConsumer = false;
     msg->sub = sub;
 
     // For shared dispatchers, we need to lock the dispatcher to place items on
@@ -81,8 +83,11 @@ natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool forc
         toQ->tail = msg;
     }
 
-    toQ->msgs++;
-    toQ->bytes += natsMsg_dataAndHdrLen(msg);
+    if (!ctrl)
+    {
+        toQ->msgs++;
+        toQ->bytes += natsMsg_dataAndHdrLen(msg);
+    }
 
     if (signal)
         natsCondition_Signal(sub->dispatcher->cond);
@@ -317,12 +322,12 @@ void nats_dispatchMessages(natsDispatcher *d)
             natsConn_removeSubscription(nc, sub);
             continue;
         }
-        // else if (msg == ctrl->batch.expired)
-        // {
-        //     // FIXME: handle expired batch
-        //     natsMsg_Destroy(msg);
-        //     continue;
-        // }
+        else if (msg == ctrl->fetch.expired)
+        {
+            // FIXME: handle expired batch
+            natsMsg_Destroy(msg);
+            continue;
+        }
         // else if (msg == ctrl->batch.missedHeartbeat)
         // {
         //     // FIXME: handle batch missed heartbeat

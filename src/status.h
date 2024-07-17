@@ -131,7 +131,7 @@ typedef enum
     NATS_MISSED_HEARTBEAT,              ///< For JetStream subscriptions, it means that the library detected that server heartbeats have been missed.
 
     NATS_MAX_DELIVERED_BYTES,           ///< Attempt to receive messages than allowed by the byte limit, for
-                                        ///  instance in js_PullBatches().
+                                        ///  instance in js_PullMessages().
 
 } natsStatus;
 

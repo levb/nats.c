@@ -34,11 +34,11 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 
         const char **keys;
         int n;
-        natsStatus s = natsMsgHeader_Keys(msg, &keys, &n);
+        natsMsgHeader_Keys(msg, &keys, &n);
         for (int i=0; i<n; i++)
         {
             const char *val;
-            s = natsMsgHeader_Get(msg, keys[i], &val);
+            natsMsgHeader_Get(msg, keys[i], &val);
             printf("  %s: %s\n", keys[i], val);
         }
     }
@@ -92,19 +92,10 @@ int main(int argc, char **argv)
 
     if (print)
     {
-        if (pull)
-        {
-            if (!async)
-                printf("Creating a synchronous pull subscription on '%s'\n",subj);
-            else if (batch > 0)
-                printf("Creating an asynchronous pull subscription in batch mode on '%s' with batch size %d\n",subj,batch);
-            else
-                printf("Creating an asynchronous pull subscription in message-by-message mode on '%s'\n",subj);
-        }
-        else
-        {
-            printf("Creating %s subscription on '%s'\n", async ? "an asynchronous" : "a synchronous", subj);
-        }
+        printf("Creating %s%s subscription on '%s'\n",
+               async ? "an asynchronous" : "a synchronous",
+               pull ? " pull" : "",
+               subj);
     }
     s = natsOptions_SetErrorHandler(opts, asyncCb, NULL);
 
@@ -179,14 +170,8 @@ int main(int argc, char **argv)
             // FIXME: options for params
             // FIXME: demo: set msg delivery pool
             // FIXME: demo: set auto-ack
-            if (batch > 0)
-            {
-                s = js_PullBatches(&sub, js, subj, durable, batch, onBatch, NULL, &lifetime,
-                                   1 * batch, 2 * batch, NULL, NULL, &jsOpts, &so, &jerr);
-            }
-            else
-                s = js_PullMessages(&sub, js, subj, durable, onMsg, NULL, &lifetime,
-                                    10, 5, NULL, NULL, &jsOpts, &so, &jerr);
+            s = js_PullMessages(&sub, js, subj, durable, onMsg, NULL, &lifetime,
+                                10, 5, NULL, NULL, &jsOpts, &so, &jerr);
         }
         else if (pull)
             s = js_PullSubscribe(&sub, js, subj, durable, &jsOpts, &so, &jerr);

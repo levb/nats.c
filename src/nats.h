@@ -1483,35 +1483,24 @@ typedef struct __stanSubOptions     stanSubOptions;
 typedef void (*natsMsgHandler)(
         natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure);
 
-/** \brief Callback used to deliver batches of messages to the application.
+/** \brief Callback used to indicate that the work of js_PullMessages
  *
- * This is the callback that one provides when creating an asynchronous pull
- * subscription. The library will invoke this callback once enough messages
- * arrived through the subscription's connection.
+ * @param s 
+ * - `NATS_OK` happens when??? FIXME.
+ * - `NATS_TIMEOUT` indicates that the fetch has reached its lifetime expiration
+ *   time, or had NoWait set and there are no more messages.
+ * - `NATS_NOT_FOUND` is returned (exactly when??? FIXME).
+ * - `NATS_MAX_DELIVERED_MSGS` indicates that lifetime `Batch` message limit 
+ *   has been reached.
+ * - `NATS_MAX_DELIVERED_BYTES` is returned when the lifetime byte limit is reached.
+ * - Other status values represent error conditions.
+ * @param closure completeClosure that was passed to js_PullMessages
  *
- * @param nc - the connection that received the messages
- * @param sub - the subscription that received the messages
- * @param batch - the array of messages
- * @param len - the number of messages in the batch
- * @param batchStatus - `NATS_OK` indicates the batch was successfully received,
- * and we are continuing to receive more. `NATS_TIMEOUT` indicates that the
- * batch has reached its lifetime expiration time and stopped receiving
- * messages. `NATS_NOT_FOUND` is applicable only when NoWait is set, and is
- * returned when all existing messages have been fetched and there are none
- * waiting on the server. `NATS_MAX_DELIVERED_MSGS` indicates that lifetime
- * `Batch` message limit has been reached. Finally, `NATS_MAX_DELIVERED_BYTES`
- * is returned when the lifetime byte limit is reached. If there was an error,
- * batchStatus is set to NATS_ERR, and err has the error code.
- *
- * @param err - `NATS_OK` if no error occurred, otherwise an error code
- *
- * @see js_PullBatches
+ * @see js_PullMessages
  */
-typedef void (*natsBatchHandler)(
-        natsConnection *nc, natsSubscription *sub, natsMsg **batch, int len, natsStatus batchStatus, natsStatus err, void *closure);
+typedef void (*natsFetchCompleteHandler)(natsStatus s, void *closure);
 
-/** \brief Callback used to customize flow control for js_PullBatches and
- * js_PullMessages.
+/** \brief Callback used to customize flow control for js_PullMessages.
  *
  * The library will invoke this callback when it may be time to request more
  * messages from the server.
@@ -1519,7 +1508,7 @@ typedef void (*natsBatchHandler)(
  * @return true to fetch more, false to skip. if true, req's attributes can be
  * overridden as needed.
  *
- * @see js_PullBatches
+ * @see js_PullMessages
  */
 typedef bool (*natsNextFetchHandler)(jsFetchRequest *req,
         natsSubscription *sub, void *closure);
@@ -6550,18 +6539,6 @@ js_PullMessages(natsSubscription **newsub, jsCtx *js, const char *subject, const
                jsFetchRequest *lifetime,
                int pullSize, int keepAhead,
                natsNextFetchHandler nextf, void *nextClosure,
-               jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
-
-natsStatus
-js_PullBatches(natsSubscription **sub, jsCtx *js, const char *subject, const char *durable,
-               int N,
-               natsBatchHandler batchCB,
-               void *batchCBClosure,
-               jsFetchRequest *lifetime,
-               int pullSize,
-               int keepAhead,
-               natsNextFetchHandler nextf,
-               void *nextClosure,
                jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode);
 
 /** \brief Fetches messages for a pull subscription with a complete request configuration
