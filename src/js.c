@@ -1731,21 +1731,24 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, bool checkSts, bool *usr
     const char  *val = NULL;
     const char  *desc= NULL;
 
+    // Check for synthetic fetch event messages.
+    if (sub->control != NULL)
+    {
+        if (msg == sub->control->fetch.missedHeartbeat)
+        {
+            *usrMsg = false;
+            return NATS_MISSED_HEARTBEAT;
+        }
+        else if (msg == sub->control->fetch.expired)
+        {
+            *usrMsg = false;
+            return NATS_TIMEOUT;
+        }
+    }
 
-    // Check for missed heartbeat special message
-    if (msg == sub->control->fetch.missedHeartbeat)
+    if ((msg->dataLen > 0) || (msg->hdrLen <= 0))
     {
-        *usrMsg = false;
-        return NATS_MISSED_HEARTBEAT;
-    }
-    else if (msg == sub->control->fetch.expired)
-    {
-        *usrMsg = false;
-        return NATS_TIMEOUT;
-    }
-    else if ((msg->dataLen > 0) || (msg->hdrLen <= 0))
-    {
-        // If we have data, or no header - user's 
+        // If we have data, or no header - user's
         *usrMsg = true;
         return NATS_OK;
     }
