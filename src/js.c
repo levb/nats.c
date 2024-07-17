@@ -2043,7 +2043,7 @@ _hbTimerFired(natsTimer *timer, void* closure)
         // we will check missed HBs again.
         if (sub->ownDispatcher.queue.msgs == 0)
         {
-            natsSub_forceEnqueueMsg(sub, sub->control->batch.missedHeartbeat);
+            natsSub_enqueueCtrlMsg(sub, sub->control->batch.missedHeartbeat);
             natsTimer_Stop(timer);
         }
         natsSub_Unlock(sub);
