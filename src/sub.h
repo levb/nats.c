@@ -83,14 +83,14 @@ void
 natsSub_close(natsSubscription *sub, bool connectionClosed);
 
 natsStatus
-natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool force);
+natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool ctrl);
 
 static natsStatus natsSub_enqueueMsg(natsSubscription *sub, natsMsg *msg)
 {
     return natsSub_enqueueMsgImpl(sub, msg, false);
 }
 
-static natsStatus natsSub_forceEnqueueMsg(natsSubscription *sub, natsMsg *msg)
+static natsStatus natsSub_enqueueCtrlMsg(natsSubscription *sub, natsMsg *msg)
 {
     return natsSub_enqueueMsgImpl(sub, msg, true);
 }

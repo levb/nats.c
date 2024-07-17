@@ -120,10 +120,10 @@ void nats_signalDispatcherPoolToShutdown(natsDispatcherPool *pool)
         nats_lockDispatcher(&pool->dispatchers[i]);
         pool->dispatchers[i].shutdown = true;
         cond = pool->dispatchers[i].cond;
-        nats_unlockDispatcher(&pool->dispatchers[i]);
-
         if (cond != NULL)
             natsCondition_Signal(cond);
+
+        nats_unlockDispatcher(&pool->dispatchers[i]);
     }
 }
 

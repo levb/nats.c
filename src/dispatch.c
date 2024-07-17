@@ -84,11 +84,11 @@ natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool forc
     toQ->msgs++;
     toQ->bytes += natsMsg_dataAndHdrLen(msg);
 
+    if (signal)
+        natsCondition_Signal(sub->dispatcher->cond);
+
     if (shared)
         nats_unlockDispatcher(sub->dispatcher);
-
-    if (signal)
-        natsCondition_Signal(sub->dispatcher->cond); 
 
     return NATS_OK;
 }
