@@ -207,14 +207,15 @@ void nats_dispatchMessages(natsDispatcher *d)
         }
 
         userMsg = true;
-        jsi = sub->jsi;
-        fetch = (jsi != NULL) ? jsi->fetch : NULL;
         if (msg != NULL)
         {
             // At this point sub is set, no need to check for NULL - either we
             // have it from the message, or we are in the dedicated mode.
             if (msg->sub != NULL)
                 sub = msg->sub;
+
+            jsi = sub->jsi;
+            fetch = (jsi != NULL) ? jsi->fetch : NULL;
 
             _removeHeadMessage(&d->queue);
 
@@ -290,6 +291,8 @@ void nats_dispatchMessages(natsDispatcher *d)
         completeCBClosure = sub->onCompleteCBClosure;
         ctrl = sub->control;
         closed = sub->closed;
+        // jsi = sub->jsi;
+        // fetch = (jsi != NULL) ? jsi->fetch : NULL;
 
         // Check for flow control response and update the sub while under lock.
         // We will publish this in the end of the dispatch loop. (Control
