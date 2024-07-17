@@ -174,7 +174,7 @@ void nats_dispatchMessages(natsDispatcher *d)
             // timer is set up and it sends control messages to the sub to notify us
             // here.
             //
-            // All other events (Drain, Close, batch timeouts/HB misses) are less
+            // All other events (Drain, Close, fetch timeouts/HB misses) are less
             // frequent and handled similarly, with the use of control messages.
 
             // if dedicatedSub is set, we don't need to lock it, it already is.

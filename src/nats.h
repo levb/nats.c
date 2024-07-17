@@ -856,6 +856,7 @@ typedef struct jsConsumerConfig
         bool                    HeadersOnly;
 
         // Pull based options.
+        // FIXME check the enforcement of these options.
         int64_t                 MaxRequestBatch;        ///< Maximum Pull Consumer request batch size.
         int64_t                 MaxRequestExpires;      ///< Maximum Pull Consumer request expiration, expressed in number of nanoseconds.
         int64_t                 MaxRequestMaxBytes;     ///< Maximum Pull Consumer request maximum bytes.

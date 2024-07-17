@@ -391,7 +391,7 @@ typedef struct __jsFetch
     natsNextFetchHandler nextf;
     void *nextClosure;
 
-    // Timer for the batch expiration. Leverage the existing jsi->hbTimer for
+    // Timer for the fetch expiration. We leverage the existing jsi->hbTimer for
     // checking missed heartbeats.
     natsTimer *expiresTimer;
 

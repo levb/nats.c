@@ -1696,7 +1696,7 @@ jsSub_scheduleFlowControlResponse(jsSub *jsi, const char *reply)
     return NATS_OK;
 }
 
-// returns the fetchID from subj, or -1 if not the batch status subject for the
+// returns the fetchID from subj, or -1 if not the fetch status subject for the
 // sub.
 static inline int64_t
 _fetchIDFromSubject(natsSubscription *sub, const char *subj)
@@ -3015,12 +3015,10 @@ js_PullMessages(natsSubscription * *newsub, jsCtx * js, const char *subject, con
     if (lifetime == NULL)
         lifetime = &defaultLifetime;    
 
-    // Do a basic pull subscribe first, but provide the batch callback so it is
-    // treated as "async" and assigned to a dispatcher. Since we don't fetch
-    // anything, it will not be active yet.
-    // <>/<> _subscribe should allow this combination.
+    // Do a basic pull subscribe first, but with a callback so it is treated as
+    // "async" and assigned to a dispatcher. Since we don't fetch anything, it
+    // will not be active yet.
     s = _subscribe(&sub, js, subject, durable, msgCB, msgCBClosure, true, jsOpts, opts, errCode);
-    printf("<>/<> _subscribe should allow this combination. %d\n", s);
 
     IFOK(s, (fetch = NATS_CALLOC(1, sizeof(jsFetch))) == NULL ? NATS_NO_MEMORY : NATS_OK);
 

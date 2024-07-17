@@ -59,17 +59,6 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 }
 
 static void
-onBatch(natsConnection *nc, natsSubscription *sub, natsMsg **batch, int len,
-    natsStatus batchStatus, natsStatus err, void *closure)
-{
-    if (print)
-        printf("Received batch of %d messages, status:%d, error code:%d\n", len, batchStatus, err);
-
-    for (int i=0; i < len; i++)
-        onMsg(nc, sub, batch[i], NULL);
-}
-
-static void
 asyncCb(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure)
 {
     printf("Async error: %u - %s\n", err, natsStatus_GetText(err));
