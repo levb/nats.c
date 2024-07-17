@@ -405,8 +405,6 @@ void nats_dispatchMessages(natsDispatcher *d)
             // Deliver the message to the user's callback(s).
             messageCB(nc, sub, msg, messageClosure);
 
-            nats_Sleep(1000); // <>/<>
-
             if (lastMessageInFetch)
             {
                 if (fetch->completeCB != NULL)
