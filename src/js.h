@@ -28,6 +28,7 @@ void js_unlock(jsCtx *js);
 
 #endif // DEV_MODE
 
+#define NATS_DEFAULT_ASYNC_FETCH_SIZE 128 // messages
 
 extern const char*      jsDefaultAPIPrefix;
 extern const int64_t    jsDefaultRequestWait;

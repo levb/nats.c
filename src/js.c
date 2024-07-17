@@ -3033,7 +3033,6 @@ js_PullSubscribeAsync(natsSubscription * *newsub, jsCtx * js, const char *subjec
 
         fetch->nextf = _autoNextFetchRequest;
         fetch->nextClosure = (void *)fetch;
-
         if (jsOpts != NULL)
         {
             fetch->fetchSize = jsOpts->PullSubscribeAsync.FetchSize;
@@ -3047,6 +3046,9 @@ js_PullSubscribeAsync(natsSubscription * *newsub, jsCtx * js, const char *subjec
                 fetch->nextClosure = jsOpts->PullSubscribeAsync.NextHandlerClosure;
             }
         }
+
+        if (fetch->fetchSize ==0)
+            fetch->fetchSize = NATS_DEFAULT_ASYNC_FETCH_SIZE;
     }
 
     // Set up the sub to process fetch results.

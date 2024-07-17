@@ -29,7 +29,7 @@ natsStatus nats_postAsyncCbInfo(natsAsyncCbInfo *info);
 natsStatus nats_setMessageDispatcherPoolCap(int max);
 
 void nats_initForOS(void);
-void nats_overrideDefaultOptionsWithConfig(natsOptions *opts); // FIXME: should just be `getDefaultOptions`
+void nats_overrideDefaultOptionsWithConfig(natsOptions *opts);
 void nats_resetTimer(natsTimer *t, int64_t newInterval);
 void nats_stopTimer(natsTimer *t);
 
