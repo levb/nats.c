@@ -230,7 +230,7 @@ void nats_dispatchMessages(natsDispatcher *d)
                 overLimit = (sub->delivered == sub->max);
                 lastBeforeLimit = ((sub->delivered + 1) == sub->max);
             }
-            // if (!overLimit)
+            if (!overLimit)
                 sub->delivered++;
         }
 
