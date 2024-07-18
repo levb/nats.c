@@ -216,10 +216,10 @@ int main(int argc, char **argv)
 
     if ((s == NATS_OK) && async)
         s = natsSubscription_SetOnCompleteCB(sub, _completeSubCb, NULL);
+    if ((s == NATS_OK) && async)
+        s = natsSubscription_AutoUnsubscribe(sub, total); // to get the sub closed callback
     if (s == NATS_OK)
         s = natsSubscription_SetPendingLimits(sub, -1, -1);
-    if (s == NATS_OK)
-        s = natsSubscription_AutoUnsubscribe(sub, total);
 
     if (s == NATS_OK)
         s = natsStatistics_Create(&stats);
