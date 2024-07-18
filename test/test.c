@@ -29192,11 +29192,11 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
         result = result && (args->sum <= expectedMsgs);
     else
         result = result && (args->sum == expectedMsgs);
+    natsMutex_Unlock(args->m);
 
-    // We may get called before the delivery thread terminates the sub, if so
-    // give it another try.
-    if (natsSubscription_IsValid(sub))
-        nats_Sleep(1);
+    // We may get called before the delivery thread terminates the sub, this
+    // yields and avoids the race for the purpose of the test.
+    nats_Sleep(5);
     result = result && !natsSubscription_IsValid(sub);
 
     printf("TEST GOT: %d %d\n", args->status, args->sum);
@@ -29205,7 +29205,6 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
         printf("TEST Failed: %d %d %d %d %d\n", s, args->closed, args->status, args->sum, natsSubscription_IsValid(sub));
     }
 
-    natsMutex_Unlock(args->m);
     return result;
 }
 
@@ -29592,9 +29591,8 @@ test_JetStreamSubscribePullAsync(void)
     dur = nats_Now() - start;
     testCond((s == NATS_MISSED_HEARTBEAT) && (dur < 500));
 
-
 __EXIT:
-    nats_Sleep(1);
+    // nats_Sleep(1);
     natsSubscription_Destroy(sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
