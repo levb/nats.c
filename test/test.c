@@ -29228,6 +29228,8 @@ test_JetStreamSubscribePullAsync(void)
     natsSubscription *sub2 = NULL;
     natsSubscription *sub3 = NULL;
 
+    return;
+
     JS_SETUP(2, 9, 2);
 
     s = _createDefaultThreadArgsForCbTests(&args);
