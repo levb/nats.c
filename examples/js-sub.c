@@ -37,16 +37,6 @@ onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
                natsMsg_GetSubject(msg),
                natsMsg_GetDataLength(msg),
                natsMsg_GetData(msg));
-
-        const char **keys;
-        int n;
-        natsMsgHeader_Keys(msg, &keys, &n);
-        for (int i=0; i<n; i++)
-        {
-            const char *val;
-            natsMsgHeader_Get(msg, keys[i], &val);
-            printf("  %s: %s\n", keys[i], val);
-        }
     }
     if (start == 0)
         start = nats_Now();
@@ -72,21 +62,18 @@ asyncCb(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure
 static void
 _completeFetchCb(natsConnection *nc, natsSubscription *sub, natsStatus s, void *closure)
 {
-    if (!print)
-        return;
-
     fetchCompleteCalled = true;
-    printf("Fetch completed with status: %u - %s\n", s, natsStatus_GetText(s));
+
+    if (print)
+        printf("Fetch completed with status: %u - %s\n", s, natsStatus_GetText(s));
 }
 
 static void
 _completeSubCb(void *closure)
 {
-    if (!print)
-        return;
-
     subCompleteCalled = true;
-    printf("Subscription completed\n");
+    if (print)
+        printf("Subscription completed\n");
 }
 
 static bool
@@ -116,13 +103,11 @@ int main(int argc, char **argv)
 
     opts = parseArgs(argc, argv, usage);
 
-    if (print)
-    {
-        printf("Creating %s%s subscription on '%s'\n",
-               async ? "an asynchronous" : "a synchronous",
-               pull ? " pull" : "",
-               subj);
-    }
+    printf("Creating %s%s subscription on '%s'\n",
+            async ? "an asynchronous" : "a synchronous",
+            pull ? " pull" : "",
+            subj);
+
     s = natsOptions_SetErrorHandler(opts, asyncCb, NULL);
 
     if (s == NATS_OK)
@@ -174,9 +159,8 @@ int main(int argc, char **argv)
         }
         if (s == NATS_OK)
         {
-            if (print)
-                printf("Stream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-                    si->Config->Name, si->State.Msgs, si->State.Bytes);
+            printf("Stream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
+                si->Config->Name, si->State.Msgs, si->State.Bytes);
 
             // Need to destroy the returned stream object.
             jsStreamInfo_Destroy(si);
