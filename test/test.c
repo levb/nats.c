@@ -29196,7 +29196,7 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
     if (natsSubscription_IsValid(sub))
         nats_Sleep(1);
     result = result && !natsSubscription_IsValid(sub);
-    
+
     printf("TEST GOT: %d %d\n", args->status, args->sum);
     if (!result)
     {
@@ -29479,7 +29479,7 @@ test_JetStreamSubscribePullAsync(void)
         {
             .name = "Fetch with expiration is fulfilled NATS_MAX_DELIVERED_MSGS",
             .want = 30,
-            .expires = 1000, // ms
+            .expires = 10, // ms
             .before = 20,
             .during = 10,
             .expectedStatus = NATS_MAX_DELIVERED_MSGS,
@@ -29544,8 +29544,9 @@ test_JetStreamSubscribePullAsync(void)
     }
 
     natsSubscription_Destroy(sub);
+    sub = NULL;
 
-    return; // <>/<>
+    goto __EXIT; // <>/<>
 
     test("Max request expires: ");
     jsSubOptions_Init(&so);
@@ -29757,6 +29758,8 @@ test_JetStreamSubscribePullAsync(void)
     dur = nats_Now() - start;
     testCond((s == NATS_MISSED_HEARTBEAT) && (dur < 500));
 
+
+__EXIT:
     natsSubscription_Destroy(sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
