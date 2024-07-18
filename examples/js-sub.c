@@ -82,12 +82,11 @@ _completeFetchCb(natsConnection *nc, natsSubscription *sub, natsStatus s, void *
 static void
 _completeSubCb(void *closure)
 {
-    natsSubscription *sub = (natsSubscription*) closure;
     if (!print)
         return;
 
     subCompleteCalled = true;
-    printf("Subscription on %s completed\n", natsSubscription_GetSubject(sub));
+    printf("Subscription completed\n");
 }
 
 static bool
@@ -214,10 +213,11 @@ int main(int argc, char **argv)
         else
             s = js_SubscribeSync(&sub, js, subj, &jsOpts, &so, &jerr);
     }
+
+    if ((s == NATS_OK) && async)
+        s = natsSubscription_SetOnCompleteCB(sub, _completeSubCb, NULL);
     if (s == NATS_OK)
         s = natsSubscription_SetPendingLimits(sub, -1, -1);
-    if (s == NATS_OK)
-        s = natsSubscription_SetOnCompleteCB(sub, _completeSubCb, sub);
     if (s == NATS_OK)
         s = natsSubscription_AutoUnsubscribe(sub, total);
 
