@@ -29195,7 +29195,7 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
     printf("TEST GOT: %d %d\n", args->status, args->sum);
     if (!result)
     {
-        if (!natsSubscription_IsValid(sub))
+        if (natsSubscription_IsValid(sub))
         {
             printf("<>/<> Sub is still valid, sleep...\n");
             nats_Sleep(100);
