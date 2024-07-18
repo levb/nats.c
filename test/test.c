@@ -29594,7 +29594,7 @@ test_JetStreamSubscribePullAsync(void)
 
 
 __EXIT:
-    nats_Sleep(100);
+    // nats_Sleep(100);
     natsSubscription_Destroy(sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
