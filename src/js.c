@@ -1225,7 +1225,7 @@ static void _destroyFetch(jsFetch *fetch)
         return;
 
     if (fetch->expiresTimer != NULL)
-        natsTimer_Stop(fetch->expiresTimer);
+        natsTimer_Destroy(fetch->expiresTimer);
 
     NATS_FREE(fetch);
 }
