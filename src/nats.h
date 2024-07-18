@@ -856,7 +856,6 @@ typedef struct jsConsumerConfig
         bool                    HeadersOnly;
 
         // Pull based options.
-        // FIXME check the enforcement of these options.
         int64_t                 MaxRequestBatch;        ///< Maximum Pull Consumer request batch size.
         int64_t                 MaxRequestExpires;      ///< Maximum Pull Consumer request expiration, expressed in number of nanoseconds.
         int64_t                 MaxRequestMaxBytes;     ///< Maximum Pull Consumer request maximum bytes.
@@ -1211,10 +1210,10 @@ typedef struct jsFetchRequest
  * done.
  *
  * @param s - Completion status code
- * - `NATS_OK` happens never??? FIXME.
+ * - `NATS_OK` - should never happen here!
  * - `NATS_TIMEOUT` indicates that the fetch has reached its lifetime expiration
  *   time, or had NoWait set and there are no more messages.
- * - `NATS_NOT_FOUND` is returned (exactly when??? FIXME).
+ * - `NATS_NOT_FOUND` is returned (exactly when??? FIXME.
  * - `NATS_MAX_DELIVERED_MSGS` indicates that lifetime `Batch` message limit has
  *   been reached.
  * - `NATS_MAX_DELIVERED_BYTES` is returned when the lifetime byte limit is
@@ -1284,8 +1283,6 @@ typedef struct jsOptions
                 // we should try to fetch ahead, KeepAhead more than we need to
                 // finish the current request. Fetch this many messages ahead of
                 // time.
-                //
-                // FIXME: default to 1? lifetime.Batch? MAX (see FIXME)
                 int FetchSize;
                 int KeepAhead;
 
