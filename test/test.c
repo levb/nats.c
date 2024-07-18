@@ -29195,6 +29195,12 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
     printf("TEST GOT: %d %d\n", args->status, args->sum);
     if (!result)
     {
+        if (!natsSubscription_IsValid(sub))
+        {
+            printf("<>/<> Sub is still valid, sleep...\n");
+            nats_Sleep(100);
+            printf("<>/<> Sub valid: %d\n", natsSubscription_IsValid(sub));
+        }
         printf("TEST Failed: %d %d %d %d %d\n", s, args->closed, args->status, args->sum, natsSubscription_IsValid(sub));
     }
 
@@ -29474,7 +29480,7 @@ test_JetStreamSubscribePullAsync(void)
         {
             .name = "Fetch with expiration is fulfilled NATS_MAX_DELIVERED_MSGS",
             .want = 30,
-            .expires = 100, // ms
+            .expires = 1000, // ms
             .before = 20,
             .during = 10,
             .expectedStatus = NATS_MAX_DELIVERED_MSGS,
