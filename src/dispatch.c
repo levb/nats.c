@@ -255,7 +255,6 @@ void nats_dispatchMessages(natsDispatcher *d)
                 bool overMaxFetch = ((fetch->deliveredMsgs >= fetch->lifetime.Batch) || overMaxBytes);
                 
                 lastMessageInFetch = (fetch->deliveredMsgs == (fetch->lifetime.Batch - 1) || overMaxBytes);
-                overLimit = (overLimit || overMaxFetch || overMaxBytes);
 
                 if (lastMessageInFetch || overMaxFetch)
                 {
@@ -265,6 +264,9 @@ void nats_dispatchMessages(natsDispatcher *d)
                 {
                     fetchStatus = NATS_MAX_DELIVERED_BYTES;
                 }
+
+                overLimit = (overLimit || overMaxFetch || overMaxBytes);
+                lastMessageInSub = (lastMessageInSub || lastMessageInFetch);
             }
 
             if (!overLimit)

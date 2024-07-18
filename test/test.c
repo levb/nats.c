@@ -23118,7 +23118,7 @@ ENSURE_JS_VERSION((major), (minor), (update)); \
 \
 _makeUniqueDir(datastore, sizeof(datastore), "datastore_"); \
 test("Start JS Server: ");                                  \
-snprintf(cmdLine, sizeof(cmdLine), "-js -sd %s", datastore);\
+snprintf(cmdLine, sizeof(cmdLine), "--debug --trace -js -sd %s", datastore);\
 pid = _startServer("nats://127.0.0.1:4222", cmdLine, true); \
 CHECK_SERVER_STARTED(pid);                                  \
 testCond(true);                                             \
@@ -28588,24 +28588,629 @@ _dropTimeoutProto(natsConnection *nc, natsMsg **msg, void* closure)
     *msg = NULL;
 }
 
+// static void
+// test_JetStreamSubscribePull(void)
+// {
+//     natsStatus          s;
+//     natsSubscription    *sub= NULL;
+//     natsMsg             *msg = NULL;
+//     jsErrCode           jerr= 0;
+//     natsMsgList         list;
+//     jsStreamConfig      sc;
+//     jsSubOptions        so;
+//     struct threadArg    args;
+//     int64_t             start, dur;
+//     int                 i;
+//     natsThread          *t = NULL;
+//     jsConsumerConfig    cc;
+//     jsFetchRequest      fr;
+//     natsSubscription    *sub2 = NULL;
+//     natsSubscription    *sub3 = NULL;
+
+//     JS_SETUP(2, 9, 2);
+
+//     s = _createDefaultThreadArgsForCbTests(&args);
+//     if (s != NATS_OK)
+//         FAIL("Unable to setup test");
+
+//     test("Create pull sub (invalid args): ");
+//     s = js_PullSubscribe(NULL, js, "foo", "dur", NULL, NULL, &jerr);
+//     if (s == NATS_INVALID_ARG)
+//         s = js_PullSubscribe(&sub, NULL, "foo", "dur", NULL, NULL, &jerr);
+//     if (s == NATS_INVALID_ARG)
+//         s = js_PullSubscribe(&sub, js, NULL, "dur", NULL, NULL, &jerr);
+//     if (s == NATS_INVALID_ARG)
+//         s = js_PullSubscribe(&sub, js, "", "dur", NULL, NULL, &jerr);
+//     testCond((s == NATS_INVALID_ARG) && (sub == NULL) && (jerr == 0));
+//     nats_clearLastError();
+
+//     test("Create reg sync sub: ");
+//     s = natsConnection_SubscribeSync(&sub, nc, "foo");
+//     testCond((s == NATS_OK) && (sub != NULL));
+
+//     test("Fetch bad args: ");
+//     s = natsSubscription_Fetch(NULL, sub, 1, 1000, NULL);
+//     if (s == NATS_INVALID_ARG)
+//         s = natsSubscription_Fetch(&list, NULL, 1, 1000, NULL);
+//     if (s == NATS_INVALID_ARG)
+//         s = natsSubscription_Fetch(&list, sub, 0, 1000, NULL);
+//     if (s == NATS_INVALID_ARG)
+//         s = natsSubscription_Fetch(&list, sub, -1, 1000, NULL);
+//     testCond(s == NATS_INVALID_ARG);
+//     nats_clearLastError();
+
+//     test("Fetch bad timeout: ");
+//     s = natsSubscription_Fetch(&list, sub, 1, 0, NULL);
+//     if (s == NATS_INVALID_TIMEOUT)
+//         s = natsSubscription_Fetch(&list, sub, 1, -1, NULL);
+//     testCond(s == NATS_INVALID_TIMEOUT);
+//     nats_clearLastError();
+
+//     test("Fetch bad sub: ");
+//     s = natsSubscription_Fetch(&list, sub, 1, 1000, NULL);
+//     testCond((s == NATS_INVALID_SUBSCRIPTION)
+//                 && (strstr(nats_GetLastError(NULL), jsErrNotAPullSubscription) != NULL));
+//     nats_clearLastError();
+
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Create reg async sub: ");
+//     s = natsConnection_Subscribe(&sub, nc, "foo", _dummyMsgHandler, NULL);
+//     testCond((s == NATS_OK) && (sub != NULL));
+
+//     test("Fetch bad sub: ");
+//     s = natsSubscription_Fetch(&list, sub, 1, 1000, NULL);
+//     testCond((s == NATS_INVALID_SUBSCRIPTION)
+//                 && (strstr(nats_GetLastError(NULL), jsErrNotAPullSubscription) != NULL));
+//     nats_clearLastError();
+
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Create stream: ");
+//     jsStreamConfig_Init(&sc);
+//     sc.Name = "TEST";
+//     sc.Subjects = (const char*[1]){"foo"};
+//     sc.SubjectsLen = 1;
+//     s = js_AddStream(NULL, js, &sc, NULL, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("AckNone ok: ");
+//     jsSubOptions_Init(&so);
+//     so.Config.AckPolicy = js_AckNone;
+//     s = js_PullSubscribe(&sub, js, "foo", "ackNone", NULL, &so, &jerr);
+//     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
+//     natsSubscription_Unsubscribe(sub);
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("AckAll ok: ");
+//     jsSubOptions_Init(&so);
+//     so.Config.AckPolicy = js_AckAll;
+//     s = js_PullSubscribe(&sub, js, "foo", "ackAll", NULL, &so, &jerr);
+//     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
+//     natsSubscription_Unsubscribe(sub);
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Create push consumer: ");
+//     jsConsumerConfig_Init(&cc);
+//     cc.Durable = "push_dur";
+//     cc.DeliverSubject = "push.deliver";
+//     s = js_AddConsumer(NULL, js, "TEST", &cc, NULL, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("Try create pull sub from push consumer: ");
+//     s = js_PullSubscribe(&sub, js, "foo", "push_dur", NULL, NULL, &jerr);
+//     testCond((s == NATS_ERR) && (sub == NULL) && (jerr == 0)
+//                 && (strstr(nats_GetLastError(NULL), jsErrPullSubscribeToPushConsumer) != NULL));
+//     nats_clearLastError();
+
+//     test("Create pull bound failure: ");
+//     jsSubOptions_Init(&so);
+//     so.Stream = "TEST";
+//     so.Consumer = "bar";
+//     s = js_PullSubscribe(&sub, js, "foo", "bar", NULL, &so, &jerr);
+//     testCond((s == NATS_NOT_FOUND) && (sub == NULL) && (jerr == JSConsumerNotFoundErr));
+//     nats_clearLastError();
+
+//     test("Create pull sub: ");
+//     jsSubOptions_Init(&so);
+//     so.Config.MaxAckPending = 10;
+//     so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
+//     s = js_PullSubscribe(&sub, js, "foo", "dur", NULL, &so, &jerr);
+//     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
+
+//     test("Can't call NextMsg: ");
+//     s = natsSubscription_NextMsg(&msg, sub, 1000);
+//     testCond((s == NATS_INVALID_SUBSCRIPTION) && (msg == NULL)
+//                 && (strstr(nats_GetLastError(NULL), jsErrNotApplicableToPullSub) != NULL));
+//     nats_clearLastError();
+
+//     test("Fetch, no msg avail, timeout: ");
+//     start = nats_Now();
+//     s = natsSubscription_Fetch(&list, sub, 1, 500, &jerr);
+//     dur = nats_Now() - start;
+//     testCond((s == NATS_TIMEOUT) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0)
+//                 && (dur >= 450) && (dur <= 600));
+//     nats_clearLastError();
+
+//     test("Send a message: ");
+//     s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("Fetch batch 1: ");
+//     start = nats_Now();
+//     s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
+//     dur = nats_Now() - start;
+//     testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0)
+//                 && (dur <= 500));
+
+//     test("Ack: ");
+//     for (i=0; (s == NATS_OK) && (i<list.Count); i++)
+//         s = natsMsg_AckSync(list.Msgs[i], NULL, &jerr);
+//     natsMsgList_Destroy(&list);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("Send a message: ");
+//     s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("Fetch batch more than avail: ");
+//     start = nats_Now();
+//     s = natsSubscription_Fetch(&list, sub, 5, 1000, &jerr);
+//     dur = nats_Now() - start;
+//     testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0)
+//                 && (dur <= 500));
+
+//     test("Ack: ");
+//     for (i=0; (s == NATS_OK) && (i<list.Count); i++)
+//         s = natsMsg_Ack(list.Msgs[i], NULL);
+//     natsMsgList_Destroy(&list);
+//     testCond(s == NATS_OK);
+
+//     test("Start thread to send: ");
+//     s = natsThread_Create(&t, _jsPubThread, (void*) js);
+//     testCond(s == NATS_OK);
+
+//     test("Fetch: ");
+//     {
+//         int got = 0;
+
+//         while ((s == NATS_OK) && (got != 5))
+//         {
+//             s = natsSubscription_Fetch(&list, sub, 5-got, 2000, &jerr);
+//             if (s == NATS_OK)
+//                 got += list.Count;
+//             // Destroy msgs without ack'ing them.
+//             natsMsgList_Destroy(&list);
+//         }
+//         testCond(s == NATS_OK);
+//     }
+
+//     // Wait for AckWait and messages should be redelivered.
+//     nats_Sleep(500);
+
+//     test("Fetch get redelivered msgs: ");
+//     s = natsSubscription_Fetch(&list, sub, 5, 2000, &jerr);
+//     testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 5) && (jerr == 0));
+
+//     test("Ack: ");
+//     for (i=0; (s == NATS_OK) && (i<list.Count); i++)
+//         s = natsMsg_Ack(list.Msgs[i], NULL);
+//     natsMsgList_Destroy(&list);
+//     testCond(s == NATS_OK);
+
+//     natsThread_Join(t);
+//     natsThread_Destroy(t);
+//     t = NULL;
+
+//     test("Receive msg with header no data: ");
+//     s = natsMsg_create(&msg, sub->subject, (int) strlen(sub->subject), NULL, 0,
+//                         "NATS/1.0\r\nk:v\r\n\r\n", 17, 17);
+//     IFOK(s, natsConnection_PublishMsg(nc, msg));
+//     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, &jerr));
+//     testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0));
+//     natsMsg_Destroy(msg);
+//     msg = NULL;
+//     natsMsgList_Destroy(&list);
+
+//     // Make sure there is no more pending.
+//     _waitSubPending(sub, 0);
+
+//     test("Msg with 404 status present before fetch: ");
+//     s = natsMsg_create(&msg, sub->subject, (int) strlen(sub->subject), NULL, 0,
+//                         "NATS/1.0 404 No Messages\r\n\r\n", 28, 28);
+//     IFOK(s, natsConnection_PublishMsg(nc, msg));
+//     if (s == NATS_OK)
+//         _waitSubPending(sub, 1);
+//     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 100, &jerr));
+//     testCond((s == NATS_TIMEOUT) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0));
+//     nats_clearLastError();
+//     natsMsg_Destroy(msg);
+//     msg = NULL;
+//     natsMsgList_Destroy(&list);
+
+//     // Since we faked the 404, the server is going to send a 408 when the request
+//     // expires, so wait for it to be sent.
+//     nats_Sleep(200);
+
+//     test("Fetch returns on 408: ");
+//     natsMutex_Lock(args.m);
+//     args.nc = nc;
+//     args.sub = sub;
+//     args.string = "NATS/1.0 408 Request Timeout\r\n\r\n";
+//     natsMutex_Unlock(args.m);
+//     start = nats_Now();
+//     s = natsThread_Create(&t, _sendToPullSub, (void*) &args);
+//     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, &jerr));
+//     dur = nats_Now() - start;
+//     // Since we wait 250ms to publish, it will take aound 250ms
+//     testCond((s == NATS_TIMEOUT) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0)
+//                 && (dur < 500));
+//     nats_clearLastError();
+//     natsMsgList_Destroy(&list);
+
+//     natsThread_Join(t);
+//     natsThread_Destroy(t);
+//     t = NULL;
+
+//     test("Fetch gets 503: ");
+//     natsMutex_Lock(args.m);
+//     args.string = "NATS/1.0 503\r\n\r\n";
+//     natsMutex_Unlock(args.m);
+//     s = natsThread_Create(&t, _sendToPullSub, (void*) &args);
+//     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 10000, &jerr));
+//     testCond((s == NATS_NO_RESPONDERS) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0));
+//     nats_clearLastError();
+//     natsMsg_Destroy(msg);
+//     msg = NULL;
+//     natsMsgList_Destroy(&list);
+
+//     natsThread_Join(t);
+//     natsThread_Destroy(t);
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Create stream: ");
+//     jsStreamConfig_Init(&sc);
+//     sc.Name = "TEST2";
+//     sc.Subjects = (const char*[4]){"bar", "baz", "bat", "box"};
+//     sc.SubjectsLen = 4;
+//     s = js_AddStream(NULL, js, &sc, NULL, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("Pull with max waiting: ");
+//     jsSubOptions_Init(&so);
+//     so.Config.MaxWaiting = 2;
+//     s = js_PullSubscribe(&sub, js, "bar", "pullmaxwaiting", NULL, &so, &jerr);
+//     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
+
+//     test("Fill requests: ");
+//     // Send requests manually to use the max requests
+//     s = natsConnection_SubscribeSync(&sub2, nc, "my.pull.cons.inbox1");
+//     IFOK(s, natsConnection_SubscribeSync(&sub3, nc, "my.pull.cons.inbox2"));
+//     IFOK(s, natsConnection_PublishRequestString(nc, "$JS.API.CONSUMER.MSG.NEXT.TEST2.pullmaxwaiting", "my.pull.cons.inbox1", "{\"batch\":1,\"expires\":1000000000}"));
+//     IFOK(s, natsConnection_PublishRequestString(nc, "$JS.API.CONSUMER.MSG.NEXT.TEST2.pullmaxwaiting", "my.pull.cons.inbox1", "{\"batch\":1,\"expires\":1000000000}"));
+//     testCond(s == NATS_OK);
+
+//     test("Max waiting error: ");
+//     s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
+//     testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), "Exceeded") != NULL));
+//     nats_clearLastError();
+
+//     natsSubscription_Destroy(sub2);
+//     natsSubscription_Destroy(sub3);
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Max request batch: ");
+//     jsSubOptions_Init(&so);
+//     so.Config.MaxRequestBatch = 2;
+//     s = js_PullSubscribe(&sub, js, "baz", "max-request-batch", NULL, &so, &jerr);
+//     IFOK(s, natsSubscription_Fetch(&list, sub, 10, 1000, &jerr));
+//     testCond((s != NATS_OK) && (list.Count == 0) && (list.Msgs == NULL) && (jerr == 0)
+//                 && (strstr(nats_GetLastError(NULL), "MaxRequestBatch of 2") != NULL));
+//     nats_clearLastError();
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Max request expires: ");
+//     jsSubOptions_Init(&so);
+//     so.Config.MaxRequestExpires = NATS_MILLIS_TO_NANOS(50);
+//     s = js_PullSubscribe(&sub, js, "baz", "max-request-expires", NULL, &so, &jerr);
+//     IFOK(s, natsSubscription_Fetch(&list, sub, 10, 1000, &jerr));
+//     testCond((s != NATS_OK) && (list.Count == 0) && (list.Msgs == NULL) && (jerr == 0)
+//                 && (strstr(nats_GetLastError(NULL), "MaxRequestExpires of 50ms") != NULL));
+//     nats_clearLastError();
+
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Ephemeral pull allowed (NULL): ");
+//     s = js_PullSubscribe(&sub, js, "bar", NULL, NULL, NULL, &jerr);
+//     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
+
+//     test("Send a message: ");
+//     s = js_Publish(NULL, js, "bar", "hello", 5, NULL, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("Msgs received: ");
+//     s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
+//     testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0));
+
+//     natsMsgList_Destroy(&list);
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Ephemeral pull allowed (empty): ");
+//     s = js_PullSubscribe(&sub, js, "bar", "", NULL, NULL, &jerr);
+//     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
+
+//     test("Msgs received: ");
+//     s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
+//     testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0));
+
+//     natsMsgList_Destroy(&list);
+
+//     test("Fetch returns before 408: ");
+//     natsConn_setFilter(nc, _dropTimeoutProto);
+//     start = nats_Now();
+//     s = natsSubscription_Fetch(&list, sub, 1, 1000, NULL);
+//     dur = nats_Now() - start;
+//     testCond((s == NATS_TIMEOUT) && (list.Count == 0) && (dur >= 600));
+//     nats_clearLastError();
+
+//     test("Next Fetch waits for proper timeout: ");
+//     nats_Sleep(100);
+//     natsConn_setFilter(nc, NULL);
+//     natsMutex_Lock(args.m);
+//     args.nc = nc;
+//     args.sub = sub;
+//     args.string = "NATS/1.0 408 Request Timeout\r\n\r\n";
+//     // Will make the 408 sent to a subject ID with 1 while we are likely at 2 or above.
+//     // So this will be considered a "late" 408 timeout and should be ignored.
+//     args.sum = 1;
+//     natsMutex_Unlock(args.m);
+//     s = natsThread_Create(&t, _sendToPullSub, (void*) &args);
+//     start = nats_Now();
+//     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, NULL));
+//     dur = nats_Now() - start;
+//     testCond((s == NATS_TIMEOUT) && (list.Count == 0) && (dur >= 600));
+//     nats_clearLastError();
+
+//     natsThread_Join(t);
+//     natsThread_Destroy(t);
+//     t = NULL;
+
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("jsFetchRequest init bad args: ");
+//     s = jsFetchRequest_Init(NULL);
+//     testCond(s == NATS_INVALID_ARG);
+//     nats_clearLastError();
+
+//     test("Create pull consumer with MaxRequestBytes: ");
+//     jsSubOptions_Init(&so);
+//     so.Config.MaxRequestMaxBytes = 1024;
+//     s = js_PullSubscribe(&sub, js, "bat", "max-request-bytes", NULL, &so, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     jsFetchRequest_Init(&fr);
+
+//     test("FetchRequest bad args: ");
+//     s = natsSubscription_FetchRequest(NULL, sub, &fr);
+//     if (s == NATS_INVALID_ARG)
+//         s = natsSubscription_FetchRequest(&list, NULL, &fr);
+//     if (s == NATS_INVALID_ARG)
+//         s = natsSubscription_FetchRequest(&list, sub, NULL);
+//     testCond(s == NATS_INVALID_ARG);
+//     nats_clearLastError();
+
+//     test("FetchRequest no expiration err: ");
+//     jsFetchRequest_Init(&fr);
+//     // If NoWait is false, then Expires must be set.
+//     fr.Batch = 1;
+//     s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     testCond((s == NATS_INVALID_TIMEOUT && (list.Count == 0) && (list.Msgs == NULL)));
+//     nats_clearLastError();
+
+//     test("Batch must be set: ");
+//     jsFetchRequest_Init(&fr);
+//     fr.MaxBytes = 100;
+//     fr.Expires = NATS_SECONDS_TO_NANOS(1);
+//     s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     testCond((s == NATS_INVALID_ARG) && (list.Count == 0) && (list.Msgs == NULL));
+//     nats_clearLastError();
+
+//     test("MaxBytes must be > 0: ");
+//     jsFetchRequest_Init(&fr);
+//     fr.Batch = 1;
+//     fr.MaxBytes = -100;
+//     fr.Expires = NATS_SECONDS_TO_NANOS(1);
+//     s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     testCond((s == NATS_INVALID_ARG) && (list.Count == 0) && (list.Msgs == NULL));
+//     nats_clearLastError();
+
+//     test("Requesting more than allowed max bytes: ");
+//     jsFetchRequest_Init(&fr);
+//     fr.Batch = 1;
+//     fr.MaxBytes = 2048;
+//     fr.Expires = NATS_SECONDS_TO_NANOS(1);
+//     s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     testCond((s == NATS_ERR) && (list.Count == 0) && (list.Msgs == NULL)
+//                 && (strstr(nats_GetLastError(NULL), "Exceeded MaxRequestMaxBytes") != NULL));
+//     nats_clearLastError();
+
+//     test("No concurrent call: ");
+//     natsMutex_Lock(args.m);
+//     args.sub = sub;
+//     args.status = NATS_OK;
+//     natsMutex_Unlock(args.m);
+//     s = natsThread_Create(&t, _fetchRequest, (void*) &args);
+//     if (s == NATS_OK)
+//     {
+//         nats_Sleep(250);
+//         jsFetchRequest_Init(&fr);
+//         fr.Batch = 1;
+//         fr.Expires = NATS_SECONDS_TO_NANOS(1);
+//         s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     }
+//     testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), jsErrConcurrentFetchNotAllowed) != NULL));
+//     nats_clearLastError();
+//     s = NATS_OK;
+
+//     test("Populate: ");
+//     for (i=0; (s == NATS_OK) && (i<10); i++)
+//         s = js_PublishAsync(js, "bat", (const void*) "abcdefghij", 10, NULL);
+//     testCond(s == NATS_OK);
+
+//     test("Received ok: ");
+//     natsThread_Join(t);
+//     natsMutex_Lock(args.m);
+//     s = args.status;
+//     natsMutex_Unlock(args.m);
+//     testCond(s == NATS_OK);
+
+//     natsThread_Destroy(t);
+//     natsSubscription_Destroy(sub);
+//     sub = NULL;
+
+//     test("Create pull consumer: ");
+//     s = js_PullSubscribe(&sub, js, "box", "feth-request", NULL, NULL, &jerr);
+//     testCond((s == NATS_OK) && (jerr == 0));
+
+//     test("Populate: ");
+//     s = js_PublishAsync(js, "box", (const void*) "abcdefghij", 10, NULL);
+//     testCond(s == NATS_OK);
+
+//     test("Check expiration: ");
+//     // Unlike with the simple fetch, asking for more than is avail will
+//     // wait until expiration to return.
+//     jsFetchRequest_Init(&fr);
+//     fr.Batch = 10;
+//     fr.Expires = NATS_MILLIS_TO_NANOS(500);
+//     fr.Heartbeat = NATS_MILLIS_TO_NANOS(50);
+//     start = nats_Now();
+//     s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     dur = nats_Now() - start;
+//     testCond((s == NATS_OK) && (list.Count == 1) && (list.Msgs != NULL)
+//                 && (dur > 400) && (dur < 600));
+//     natsMsgList_Destroy(&list);
+
+// #if _WIN32
+//     nats_Sleep(1000);
+// #endif
+
+//     test("Check invalid hb: ");
+//     jsFetchRequest_Init(&fr);
+//     fr.Batch = 10;
+//     fr.Expires = NATS_SECONDS_TO_NANOS(1);
+//     fr.Heartbeat = NATS_SECONDS_TO_NANOS(10);
+//     s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), "too large") != NULL));
+//     nats_clearLastError();
+
+//     test("Check idle hearbeat: ");
+//     jsFetchRequest_Init(&fr);
+//     fr.Batch = 10;
+//     // Let's make it wait for 2 seconds
+//     fr.Expires = NATS_SECONDS_TO_NANOS(2);
+//     // And have HBs every 50ms
+//     fr.Heartbeat = NATS_MILLIS_TO_NANOS(50);
+//     // Set a message filter that will drop HB messages
+//     natsConn_setFilter(nc, _dropIdleHBs);
+//     start = nats_Now();
+//     // We should be kicked out of the fetch request with an error indicating
+//     // that we missed hearbeats.
+//     s = natsSubscription_FetchRequest(&list, sub, &fr);
+//     dur = nats_Now() - start;
+//     testCond((s == NATS_MISSED_HEARTBEAT) && (dur < 500));
+
+//     natsSubscription_Destroy(sub);
+//     JS_TEARDOWN;
+//     _destroyDefaultThreadArgs(&args);
+// }
+
+//<>/<>
+
 static void
-test_JetStreamSubscribePull(void)
+_recvPullAsync(natsConnection *nc, natsSubscription *sub, natsMsg *msg,
+                void *closure)
 {
-    natsStatus          s;
-    natsSubscription    *sub= NULL;
-    natsMsg             *msg = NULL;
-    jsErrCode           jerr= 0;
-    natsMsgList         list;
-    jsStreamConfig      sc;
-    jsSubOptions        so;
-    struct threadArg    args;
-    int64_t             start, dur;
-    int                 i;
-    natsThread          *t = NULL;
-    jsConsumerConfig    cc;
-    jsFetchRequest      fr;
-    natsSubscription    *sub2 = NULL;
-    natsSubscription    *sub3 = NULL;
+    struct threadArg *arg = (struct threadArg *)closure;
+
+    natsMutex_Lock(arg->m);
+    arg->sum++;
+
+    switch (arg->control)
+    {
+    case 1:
+    case 2:
+        if (arg->control == 1)
+        {
+            natsMsg_Ack(msg, NULL);
+        }
+        arg->msgReceived = true;
+        natsCondition_Signal(arg->c);
+        break;
+    }
+
+    natsMsg_Destroy(msg);
+    natsMutex_Unlock(arg->m);
+}
+
+static void
+_completePullAsync(natsConnection *nc, natsSubscription *sub, natsStatus exitStatus,
+                void *closure)
+{
+    struct threadArg *arg = (struct threadArg *)closure;
+    natsMutex_Lock(arg->m);
+    arg->closed = true;
+    arg->status = exitStatus;
+    natsCondition_Broadcast(arg->c);
+    natsMutex_Unlock(arg->m);
+}
+
+static bool 
+_testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, natsStatus expectedStatus, int expectedMsgs)
+{
+    natsStatus s = NATS_OK;
+    natsMutex_Lock(args->m);
+    while ((s != NATS_TIMEOUT) && !args->closed)
+        s = natsCondition_TimedWait(args->c, args->m, waitMS);
+
+    bool result = ((s == NATS_OK) && 
+        args->closed && 
+        (args->status == expectedStatus) && 
+        (args->sum == expectedMsgs) &&
+        !natsSubscription_IsValid(sub));
+
+    natsMutex_Unlock(args->m);
+    return result;
+}
+
+static void
+test_JetStreamSubscribePullAsync(void)
+{
+    natsStatus s;
+    natsSubscription *sub = NULL;
+    natsMsg *msg = NULL;
+    jsErrCode jerr = 0;
+    natsMsgList list;
+    jsStreamConfig sc;
+    jsOptions jsOpts;
+    jsSubOptions so;
+    struct threadArg args;
+    int64_t start, dur;
+    int i;
+    natsThread *t = NULL;
+    jsConsumerConfig cc;
+    jsFetchRequest fr;
+    natsSubscription *sub2 = NULL;
+    natsSubscription *sub3 = NULL;
 
     JS_SETUP(2, 9, 2);
 
@@ -28613,65 +29218,25 @@ test_JetStreamSubscribePull(void)
     if (s != NATS_OK)
         FAIL("Unable to setup test");
 
-    test("Create pull sub (invalid args): ");
-    s = js_PullSubscribe(NULL, js, "foo", "dur", NULL, NULL, &jerr);
+    // TEST various error conditions.
+
+    test("Create pull sub async (invalid args): ");
+    s = js_PullSubscribeAsync(NULL, js, "foo", "dur", _recvPullAsync, &args, NULL, NULL, NULL, &jerr);
     if (s == NATS_INVALID_ARG)
-        s = js_PullSubscribe(&sub, NULL, "foo", "dur", NULL, NULL, &jerr);
+        s = js_PullSubscribeAsync(&sub, NULL, "foo", "dur", _recvPullAsync, &args, NULL, NULL, NULL, &jerr);
     if (s == NATS_INVALID_ARG)
-        s = js_PullSubscribe(&sub, js, NULL, "dur", NULL, NULL, &jerr);
+        s = js_PullSubscribeAsync(&sub, js, NULL, "dur", _recvPullAsync, &args, NULL, NULL, NULL, &jerr);
     if (s == NATS_INVALID_ARG)
-        s = js_PullSubscribe(&sub, js, "", "dur", NULL, NULL, &jerr);
+        s = js_PullSubscribeAsync(NULL, js, "", "dur", _recvPullAsync, &args, NULL, NULL, NULL, &jerr);
+    if (s == NATS_INVALID_ARG)
+        s = js_PullSubscribeAsync(&sub, js, "foo", "dur", NULL, &args, NULL, NULL, NULL, &jerr);
     testCond((s == NATS_INVALID_ARG) && (sub == NULL) && (jerr == 0));
     nats_clearLastError();
-
-    test("Create reg sync sub: ");
-    s = natsConnection_SubscribeSync(&sub, nc, "foo");
-    testCond((s == NATS_OK) && (sub != NULL));
-
-    test("Fetch bad args: ");
-    s = natsSubscription_Fetch(NULL, sub, 1, 1000, NULL);
-    if (s == NATS_INVALID_ARG)
-        s = natsSubscription_Fetch(&list, NULL, 1, 1000, NULL);
-    if (s == NATS_INVALID_ARG)
-        s = natsSubscription_Fetch(&list, sub, 0, 1000, NULL);
-    if (s == NATS_INVALID_ARG)
-        s = natsSubscription_Fetch(&list, sub, -1, 1000, NULL);
-    testCond(s == NATS_INVALID_ARG);
-    nats_clearLastError();
-
-    test("Fetch bad timeout: ");
-    s = natsSubscription_Fetch(&list, sub, 1, 0, NULL);
-    if (s == NATS_INVALID_TIMEOUT)
-        s = natsSubscription_Fetch(&list, sub, 1, -1, NULL);
-    testCond(s == NATS_INVALID_TIMEOUT);
-    nats_clearLastError();
-
-    test("Fetch bad sub: ");
-    s = natsSubscription_Fetch(&list, sub, 1, 1000, NULL);
-    testCond((s == NATS_INVALID_SUBSCRIPTION)
-                && (strstr(nats_GetLastError(NULL), jsErrNotAPullSubscription) != NULL));
-    nats_clearLastError();
-
-    natsSubscription_Destroy(sub);
-    sub = NULL;
-
-    test("Create reg async sub: ");
-    s = natsConnection_Subscribe(&sub, nc, "foo", _dummyMsgHandler, NULL);
-    testCond((s == NATS_OK) && (sub != NULL));
-
-    test("Fetch bad sub: ");
-    s = natsSubscription_Fetch(&list, sub, 1, 1000, NULL);
-    testCond((s == NATS_INVALID_SUBSCRIPTION)
-                && (strstr(nats_GetLastError(NULL), jsErrNotAPullSubscription) != NULL));
-    nats_clearLastError();
-
-    natsSubscription_Destroy(sub);
-    sub = NULL;
 
     test("Create stream: ");
     jsStreamConfig_Init(&sc);
     sc.Name = "TEST";
-    sc.Subjects = (const char*[1]){"foo"};
+    sc.Subjects = (const char *[1]){"foo"};
     sc.SubjectsLen = 1;
     s = js_AddStream(NULL, js, &sc, NULL, &jerr);
     testCond((s == NATS_OK) && (jerr == 0));
@@ -28679,7 +29244,7 @@ test_JetStreamSubscribePull(void)
     test("AckNone ok: ");
     jsSubOptions_Init(&so);
     so.Config.AckPolicy = js_AckNone;
-    s = js_PullSubscribe(&sub, js, "foo", "ackNone", NULL, &so, &jerr);
+    s = js_PullSubscribeAsync(&sub, js, "foo", "ackNone", _recvPullAsync, &args, NULL, NULL, &so, &jerr);
     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
     natsSubscription_Unsubscribe(sub);
     natsSubscription_Destroy(sub);
@@ -28688,7 +29253,7 @@ test_JetStreamSubscribePull(void)
     test("AckAll ok: ");
     jsSubOptions_Init(&so);
     so.Config.AckPolicy = js_AckAll;
-    s = js_PullSubscribe(&sub, js, "foo", "ackAll", NULL, &so, &jerr);
+    s = js_PullSubscribeAsync(&sub, js, "foo", "ackAll", _recvPullAsync, &args, NULL, NULL, &so, &jerr);
     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
     natsSubscription_Unsubscribe(sub);
     natsSubscription_Destroy(sub);
@@ -28702,113 +29267,226 @@ test_JetStreamSubscribePull(void)
     testCond((s == NATS_OK) && (jerr == 0));
 
     test("Try create pull sub from push consumer: ");
-    s = js_PullSubscribe(&sub, js, "foo", "push_dur", NULL, NULL, &jerr);
-    testCond((s == NATS_ERR) && (sub == NULL) && (jerr == 0)
-                && (strstr(nats_GetLastError(NULL), jsErrPullSubscribeToPushConsumer) != NULL));
+    s = js_PullSubscribeAsync(&sub, js, "foo", "push_dur", _recvPullAsync, &args, NULL, NULL, &so, &jerr);
+    testCond((s == NATS_ERR) && (sub == NULL) && (jerr == 0) && (strstr(nats_GetLastError(NULL), jsErrPullSubscribeToPushConsumer) != NULL));
     nats_clearLastError();
 
     test("Create pull bound failure: ");
     jsSubOptions_Init(&so);
     so.Stream = "TEST";
     so.Consumer = "bar";
-    s = js_PullSubscribe(&sub, js, "foo", "bar", NULL, &so, &jerr);
+    s = js_PullSubscribeAsync(&sub, js, "foo", "bar", _recvPullAsync, &args, NULL, NULL, &so, &jerr);
     testCond((s == NATS_NOT_FOUND) && (sub == NULL) && (jerr == JSConsumerNotFoundErr));
     nats_clearLastError();
 
-    test("Create pull sub: ");
+    // TEST real subscription, auto-ack.
+
+    test("js_PullAsyncSubscribe for real, manual ack: ");
+    // Signal as soon as we get the first message.
+    args.control = 2; // don't ack
+
     jsSubOptions_Init(&so);
     so.Config.MaxAckPending = 10;
     so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
-    s = js_PullSubscribe(&sub, js, "foo", "dur", NULL, &so, &jerr);
+    so.ManualAck = true;
+    s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, NULL, NULL, &so, &jerr);
     testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
 
     test("Can't call NextMsg: ");
     s = natsSubscription_NextMsg(&msg, sub, 1000);
-    testCond((s == NATS_INVALID_SUBSCRIPTION) && (msg == NULL)
-                && (strstr(nats_GetLastError(NULL), jsErrNotApplicableToPullSub) != NULL));
+    testCond((s == NATS_ILLEGAL_STATE) && (msg == NULL));
     nats_clearLastError();
 
-    test("Fetch, no msg avail, timeout: ");
-    start = nats_Now();
+    test("Can't call Fetch: ");
     s = natsSubscription_Fetch(&list, sub, 1, 500, &jerr);
-    dur = nats_Now() - start;
-    testCond((s == NATS_TIMEOUT) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0)
-                && (dur >= 450) && (dur <= 600));
+    testCond((s == NATS_ERR) && (msg == NULL) && (strstr(nats_GetLastError(NULL), jsErrConcurrentFetchNotAllowed) != NULL));
     nats_clearLastError();
 
-    test("Send a message: ");
-    s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
-    testCond((s == NATS_OK) && (jerr == 0));
-
-    test("Fetch batch 1: ");
-    start = nats_Now();
-    s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
-    dur = nats_Now() - start;
-    testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0)
-                && (dur <= 500));
-
-    test("Ack: ");
-    for (i=0; (s == NATS_OK) && (i<list.Count); i++)
-        s = natsMsg_AckSync(list.Msgs[i], NULL, &jerr);
-    natsMsgList_Destroy(&list);
-    testCond((s == NATS_OK) && (jerr == 0));
+    int noMessageTimeout = 20;
+    int messageArrivesImmediatelyTimeout = 10;
+    int ackTimeout = (int)(so.Config.AckWait / 1E6) + 100;
+    testf("No messages yet, timeout in %dms: ", noMessageTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, noMessageTimeout);
+    testCond(s == NATS_TIMEOUT);
+    natsMutex_Unlock(args.m);
 
     test("Send a message: ");
     s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
     testCond((s == NATS_OK) && (jerr == 0));
 
-    test("Fetch batch more than avail: ");
-    start = nats_Now();
-    s = natsSubscription_Fetch(&list, sub, 5, 1000, &jerr);
-    dur = nats_Now() - start;
-    testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0)
-                && (dur <= 500));
+    testf("Arrives in under %dms: ", messageArrivesImmediatelyTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
+    testCond((s == NATS_OK) && args.msgReceived);
+    args.msgReceived = false;
+    natsMutex_Unlock(args.m);
 
-    test("Ack: ");
-    for (i=0; (s == NATS_OK) && (i<list.Count); i++)
-        s = natsMsg_Ack(list.Msgs[i], NULL);
-    natsMsgList_Destroy(&list);
+    testf("No more messages yet, timeout in %dms: ", noMessageTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, noMessageTimeout);
+    testCond(s == NATS_TIMEOUT);
+    s = NATS_OK;
+    args.msgReceived = false;
+    args.control = 1; // ack next
+    natsMutex_Unlock(args.m);
+
+    testf("Wait another so.Config.AckWait+100 = %dms and see that the message is re-delivered, ACK it: ", ackTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, ackTimeout);
     testCond(s == NATS_OK);
+    args.msgReceived = false;
+    natsMutex_Unlock(args.m);
 
-    test("Start thread to send: ");
-    s = natsThread_Create(&t, _jsPubThread, (void*) js);
-    testCond(s == NATS_OK);
+    testf("Wait another so.Config.AckWait+100 = %dms and see that the message is not re-delivered: ", ackTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, ackTimeout);
+    testCond((s == NATS_TIMEOUT) && !args.msgReceived);
+    s = NATS_OK;
+    natsMutex_Unlock(args.m);
 
-    test("Fetch: ");
-    {
-        int got = 0;
+    natsSubscription_Destroy(sub);
+    sub = NULL;
 
-        while ((s == NATS_OK) && (got != 5))
+    // TEST exit criterion.
+    int batchWaitTimeout = 100; // milliseconds
+    typedef struct {
+        const char *name;
+        bool noWait;
+        int want;
+        int before;
+        int during;
+        int fetchSize;
+        natsStatus expectedStatus;
+        int expectedN;
+    } nowaitTC_t;
+    nowaitTC_t nowaitTCs[] = {
         {
-            s = natsSubscription_Fetch(&list, sub, 5-got, 2000, &jerr);
-            if (s == NATS_OK)
-                got += list.Count;
-            // Destroy msgs without ack'ing them.
-            natsMsgList_Destroy(&list);
-        }
-        testCond(s == NATS_OK);
+            .name = "single fetch NOWAIT, partially fulfilled NATS_TIMEOUT",
+            .noWait = true,
+            .want = 1000,
+            .before = 2,
+            .fetchSize = 13,
+            .expectedStatus = NATS_TIMEOUT,
+            .expectedN = 2,
+        },
+        {
+            .name = "multi-fetch NOWAIT, partially fulfilled NATS_TIMEOUT",
+            .noWait = true,
+            .want = 1000,
+            .before = 117,
+            .fetchSize = 14,
+            .expectedStatus = NATS_TIMEOUT,
+            .expectedN = 117,
+        },
+        {
+            .name = "fetch NOWAIT can get a NATS_NOT_FOUND immediately",
+            .noWait = true,
+            .want = 1000,
+            .before = 0,
+            .fetchSize = 5,
+            .expectedStatus = NATS_NOT_FOUND, // on the second request, since there are no messages waiting.
+            .expectedN = 0,
+        },
+        {
+            .name = "fetch NOWAIT can get a NATS_NOT_FOUND on Nth request",
+            .noWait = true,
+            .want = 1000,
+            .before = 10,
+            .fetchSize = 5,
+            .expectedStatus = NATS_NOT_FOUND, // on the second request, since there are no messages waiting.
+            .expectedN = 10,
+        },
+        {
+            .name = "single fetch NOWAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .noWait = true,
+            .want = 2,
+            .before = 20,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 2,
+        },
+        {
+            .name = "multi-fetch NOWAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .noWait = true,
+            .want = 100,
+            .before = 117,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 100,
+        },
+        {
+            .name = "single fetch, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .noWait = false,
+            .want = 2,
+            .before = 20,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 2,
+        },
+        {
+            .name = "multi-fetch WAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .noWait = false,
+            .want = 100,
+            .before = 117,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 100,
+        },
+        // FIXME MaxBytes
+        {
+            .name = NULL,
+        },
+    };
+    for (nowaitTC_t *tc=nowaitTCs; tc->name != NULL; tc++)
+    {
+        natsSubscription_Destroy(sub);    
+
+        for (int i=0; (s == NATS_OK) && (i < tc->before); i++)
+            s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+        if(s != NATS_OK)
+            FAIL("Failed to publish, unusual");
+
+        natsMutex_Lock(args.m);
+        args.control = 0; // don't ack, will be auto-ack
+        args.status = NATS_OK; // batch exit status will be here
+        args.msgReceived = false;
+        args.closed = false;
+        args.sum = 0;
+        jsSubOptions_Init(&so);
+        jsOptions_Init(&jsOpts);
+        so.Config.MaxAckPending = 10;
+        so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
+        so.ManualAck = false;
+        jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+        jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
+        jsOpts.PullSubscribeAsync.FetchSize = tc->fetchSize;
+        jsFetchRequest lifetime = {
+            .Batch = tc->want,
+            .NoWait = tc->noWait,
+        };
+        s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
+        if ((s != NATS_OK) && (sub == NULL) && (jerr != 0))
+            FAIL("Failed to create pull subscription, unusual");
+        natsMutex_Unlock(args.m);
+
+        testf("%s: ", tc->name);
+        testCond(_testBatchCompleted(
+                &args, sub, batchWaitTimeout, tc->expectedStatus, tc->expectedN));
     }
 
-    // Wait for AckWait and messages should be redelivered.
-    nats_Sleep(500);
+    natsSubscription_Destroy(sub);
 
-    test("Fetch get redelivered msgs: ");
-    s = natsSubscription_Fetch(&list, sub, 5, 2000, &jerr);
-    testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 5) && (jerr == 0));
-
-    test("Ack: ");
-    for (i=0; (s == NATS_OK) && (i<list.Count); i++)
-        s = natsMsg_Ack(list.Msgs[i], NULL);
-    natsMsgList_Destroy(&list);
-    testCond(s == NATS_OK);
-
-    natsThread_Join(t);
-    natsThread_Destroy(t);
-    t = NULL;
+    return; // <>/<>
 
     test("Receive msg with header no data: ");
-    s = natsMsg_create(&msg, sub->subject, (int) strlen(sub->subject), NULL, 0,
-                        "NATS/1.0\r\nk:v\r\n\r\n", 17, 17);
+    s = natsMsg_create(&msg, sub->subject, (int)strlen(sub->subject), NULL, 0,
+                       "NATS/1.0\r\nk:v\r\n\r\n", 17, 17);
     IFOK(s, natsConnection_PublishMsg(nc, msg));
     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, &jerr));
     testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0));
@@ -28820,8 +29498,8 @@ test_JetStreamSubscribePull(void)
     _waitSubPending(sub, 0);
 
     test("Msg with 404 status present before fetch: ");
-    s = natsMsg_create(&msg, sub->subject, (int) strlen(sub->subject), NULL, 0,
-                        "NATS/1.0 404 No Messages\r\n\r\n", 28, 28);
+    s = natsMsg_create(&msg, sub->subject, (int)strlen(sub->subject), NULL, 0,
+                       "NATS/1.0 404 No Messages\r\n\r\n", 28, 28);
     IFOK(s, natsConnection_PublishMsg(nc, msg));
     if (s == NATS_OK)
         _waitSubPending(sub, 1);
@@ -28843,12 +29521,11 @@ test_JetStreamSubscribePull(void)
     args.string = "NATS/1.0 408 Request Timeout\r\n\r\n";
     natsMutex_Unlock(args.m);
     start = nats_Now();
-    s = natsThread_Create(&t, _sendToPullSub, (void*) &args);
+    s = natsThread_Create(&t, _sendToPullSub, (void *)&args);
     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, &jerr));
     dur = nats_Now() - start;
     // Since we wait 250ms to publish, it will take aound 250ms
-    testCond((s == NATS_TIMEOUT) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0)
-                && (dur < 500));
+    testCond((s == NATS_TIMEOUT) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0) && (dur < 500));
     nats_clearLastError();
     natsMsgList_Destroy(&list);
 
@@ -28860,7 +29537,7 @@ test_JetStreamSubscribePull(void)
     natsMutex_Lock(args.m);
     args.string = "NATS/1.0 503\r\n\r\n";
     natsMutex_Unlock(args.m);
-    s = natsThread_Create(&t, _sendToPullSub, (void*) &args);
+    s = natsThread_Create(&t, _sendToPullSub, (void *)&args);
     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 10000, &jerr));
     testCond((s == NATS_NO_RESPONDERS) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0));
     nats_clearLastError();
@@ -28876,7 +29553,7 @@ test_JetStreamSubscribePull(void)
     test("Create stream: ");
     jsStreamConfig_Init(&sc);
     sc.Name = "TEST2";
-    sc.Subjects = (const char*[4]){"bar", "baz", "bat", "box"};
+    sc.Subjects = (const char *[4]){"bar", "baz", "bat", "box"};
     sc.SubjectsLen = 4;
     s = js_AddStream(NULL, js, &sc, NULL, &jerr);
     testCond((s == NATS_OK) && (jerr == 0));
@@ -28910,8 +29587,7 @@ test_JetStreamSubscribePull(void)
     so.Config.MaxRequestBatch = 2;
     s = js_PullSubscribe(&sub, js, "baz", "max-request-batch", NULL, &so, &jerr);
     IFOK(s, natsSubscription_Fetch(&list, sub, 10, 1000, &jerr));
-    testCond((s != NATS_OK) && (list.Count == 0) && (list.Msgs == NULL) && (jerr == 0)
-                && (strstr(nats_GetLastError(NULL), "MaxRequestBatch of 2") != NULL));
+    testCond((s != NATS_OK) && (list.Count == 0) && (list.Msgs == NULL) && (jerr == 0) && (strstr(nats_GetLastError(NULL), "MaxRequestBatch of 2") != NULL));
     nats_clearLastError();
     natsSubscription_Destroy(sub);
     sub = NULL;
@@ -28921,8 +29597,7 @@ test_JetStreamSubscribePull(void)
     so.Config.MaxRequestExpires = NATS_MILLIS_TO_NANOS(50);
     s = js_PullSubscribe(&sub, js, "baz", "max-request-expires", NULL, &so, &jerr);
     IFOK(s, natsSubscription_Fetch(&list, sub, 10, 1000, &jerr));
-    testCond((s != NATS_OK) && (list.Count == 0) && (list.Msgs == NULL) && (jerr == 0)
-                && (strstr(nats_GetLastError(NULL), "MaxRequestExpires of 50ms") != NULL));
+    testCond((s != NATS_OK) && (list.Count == 0) && (list.Msgs == NULL) && (jerr == 0) && (strstr(nats_GetLastError(NULL), "MaxRequestExpires of 50ms") != NULL));
     nats_clearLastError();
 
     natsSubscription_Destroy(sub);
@@ -28973,7 +29648,7 @@ test_JetStreamSubscribePull(void)
     // So this will be considered a "late" 408 timeout and should be ignored.
     args.sum = 1;
     natsMutex_Unlock(args.m);
-    s = natsThread_Create(&t, _sendToPullSub, (void*) &args);
+    s = natsThread_Create(&t, _sendToPullSub, (void *)&args);
     start = nats_Now();
     IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, NULL));
     dur = nats_Now() - start;
@@ -29040,8 +29715,7 @@ test_JetStreamSubscribePull(void)
     fr.MaxBytes = 2048;
     fr.Expires = NATS_SECONDS_TO_NANOS(1);
     s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_ERR) && (list.Count == 0) && (list.Msgs == NULL)
-                && (strstr(nats_GetLastError(NULL), "Exceeded MaxRequestMaxBytes") != NULL));
+    testCond((s == NATS_ERR) && (list.Count == 0) && (list.Msgs == NULL) && (strstr(nats_GetLastError(NULL), "Exceeded MaxRequestMaxBytes") != NULL));
     nats_clearLastError();
 
     test("No concurrent call: ");
@@ -29049,7 +29723,7 @@ test_JetStreamSubscribePull(void)
     args.sub = sub;
     args.status = NATS_OK;
     natsMutex_Unlock(args.m);
-    s = natsThread_Create(&t, _fetchRequest, (void*) &args);
+    s = natsThread_Create(&t, _fetchRequest, (void *)&args);
     if (s == NATS_OK)
     {
         nats_Sleep(250);
@@ -29063,8 +29737,8 @@ test_JetStreamSubscribePull(void)
     s = NATS_OK;
 
     test("Populate: ");
-    for (i=0; (s == NATS_OK) && (i<10); i++)
-        s = js_PublishAsync(js, "bat", (const void*) "abcdefghij", 10, NULL);
+    for (i = 0; (s == NATS_OK) && (i < 10); i++)
+        s = js_PublishAsync(js, "bat", (const void *)"abcdefghij", 10, NULL);
     testCond(s == NATS_OK);
 
     test("Received ok: ");
@@ -29083,7 +29757,7 @@ test_JetStreamSubscribePull(void)
     testCond((s == NATS_OK) && (jerr == 0));
 
     test("Populate: ");
-    s = js_PublishAsync(js, "box", (const void*) "abcdefghij", 10, NULL);
+    s = js_PublishAsync(js, "box", (const void *)"abcdefghij", 10, NULL);
     testCond(s == NATS_OK);
 
     test("Check expiration: ");
@@ -29096,8 +29770,7 @@ test_JetStreamSubscribePull(void)
     start = nats_Now();
     s = natsSubscription_FetchRequest(&list, sub, &fr);
     dur = nats_Now() - start;
-    testCond((s == NATS_OK) && (list.Count == 1) && (list.Msgs != NULL)
-                && (dur > 400) && (dur < 600));
+    testCond((s == NATS_OK) && (list.Count == 1) && (list.Msgs != NULL) && (dur > 400) && (dur < 600));
     natsMsgList_Destroy(&list);
 
 #if _WIN32
@@ -36609,7 +37282,8 @@ static testInfo allTests[] =
     {"JetStreamSubscribeConfigCheck",   test_JetStreamSubscribeConfigCheck},
     {"JetStreamSubscribeIdleHeartbeat", test_JetStreamSubscribeIdleHearbeat},
     {"JetStreamSubscribeFlowControl",   test_JetStreamSubscribeFlowControl},
-    {"JetStreamSubscribePull",          test_JetStreamSubscribePull},
+    // {"JetStreamSubscribePull",          test_JetStreamSubscribePull},
+    {"JetStreamSubscribePullAsync",     test_JetStreamSubscribePullAsync},
     {"JetStreamSubscribeHeadersOnly",   test_JetStreamSubscribeHeadersOnly},
     {"JetStreamOrderedCons",            test_JetStreamOrderedConsumer},
     {"JetStreamOrderedConsWithErrors",  test_JetStreamOrderedConsumerWithErrors},

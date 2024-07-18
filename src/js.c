@@ -1833,7 +1833,6 @@ _sendPullRequest(natsConnection *nc, const char *subj, const char *rply,
     IFOK(s, natsConnection_PublishRequest(nc, subj, rply,
         natsBuf_Data(buf), natsBuf_Len(buf)));
 
-    printf("<>/<> Sent PULL REQUEST: '%s' '%s' %.*s\n", subj, rply, natsBuf_Len(buf), natsBuf_Data(buf));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -2949,7 +2948,7 @@ static bool _autoNextFetchRequest(jsFetchRequest *req, natsSubscription *sub, vo
 
     int isAhead = fetch->requestedMsgs - fetch->deliveredMsgs;
     int wantAhead = fetch->keepAhead;
-    if (isAhead >= wantAhead)
+    if (isAhead > wantAhead)
         maybeMore = false;
 
     if (maybeMore)
@@ -2991,28 +2990,31 @@ static bool _autoNextFetchRequest(jsFetchRequest *req, natsSubscription *sub, vo
 }
 
 natsStatus
-js_PullSubscribeAsync(natsSubscription * *newsub, jsCtx * js, const char *subject, const char *durable,
-                natsMsgHandler msgCB, void *msgCBClosure,
-                jsFetchRequest *lifetime,
-                jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode)
+js_PullSubscribeAsync(natsSubscription **newsub, jsCtx *js, const char *subject, const char *durable,
+                      natsMsgHandler msgCB, void *msgCBClosure,
+                      jsFetchRequest *lifetime,
+                      jsOptions *jsOpts, jsSubOptions *opts, jsErrCode *errCode)
 {
     natsStatus s = NATS_OK;
     natsSubscription *sub = NULL;
     jsSub *jsi = NULL;
     jsFetch *fetch = NULL;
     jsFetchRequest defaultLifetime = {
-        .Batch = INT_MAX, // no limit
+        .Batch = INT_MAX,     // no limit
         .Expires = INT64_MAX, // never
-        .Heartbeat = 0,  // none
-        .MaxBytes = 0,   // no limit
-        .NoWait = false, // wait forever
+        .Heartbeat = 0,       // none
+        .MaxBytes = 0,        // no limit
+        .NoWait = false,      // wait forever
     };
+
+    if ((newsub == NULL) || (msgCB == NULL))
+        return nats_setDefaultError(NATS_INVALID_ARG);
 
     if (errCode != NULL)
         *errCode = 0;
 
     if (lifetime == NULL)
-        lifetime = &defaultLifetime;    
+        lifetime = &defaultLifetime;
 
     // Do a basic pull subscribe first, but with a callback so it is treated as
     // "async" and assigned to a dispatcher. Since we don't fetch anything, it
@@ -3046,7 +3048,7 @@ js_PullSubscribeAsync(natsSubscription * *newsub, jsCtx * js, const char *subjec
             }
         }
 
-        if (fetch->fetchSize ==0)
+        if (fetch->fetchSize == 0)
             fetch->fetchSize = NATS_DEFAULT_ASYNC_FETCH_SIZE;
     }
 
