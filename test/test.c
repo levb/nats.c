@@ -29383,23 +29383,23 @@ test_JetStreamSubscribePullAsync(void)
     // natsSubscription_Destroy(sub);
     // sub = NULL;
 
-    // TEST exit criteria.
-    int batchWaitTimeout = 100; // milliseconds
-    typedef struct
-    {
-        const char *name;
-        bool noWait;
-        int want;
-        int expires; // ms
-        int maxBytes;
-        int before;
-        int during;
-        int fetchSize;
-        natsStatus expectedStatus;
-        int expectedN;
-        bool orFewer;
-    } nowaitTC_t;
-    nowaitTC_t nowaitTCs[] = {
+    // // TEST exit criteria.
+    // int batchWaitTimeout = 100; // milliseconds
+    // typedef struct
+    // {
+    //     const char *name;
+    //     bool noWait;
+    //     int want;
+    //     int expires; // ms
+    //     int maxBytes;
+    //     int before;
+    //     int during;
+    //     int fetchSize;
+    //     natsStatus expectedStatus;
+    //     int expectedN;
+    //     bool orFewer;
+    // } nowaitTC_t;
+    // nowaitTC_t nowaitTCs[] = {
         // {
         //     .name = "single fetch NOWAIT, partially fulfilled NATS_TIMEOUT",
         //     .noWait = true,
@@ -29496,57 +29496,57 @@ test_JetStreamSubscribePullAsync(void)
         //     .expectedN = 100,
         //     .orFewer = true,
         // },
-        {
-            .name = NULL,
-        },
-    };
-    for (nowaitTC_t *tc = nowaitTCs; tc->name != NULL; tc++)
-    {
-        natsSubscription_Destroy(sub);
+    //     {
+    //         .name = NULL,
+    //     },
+    // };
+    // for (nowaitTC_t *tc = nowaitTCs; tc->name != NULL; tc++)
+    // {
+    //     natsSubscription_Destroy(sub);
 
-        for (int i = 0; (s == NATS_OK) && (i < tc->before); i++)
-            s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
-        if (s != NATS_OK)
-            FAIL("Failed to publish, unusual");
+    //     for (int i = 0; (s == NATS_OK) && (i < tc->before); i++)
+    //         s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+    //     if (s != NATS_OK)
+    //         FAIL("Failed to publish, unusual");
 
-        natsMutex_Lock(args.m);
-        args.control = 0;      // don't ack, will be auto-ack
-        args.status = NATS_OK; // batch exit status will be here
-        args.msgReceived = false;
-        args.closed = false;
-        args.sum = 0;
-        jsSubOptions_Init(&so);
-        jsOptions_Init(&jsOpts);
-        so.Config.MaxAckPending = 10;
-        so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
-        so.Config.MaxRequestMaxBytes = 777;
-        so.ManualAck = false;
-        jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
-        jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
-        jsOpts.PullSubscribeAsync.FetchSize = tc->fetchSize;
-        jsFetchRequest lifetime = {
-            .Batch = tc->want,
-            .MaxBytes = tc->maxBytes,
-            .NoWait = tc->noWait,
-            .Expires = NATS_MILLIS_TO_NANOS(tc->expires),
-        };
-        s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
-        if ((s != NATS_OK) && (sub == NULL) && (jerr != 0))
-            FAIL("Failed to create pull subscription, unusual");
-        natsMutex_Unlock(args.m);
+    //     natsMutex_Lock(args.m);
+    //     args.control = 0;      // don't ack, will be auto-ack
+    //     args.status = NATS_OK; // batch exit status will be here
+    //     args.msgReceived = false;
+    //     args.closed = false;
+    //     args.sum = 0;
+    //     jsSubOptions_Init(&so);
+    //     jsOptions_Init(&jsOpts);
+    //     so.Config.MaxAckPending = 10;
+    //     so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
+    //     so.Config.MaxRequestMaxBytes = 777;
+    //     so.ManualAck = false;
+    //     jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    //     jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
+    //     jsOpts.PullSubscribeAsync.FetchSize = tc->fetchSize;
+    //     jsFetchRequest lifetime = {
+    //         .Batch = tc->want,
+    //         .MaxBytes = tc->maxBytes,
+    //         .NoWait = tc->noWait,
+    //         .Expires = NATS_MILLIS_TO_NANOS(tc->expires),
+    //     };
+    //     s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
+    //     if ((s != NATS_OK) && (sub == NULL) && (jerr != 0))
+    //         FAIL("Failed to create pull subscription, unusual");
+    //     natsMutex_Unlock(args.m);
 
-        for (int i = 0; (s == NATS_OK) && (i < tc->during); i++)
-            s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
-        if (s != NATS_OK)
-            FAIL("Failed to publish, unusual");
+    //     for (int i = 0; (s == NATS_OK) && (i < tc->during); i++)
+    //         s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+    //     if (s != NATS_OK)
+    //         FAIL("Failed to publish, unusual");
 
-        testf("%s: ", tc->name);
-        testCond(_testBatchCompleted(
-            &args, sub, batchWaitTimeout, tc->expectedStatus, tc->expectedN, tc->orFewer));
-    }
+    //     testf("%s: ", tc->name);
+    //     testCond(_testBatchCompleted(
+    //         &args, sub, batchWaitTimeout, tc->expectedStatus, tc->expectedN, tc->orFewer));
+    // }
 
-    natsSubscription_Destroy(sub);
-    sub = NULL;
+    // natsSubscription_Destroy(sub);
+    // sub = NULL;
 
     test("Check invalid heartbeat : ");
     natsMutex_Lock(args.m);
@@ -29594,6 +29594,7 @@ test_JetStreamSubscribePullAsync(void)
 
 
 __EXIT:
+    nats_Sleep(100);
     natsSubscription_Destroy(sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);

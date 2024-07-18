@@ -53,6 +53,8 @@ static inline void _freeControlMessages(natsSubscription *sub)
     if (sub->control == NULL)
         return;
 
+    printf("<>/<> FREE CONTROL for '%s'\n", sub->subject);
+
     _destroyControlMessage(sub->control->sub.timeout);
     _destroyControlMessage(sub->control->sub.close);
     _destroyControlMessage(sub->control->sub.drain);
