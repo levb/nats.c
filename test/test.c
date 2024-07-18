@@ -29184,23 +29184,22 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
 
     bool result = ((s == NATS_OK) &&
                    args->closed &&
-                   (args->status == expectedStatus) &&
-                   !natsSubscription_IsValid(sub));
+                   (args->status == expectedStatus));
 
     if (orFewer)
         result = result && (args->sum <= expectedMsgs);
     else
         result = result && (args->sum == expectedMsgs);
 
+    // We may get called before the delivery thread terminates the sub, if so
+    // give it another try.
+    if (natsSubscription_IsValid(sub))
+        nats_Sleep(1);
+    result = result && !natsSubscription_IsValid(sub);
+    
     printf("TEST GOT: %d %d\n", args->status, args->sum);
     if (!result)
     {
-        if (natsSubscription_IsValid(sub))
-        {
-            printf("<>/<> Sub is still valid, sleep...\n");
-            nats_Sleep(100);
-            printf("<>/<> Sub valid: %d\n", natsSubscription_IsValid(sub));
-        }
         printf("TEST Failed: %d %d %d %d %d\n", s, args->closed, args->status, args->sum, natsSubscription_IsValid(sub));
     }
 
