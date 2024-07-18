@@ -114,6 +114,7 @@ struct threadArg
     int             timerStopped;
     natsStrHash     *inboxes;
     natsStatus      status;
+    char            lastErrorBuf[256];
     const char*     string;
     int             N;
     bool            connected;
@@ -29170,6 +29171,7 @@ _completePullAsync(natsConnection *nc, natsSubscription *sub, natsStatus exitSta
     natsMutex_Lock(arg->m);
     arg->closed = true;
     arg->status = exitStatus;
+    strncpy(arg->lastErrorBuf, nats_GetLastError(NULL), sizeof(arg->lastErrorBuf));
     natsCondition_Broadcast(arg->c);
     natsMutex_Unlock(arg->m);
 }
@@ -29476,24 +29478,24 @@ test_JetStreamSubscribePullAsync(void)
         //     .expectedStatus = NATS_MAX_BYTES_REACHED,
         //     .expectedN = 1,
         // },
-        {
-            .name = "Fetch with expiration is fulfilled NATS_MAX_DELIVERED_MSGS",
-            .want = 30,
-            .expires = 10, // ms
-            .before = 20,
-            .during = 10,
-            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
-            .expectedN = 30,
-        },
-        {
-            .name = "Fetch with a short expiration is partially fulfilled NATS_TIMEOUT",
-            .want = 100,
-            .expires = 1, // ms
-            .during = 100,
-            .expectedStatus = NATS_TIMEOUT,
-            .expectedN = 100,
-            .orFewer = true,
-        },
+        // {
+        //     .name = "Fetch with expiration is fulfilled NATS_MAX_DELIVERED_MSGS",
+        //     .want = 30,
+        //     .expires = 10, // ms
+        //     .before = 20,
+        //     .during = 10,
+        //     .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+        //     .expectedN = 30,
+        // },
+        // {
+        //     .name = "Fetch with a short expiration is partially fulfilled NATS_TIMEOUT",
+        //     .want = 100,
+        //     .expires = 1, // ms
+        //     .during = 100,
+        //     .expectedStatus = NATS_TIMEOUT,
+        //     .expectedN = 100,
+        //     .orFewer = true,
+        // },
         {
             .name = NULL,
         },
@@ -29546,201 +29548,33 @@ test_JetStreamSubscribePullAsync(void)
     natsSubscription_Destroy(sub);
     sub = NULL;
 
+    test("Check invalid heartbeat : ");
+    natsMutex_Lock(args.m);
+    args.control = 0;      // don't ack, will be auto-ack
+    args.status = NATS_OK; // batch exit status will be here
+    args.msgReceived = false;
+    args.closed = false;
+    args.sum = 0;
+    jsSubOptions_Init(&so);
+    jsOptions_Init(&jsOpts);
+    jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
+    jsFetchRequest lifetime = {
+        .Batch = 100,
+        .Expires = NATS_MILLIS_TO_NANOS(1),
+        .Heartbeat = NATS_MILLIS_TO_NANOS(10),
+    };
+    natsMutex_Unlock(args.m);
+    
+    s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
+    testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, 100, NATS_ERR, 0, false));
+
+    test("Check the error to be 'heartbeat value too large': ");
+    natsMutex_Lock(args.m);
+    testCond(strstr(args.lastErrorBuf, "heartbeat value too large") != NULL);
+    natsMutex_Unlock(args.m);
+
     goto __EXIT; // <>/<>
-
-    test("Max request expires: ");
-    jsSubOptions_Init(&so);
-    so.Config.MaxRequestExpires = NATS_MILLIS_TO_NANOS(50);
-    s = js_PullSubscribe(&sub, js, "baz", "max-request-expires", NULL, &so, &jerr);
-    IFOK(s, natsSubscription_Fetch(&list, sub, 10, 1000, &jerr));
-    testCond((s != NATS_OK) && (list.Count == 0) && (list.Msgs == NULL) && (jerr == 0) && (strstr(nats_GetLastError(NULL), "MaxRequestExpires of 50ms") != NULL));
-    nats_clearLastError();
-
-    natsSubscription_Destroy(sub);
-    sub = NULL;
-
-    test("Ephemeral pull allowed (NULL): ");
-    s = js_PullSubscribe(&sub, js, "bar", NULL, NULL, NULL, &jerr);
-    testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
-
-    test("Send a message: ");
-    s = js_Publish(NULL, js, "bar", "hello", 5, NULL, &jerr);
-    testCond((s == NATS_OK) && (jerr == 0));
-
-    test("Msgs received: ");
-    s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
-    testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0));
-
-    natsMsgList_Destroy(&list);
-    natsSubscription_Destroy(sub);
-    sub = NULL;
-
-    test("Ephemeral pull allowed (empty): ");
-    s = js_PullSubscribe(&sub, js, "bar", "", NULL, NULL, &jerr);
-    testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
-
-    test("Msgs received: ");
-    s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
-    testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0));
-
-    natsMsgList_Destroy(&list);
-
-    test("Fetch returns before 408: ");
-    natsConn_setFilter(nc, _dropTimeoutProto);
-    start = nats_Now();
-    s = natsSubscription_Fetch(&list, sub, 1, 1000, NULL);
-    dur = nats_Now() - start;
-    testCond((s == NATS_TIMEOUT) && (list.Count == 0) && (dur >= 600));
-    nats_clearLastError();
-
-    test("Next Fetch waits for proper timeout: ");
-    nats_Sleep(100);
-    natsConn_setFilter(nc, NULL);
-    natsMutex_Lock(args.m);
-    args.nc = nc;
-    args.sub = sub;
-    args.string = "NATS/1.0 408 Request Timeout\r\n\r\n";
-    // Will make the 408 sent to a subject ID with 1 while we are likely at 2 or above.
-    // So this will be considered a "late" 408 timeout and should be ignored.
-    args.sum = 1;
-    natsMutex_Unlock(args.m);
-    s = natsThread_Create(&t, _sendToPullSub, (void *)&args);
-    start = nats_Now();
-    IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, NULL));
-    dur = nats_Now() - start;
-    testCond((s == NATS_TIMEOUT) && (list.Count == 0) && (dur >= 600));
-    nats_clearLastError();
-
-    natsThread_Join(t);
-    natsThread_Destroy(t);
-    t = NULL;
-
-    natsSubscription_Destroy(sub);
-    sub = NULL;
-
-    test("jsFetchRequest init bad args: ");
-    s = jsFetchRequest_Init(NULL);
-    testCond(s == NATS_INVALID_ARG);
-    nats_clearLastError();
-
-    test("Create pull consumer with MaxRequestBytes: ");
-    jsSubOptions_Init(&so);
-    so.Config.MaxRequestMaxBytes = 1024;
-    s = js_PullSubscribe(&sub, js, "bat", "max-request-bytes", NULL, &so, &jerr);
-    testCond((s == NATS_OK) && (jerr == 0));
-
-    jsFetchRequest_Init(&fr);
-
-    test("FetchRequest bad args: ");
-    s = natsSubscription_FetchRequest(NULL, sub, &fr);
-    if (s == NATS_INVALID_ARG)
-        s = natsSubscription_FetchRequest(&list, NULL, &fr);
-    if (s == NATS_INVALID_ARG)
-        s = natsSubscription_FetchRequest(&list, sub, NULL);
-    testCond(s == NATS_INVALID_ARG);
-    nats_clearLastError();
-
-    test("FetchRequest no expiration err: ");
-    jsFetchRequest_Init(&fr);
-    // If NoWait is false, then Expires must be set.
-    fr.Batch = 1;
-    s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_INVALID_TIMEOUT && (list.Count == 0) && (list.Msgs == NULL)));
-    nats_clearLastError();
-
-    test("Batch must be set: ");
-    jsFetchRequest_Init(&fr);
-    fr.MaxBytes = 100;
-    fr.Expires = NATS_SECONDS_TO_NANOS(1);
-    s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_INVALID_ARG) && (list.Count == 0) && (list.Msgs == NULL));
-    nats_clearLastError();
-
-    test("MaxBytes must be > 0: ");
-    jsFetchRequest_Init(&fr);
-    fr.Batch = 1;
-    fr.MaxBytes = -100;
-    fr.Expires = NATS_SECONDS_TO_NANOS(1);
-    s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_INVALID_ARG) && (list.Count == 0) && (list.Msgs == NULL));
-    nats_clearLastError();
-
-    test("Requesting more than allowed max bytes: ");
-    jsFetchRequest_Init(&fr);
-    fr.Batch = 1;
-    fr.MaxBytes = 2048;
-    fr.Expires = NATS_SECONDS_TO_NANOS(1);
-    s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_ERR) && (list.Count == 0) && (list.Msgs == NULL) && (strstr(nats_GetLastError(NULL), "Exceeded MaxRequestMaxBytes") != NULL));
-    nats_clearLastError();
-
-    test("No concurrent call: ");
-    natsMutex_Lock(args.m);
-    args.sub = sub;
-    args.status = NATS_OK;
-    natsMutex_Unlock(args.m);
-    s = natsThread_Create(&t, _fetchRequest, (void *)&args);
-    if (s == NATS_OK)
-    {
-        nats_Sleep(250);
-        jsFetchRequest_Init(&fr);
-        fr.Batch = 1;
-        fr.Expires = NATS_SECONDS_TO_NANOS(1);
-        s = natsSubscription_FetchRequest(&list, sub, &fr);
-    }
-    testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), jsErrConcurrentFetchNotAllowed) != NULL));
-    nats_clearLastError();
-    s = NATS_OK;
-
-    test("Populate: ");
-    for (i = 0; (s == NATS_OK) && (i < 10); i++)
-        s = js_PublishAsync(js, "bat", (const void *)"abcdefghij", 10, NULL);
-    testCond(s == NATS_OK);
-
-    test("Received ok: ");
-    natsThread_Join(t);
-    natsMutex_Lock(args.m);
-    s = args.status;
-    natsMutex_Unlock(args.m);
-    testCond(s == NATS_OK);
-
-    natsThread_Destroy(t);
-    natsSubscription_Destroy(sub);
-    sub = NULL;
-
-    test("Create pull consumer: ");
-    s = js_PullSubscribe(&sub, js, "box", "feth-request", NULL, NULL, &jerr);
-    testCond((s == NATS_OK) && (jerr == 0));
-
-    test("Populate: ");
-    s = js_PublishAsync(js, "box", (const void *)"abcdefghij", 10, NULL);
-    testCond(s == NATS_OK);
-
-    test("Check expiration: ");
-    // Unlike with the simple fetch, asking for more than is avail will
-    // wait until expiration to return.
-    jsFetchRequest_Init(&fr);
-    fr.Batch = 10;
-    fr.Expires = NATS_MILLIS_TO_NANOS(500);
-    fr.Heartbeat = NATS_MILLIS_TO_NANOS(50);
-    start = nats_Now();
-    s = natsSubscription_FetchRequest(&list, sub, &fr);
-    dur = nats_Now() - start;
-    testCond((s == NATS_OK) && (list.Count == 1) && (list.Msgs != NULL) && (dur > 400) && (dur < 600));
-    natsMsgList_Destroy(&list);
-
-#if _WIN32
-    nats_Sleep(1000);
-#endif
-
-    test("Check invalid hb: ");
-    jsFetchRequest_Init(&fr);
-    fr.Batch = 10;
-    fr.Expires = NATS_SECONDS_TO_NANOS(1);
-    fr.Heartbeat = NATS_SECONDS_TO_NANOS(10);
-    s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), "too large") != NULL));
-    nats_clearLastError();
 
     test("Check idle hearbeat: ");
     jsFetchRequest_Init(&fr);

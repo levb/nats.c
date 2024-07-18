@@ -1802,8 +1802,11 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, bool checkSts, bool *usr
     if (strncmp(val, HDR_STATUS_MAX_BYTES_409, HDR_STATUS_LEN) == 0)
         return NATS_MAX_BYTES_REACHED;
 
-    // The possible 503 is handled directly in natsSub_nextMsg(), so we
-    // would never get it here in this function.
+    // The possible 503 is handled directly in natsSub_nextMsg(), so we would
+    // never get it here in this function, but in PullSubscribeAsync. There, we
+    // want to use it as the exit code (not NATS_ERR).
+    if (strncmp(val, HDR_STATUS_NO_RESP_503, HDR_STATUS_LEN) == 0)
+        return NATS_NO_RESPONDERS;
 
     natsMsgHeader_Get(msg, DESCRIPTION_HDR, &desc);
     return nats_setError(NATS_ERR, "%s", (desc == NULL ? "error checking pull subscribe message" : desc));
