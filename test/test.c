@@ -29350,6 +29350,19 @@ test_JetStreamSubscribePullAsync(void)
     s = NATS_OK;
     natsMutex_Unlock(args.m);
 
+    test("Receive msg with header and no data comes through: ");
+    s = natsMsg_create(&msg, sub->subject, (int)strlen(sub->subject), NULL, 0,
+                       "NATS/1.0\r\nk:v\r\n\r\n", 17, 17);
+    IFOK(s, natsConnection_PublishMsg(nc, msg));
+    natsMsg_Destroy(msg);
+
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
+    testCond(s == NATS_OK);
+    args.msgReceived = false;
+    natsMutex_Unlock(args.m);
+
     natsSubscription_Destroy(sub);
     sub = NULL;
 
@@ -29484,18 +29497,6 @@ test_JetStreamSubscribePullAsync(void)
 
     return; // <>/<>
 
-    test("Receive msg with header no data: ");
-    s = natsMsg_create(&msg, sub->subject, (int)strlen(sub->subject), NULL, 0,
-                       "NATS/1.0\r\nk:v\r\n\r\n", 17, 17);
-    IFOK(s, natsConnection_PublishMsg(nc, msg));
-    IFOK(s, natsSubscription_Fetch(&list, sub, 1, 1000, &jerr));
-    testCond((s == NATS_OK) && (list.Msgs != NULL) && (list.Count == 1) && (jerr == 0));
-    natsMsg_Destroy(msg);
-    msg = NULL;
-    natsMsgList_Destroy(&list);
-
-    // Make sure there is no more pending.
-    _waitSubPending(sub, 0);
 
     test("Msg with 404 status present before fetch: ");
     s = natsMsg_create(&msg, sub->subject, (int)strlen(sub->subject), NULL, 0,
