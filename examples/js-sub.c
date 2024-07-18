@@ -23,7 +23,7 @@ static const char *usage = ""\
 static void
 onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 {
-    // if (print)
+    if (print)
         printf("Received msg: %s - %.*s\n",
                natsMsg_GetSubject(msg),
                natsMsg_GetDataLength(msg),
@@ -145,30 +145,30 @@ int main(int argc, char **argv)
 
     if ((s == NATS_OK) && pull)
     {
-        // natsMsgList list;
-        // int         i;
+        natsMsgList list;
+        int         i;
 
-        // for (count = 0; (s == NATS_OK) && (count < total); )
-        // {
-        //     s = natsSubscription_Fetch(&list, sub, 1024, 5000, &jerr);
-        //     if (s != NATS_OK)
-        //         break;
+        for (count = 0; (s == NATS_OK) && (count < total); )
+        {
+            s = natsSubscription_Fetch(&list, sub, 1024, 5000, &jerr);
+            if (s != NATS_OK)
+                break;
 
-        //     if (start == 0)
-        //         start = nats_Now();
+            if (start == 0)
+                start = nats_Now();
 
-        //     count += (int64_t) list.Count;
-        //     for (i=0; (s == NATS_OK) && (i<list.Count); i++)
-        //         s = natsMsg_Ack(list.Msgs[i], &jsOpts);
+            count += (int64_t) list.Count;
+            for (i=0; (s == NATS_OK) && (i<list.Count); i++)
+                s = natsMsg_Ack(list.Msgs[i], &jsOpts);
 
-        //     natsMsgList_Destroy(&list);
-        // }
+            natsMsgList_Destroy(&list);
+        }
     }
     else if ((s == NATS_OK) && async)
     {
         while (s == NATS_OK)
         {
-            if (count + dropped >= total)
+            if (count + dropped == total)
                 break;
 
             nats_Sleep(1000);
@@ -176,18 +176,18 @@ int main(int argc, char **argv)
     }
     else if (s == NATS_OK)
     {
-        // for (count = 0; (s == NATS_OK) && (count < total); count++)
-        // {
-        //     s = natsSubscription_NextMsg(&msg, sub, 5000);
-        //     if (s != NATS_OK)
-        //         break;
+        for (count = 0; (s == NATS_OK) && (count < total); count++)
+        {
+            s = natsSubscription_NextMsg(&msg, sub, 5000);
+            if (s != NATS_OK)
+                break;
 
-        //     if (start == 0)
-        //         start = nats_Now();
+            if (start == 0)
+                start = nats_Now();
 
-        //     s = natsMsg_Ack(msg, &jsOpts);
-        //     natsMsg_Destroy(msg);
-        // }
+            s = natsMsg_Ack(msg, &jsOpts);
+            natsMsg_Destroy(msg);
+        }
     }
 
     if (s == NATS_OK)
@@ -197,25 +197,25 @@ int main(int argc, char **argv)
     }
     if (s == NATS_OK)
     {
-        // jsStreamInfo *si = NULL;
+        jsStreamInfo *si = NULL;
 
-        // // Let's report some stats after the run
-        // s = js_GetStreamInfo(&si, js, stream, NULL, &jerr);
-        // if (s == NATS_OK)
-        // {
-        //     printf("\nStream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
-        //         si->Config->Name, si->State.Msgs, si->State.Bytes);
+        // Let's report some stats after the run
+        s = js_GetStreamInfo(&si, js, stream, NULL, &jerr);
+        if (s == NATS_OK)
+        {
+            printf("\nStream %s has %" PRIu64 " messages (%" PRIu64 " bytes)\n",
+                si->Config->Name, si->State.Msgs, si->State.Bytes);
 
-        //     jsStreamInfo_Destroy(si);
-        // }
-        // if (delStream)
-        // {
-        //     printf("\nDeleting stream %s: ", stream);
-        //     s = js_DeleteStream(js, stream, NULL, &jerr);
-        //     if (s == NATS_OK)
-        //         printf("OK!");
-        //     printf("\n");
-        // }
+            jsStreamInfo_Destroy(si);
+        }
+        if (delStream)
+        {
+            printf("\nDeleting stream %s: ", stream);
+            s = js_DeleteStream(js, stream, NULL, &jerr);
+            if (s == NATS_OK)
+                printf("OK!");
+            printf("\n");
+        }
     }
     else
     {
