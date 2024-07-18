@@ -1224,7 +1224,7 @@ typedef struct jsFetchRequest
  *
  * @see js_PullSubscribeAsync
  */
-typedef void (*natsFetchCompleteHandler)(natsStatus s, void *closure);
+typedef void (*natsFetchCompleteHandler)(natsConnection *nc, natsSubscription *sub, natsStatus s, void *closure);
 
 /** \brief Callback used to customize flow control for js_PullSubscribeAsync.
  *

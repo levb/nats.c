@@ -2949,7 +2949,6 @@ static bool _autoNextFetchRequest(jsFetchRequest *req, natsSubscription *sub, vo
 
     int isAhead = fetch->requestedMsgs - fetch->deliveredMsgs;
     int wantAhead = fetch->keepAhead;
-    printf("<>/<> _autoNextFetchRequest %d %d\n", isAhead, wantAhead);
     if (isAhead >= wantAhead)
         maybeMore = false;
 

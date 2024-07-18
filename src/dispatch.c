@@ -363,6 +363,13 @@ void nats_dispatchMessages(natsDispatcher *d)
             natsConn_removeSubscription(nc, sub);
             continue;
         }
+        else if (fetchStatus == NATS_MISSED_HEARTBEAT)
+        {
+            printf("<>/<> MISSED HB\n");
+            // FIXME:
+            natsMsg_Destroy(msg);
+            continue;
+        }
         else if ((fetchStatus != NATS_OK) && !lastMessageInFetch)
         {
             // If last message in fetch, will call the callback after the
@@ -370,7 +377,7 @@ void nats_dispatchMessages(natsDispatcher *d)
             // FIXME: do we care to send an async error, if serious?
 
             if (fetch->completeCB != NULL)
-                fetch->completeCB(fetchStatus, fetch->completeCBClosure);
+                fetch->completeCB(nc, sub, fetchStatus, fetch->completeCBClosure);
 
             // Call this blindly, it will be a no-op if the subscription
             // was not draining.
@@ -424,7 +431,7 @@ void nats_dispatchMessages(natsDispatcher *d)
             if (lastMessageInFetch)
             {
                 if (fetch->completeCB != NULL)
-                    fetch->completeCB(fetchStatus, fetch->completeCBClosure);
+                    fetch->completeCB(nc, sub, fetchStatus, fetch->completeCBClosure);
             }
 
             // If we have reached the sub's message max, we need to remove

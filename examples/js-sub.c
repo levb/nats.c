@@ -25,6 +25,9 @@ static const char *usage = ""\
 #define MINUTE_NANO (SECOND_NANO * 60)
 #define HOUR_NANO (MINUTE_NANO * 60)
 
+static bool fetchCompleteCalled = false;
+static bool subCompleteCalled = false;
+
 static void
 onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
 {
@@ -67,24 +70,24 @@ asyncCb(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure
 }
 
 static void
-asyncPullCompleteCb(natsStatus s, void *closure)
+_completeFetchCb(natsConnection *nc, natsSubscription *sub, natsStatus s, void *closure)
 {
-    natsSubscription *sub = (natsSubscription *)closure;
-
     if (!print)
         return;
 
-    printf("PullSubscribeAsync finished with status: %u - %s\n", s, natsStatus_GetText(s));
+    fetchCompleteCalled = true;
+    printf("Fetch completed with status: %u - %s\n", s, natsStatus_GetText(s));
+}
 
-    int pendingMsgs;
-    int pendingBytes;
-    int maxPendingMsgs;
-    int maxPendingBytes;
-    int64_t deliveredMsgs;
-    int64_t droppedMsgs;
-    natsSubscription_GetStats(sub, &pendingMsgs, &pendingBytes, &maxPendingMsgs, &maxPendingBytes, &deliveredMsgs, &droppedMsgs);
-    printf("Pending: %d msgs, %d bytes, MaxPending: %d msgs, %d bytes, Delivered: %" PRId64 ", Dropped: %" PRId64 "\n",
-           pendingMsgs, pendingBytes, maxPendingMsgs, maxPendingBytes, deliveredMsgs, droppedMsgs);
+static void
+_completeSubCb(void *closure)
+{
+    natsSubscription *sub = (natsSubscription*) closure;
+    if (!print)
+        return;
+
+    subCompleteCalled = true;
+    printf("Subscription on %s completed\n", natsSubscription_GetSubject(sub));
 }
 
 static bool
@@ -185,17 +188,21 @@ int main(int argc, char **argv)
     {
         if (pull && async)
         {
-            jsOpts.PullSubscribeAsync.FetchSize = 10;
-            jsOpts.PullSubscribeAsync.KeepAhead = 5;
-            jsOpts.PullSubscribeAsync.CompleteHandler = asyncPullCompleteCb;
-            jsOpts.PullSubscribeAsync.CompleteHandlerClosure = sub;
-            jsOpts.PullSubscribeAsync.NextHandler = nextFetchCb;
+            jsOpts.PullSubscribeAsync.FetchSize = 17;
+            jsOpts.PullSubscribeAsync.KeepAhead = 7;
+            jsOpts.PullSubscribeAsync.CompleteHandler = _completeFetchCb;
             jsFetchRequest lifetime = {
                 .Batch = total,
                 .NoWait = true,
                 .Expires = 1 * HOUR_NANO,
-                .Heartbeat = 10 * SECOND_NANO,
+                // .Heartbeat = 1 * SECOND_NANO,
             };
+
+            // Uncomment to provide custom control over next fetch size.
+            // jsOpts.PullSubscribeAsync.NextHandler = nextFetchCb;
+
+            // Uncomment to turn off AutoACK on delivered messages.            
+            // so.ManualAck = true;
 
             // FIXME: demo: set msg delivery pool and verify threads, on many subs
             s = js_PullSubscribeAsync(&sub, js, subj, durable, onMsg, NULL, &lifetime, &jsOpts, &so, &jerr);
@@ -209,6 +216,10 @@ int main(int argc, char **argv)
     }
     if (s == NATS_OK)
         s = natsSubscription_SetPendingLimits(sub, -1, -1);
+    if (s == NATS_OK)
+        s = natsSubscription_SetOnCompleteCB(sub, _completeSubCb, sub);
+    if (s == NATS_OK)
+        s = natsSubscription_AutoUnsubscribe(sub, total);
 
     if (s == NATS_OK)
         s = natsStatistics_Create(&stats);
@@ -240,10 +251,17 @@ int main(int argc, char **argv)
         // All async modes (push and pull)
         while (s == NATS_OK)
         {
-            if (count + dropped >= total)
-                break;
+            bool end = (count + dropped >= total);
 
-            nats_Sleep(1000);
+            if (end && subCompleteCalled)
+            {
+                if (!pull)
+                    break;
+                else if (fetchCompleteCalled)
+                    break;
+            }
+
+            nats_Sleep(500);
         }
     }
     else if (s == NATS_OK)
