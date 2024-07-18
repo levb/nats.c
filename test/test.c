@@ -8081,7 +8081,7 @@ test_AssignSubToDispatch(void)
     char pubSubj[32];
     int i=0, n=0;
 
-    const int numMsgs = 5;
+    const int numMsgs = 1000;
 
     typedef struct
     {
