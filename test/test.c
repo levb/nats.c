@@ -29228,8 +29228,6 @@ test_JetStreamSubscribePullAsync(void)
     natsSubscription *sub2 = NULL;
     natsSubscription *sub3 = NULL;
 
-    return;
-
     JS_SETUP(2, 9, 2);
 
     s = _createDefaultThreadArgsForCbTests(&args);
@@ -29297,60 +29295,60 @@ test_JetStreamSubscribePullAsync(void)
     // testCond((s == NATS_NOT_FOUND) && (sub == NULL) && (jerr == JSConsumerNotFoundErr));
     // nats_clearLastError();
 
-    // // TEST real subscription, auto-ack.
+    // TEST real subscription, auto-ack.
 
-    // test("js_PullAsyncSubscribe for real, manual ack: ");
-    // // Signal as soon as we get the first message.
-    // args.control = 2; // don't ack
+    test("js_PullAsyncSubscribe for real, manual ack: ");
+    // Signal as soon as we get the first message.
+    args.control = 2; // don't ack
 
-    // jsSubOptions_Init(&so);
-    // so.Config.MaxAckPending = 10;
-    // so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
-    // so.ManualAck = true;
-    // s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, NULL, NULL, &so, &jerr);
-    // testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
+    jsSubOptions_Init(&so);
+    so.Config.MaxAckPending = 10;
+    so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
+    so.ManualAck = true;
+    s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, NULL, NULL, &so, &jerr);
+    testCond((s == NATS_OK) && (sub != NULL) && (jerr == 0));
 
-    // test("Can't call NextMsg: ");
-    // s = natsSubscription_NextMsg(&msg, sub, 1000);
-    // testCond((s == NATS_ILLEGAL_STATE) && (msg == NULL));
-    // nats_clearLastError();
+    test("Can't call NextMsg: ");
+    s = natsSubscription_NextMsg(&msg, sub, 1000);
+    testCond((s == NATS_ILLEGAL_STATE) && (msg == NULL));
+    nats_clearLastError();
 
-    // test("Can't call Fetch: ");
-    // s = natsSubscription_Fetch(&list, sub, 1, 500, &jerr);
-    // testCond((s == NATS_ERR) && (msg == NULL) && (strstr(nats_GetLastError(NULL), jsErrConcurrentFetchNotAllowed) != NULL));
-    // nats_clearLastError();
+    test("Can't call Fetch: ");
+    s = natsSubscription_Fetch(&list, sub, 1, 500, &jerr);
+    testCond((s == NATS_ERR) && (msg == NULL) && (strstr(nats_GetLastError(NULL), jsErrConcurrentFetchNotAllowed) != NULL));
+    nats_clearLastError();
 
-    // int noMessageTimeout = 20;
-    // int messageArrivesImmediatelyTimeout = 10;
-    // int ackTimeout = (int)(so.Config.AckWait / 1E6) + 100;
-    // testf("No messages yet, timeout in %dms: ", noMessageTimeout);
-    // natsMutex_Lock(args.m);
-    // while ((s != NATS_TIMEOUT) && !args.msgReceived)
-    //     s = natsCondition_TimedWait(args.c, args.m, noMessageTimeout);
-    // testCond(s == NATS_TIMEOUT);
-    // natsMutex_Unlock(args.m);
+    int noMessageTimeout = 20;
+    int messageArrivesImmediatelyTimeout = 10;
+    int ackTimeout = (int)(so.Config.AckWait / 1E6) + 100;
+    testf("No messages yet, timeout in %dms: ", noMessageTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, noMessageTimeout);
+    testCond(s == NATS_TIMEOUT);
+    natsMutex_Unlock(args.m);
 
-    // test("Send a message: ");
-    // s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
-    // testCond((s == NATS_OK) && (jerr == 0));
+    test("Send a message: ");
+    s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+    testCond((s == NATS_OK) && (jerr == 0));
 
-    // testf("Arrives in under %dms: ", messageArrivesImmediatelyTimeout);
-    // natsMutex_Lock(args.m);
-    // while ((s != NATS_TIMEOUT) && !args.msgReceived)
-    //     s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
-    // testCond((s == NATS_OK) && args.msgReceived);
-    // args.msgReceived = false;
-    // natsMutex_Unlock(args.m);
+    testf("Arrives in under %dms: ", messageArrivesImmediatelyTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
+    testCond((s == NATS_OK) && args.msgReceived);
+    args.msgReceived = false;
+    natsMutex_Unlock(args.m);
 
-    // testf("No more messages yet, timeout in %dms: ", noMessageTimeout);
-    // natsMutex_Lock(args.m);
-    // while ((s != NATS_TIMEOUT) && !args.msgReceived)
-    //     s = natsCondition_TimedWait(args.c, args.m, noMessageTimeout);
-    // testCond(s == NATS_TIMEOUT);
-    // s = NATS_OK;
-    // args.msgReceived = false;
-    // args.control = 1; // ack next
-    // natsMutex_Unlock(args.m);
+    testf("No more messages yet, timeout in %dms: ", noMessageTimeout);
+    natsMutex_Lock(args.m);
+    while ((s != NATS_TIMEOUT) && !args.msgReceived)
+        s = natsCondition_TimedWait(args.c, args.m, noMessageTimeout);
+    testCond(s == NATS_TIMEOUT);
+    s = NATS_OK;
+    args.msgReceived = false;
+    args.control = 1; // ack next
+    natsMutex_Unlock(args.m);
 
     // testf("Wait another so.Config.AckWait+100 = %dms and see that the message is re-delivered, ACK it: ", ackTimeout);
     // natsMutex_Lock(args.m);
@@ -29381,8 +29379,8 @@ test_JetStreamSubscribePullAsync(void)
     // args.msgReceived = false;
     // natsMutex_Unlock(args.m);
 
-    // natsSubscription_Destroy(sub);
-    // sub = NULL;
+    natsSubscription_Destroy(sub);
+    sub = NULL;
 
     // // TEST exit criteria.
     // int batchWaitTimeout = 100; // milliseconds
@@ -29549,31 +29547,31 @@ test_JetStreamSubscribePullAsync(void)
     // natsSubscription_Destroy(sub);
     // sub = NULL;
 
-    test("Check invalid heartbeat : ");
-    natsMutex_Lock(args.m);
-    args.control = 0;      // don't ack, will be auto-ack
-    args.status = NATS_OK; // batch exit status will be here
-    args.msgReceived = false;
-    args.closed = false;
-    args.sum = 0;
-    jsSubOptions_Init(&so);
-    jsOptions_Init(&jsOpts);
-    jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
-    jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
-    jsFetchRequest lifetime = {
-        .Batch = 100,
-        .Expires = NATS_MILLIS_TO_NANOS(1),
-        .Heartbeat = NATS_MILLIS_TO_NANOS(10),
-    };
-    natsMutex_Unlock(args.m);
+    // test("Check invalid heartbeat : ");
+    // natsMutex_Lock(args.m);
+    // args.control = 0;      // don't ack, will be auto-ack
+    // args.status = NATS_OK; // batch exit status will be here
+    // args.msgReceived = false;
+    // args.closed = false;
+    // args.sum = 0;
+    // jsSubOptions_Init(&so);
+    // jsOptions_Init(&jsOpts);
+    // jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    // jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
+    // jsFetchRequest lifetime = {
+    //     .Batch = 100,
+    //     .Expires = NATS_MILLIS_TO_NANOS(1),
+    //     .Heartbeat = NATS_MILLIS_TO_NANOS(10),
+    // };
+    // natsMutex_Unlock(args.m);
     
-    s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
-    testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, 100, NATS_ERR, 0, false));
+    // s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
+    // testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, 100, NATS_ERR, 0, false));
 
-    test("Check the error to be 'heartbeat value too large': ");
-    natsMutex_Lock(args.m);
-    testCond(strstr(args.lastErrorBuf, "heartbeat value too large") != NULL);
-    natsMutex_Unlock(args.m);
+    // test("Check the error to be 'heartbeat value too large': ");
+    // natsMutex_Lock(args.m);
+    // testCond(strstr(args.lastErrorBuf, "heartbeat value too large") != NULL);
+    // natsMutex_Unlock(args.m);
 
     goto __EXIT; // <>/<>
 

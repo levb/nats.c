@@ -129,6 +129,8 @@ void _freeSub(natsSubscription *sub)
     if (sub == NULL)
         return;
 
+    printf("<>/<> _FREESUB!!!!!!!!\n");
+
     _freeControlMessages(sub);
     _cleanupOwnDispatcher(sub);
 
