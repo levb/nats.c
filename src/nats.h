@@ -1216,7 +1216,7 @@ typedef struct jsFetchRequest
  * - `NATS_NOT_FOUND` is returned (exactly when??? FIXME.
  * - `NATS_MAX_DELIVERED_MSGS` indicates that lifetime `Batch` message limit has
  *   been reached.
- * - `NATS_MAX_DELIVERED_BYTES` is returned when the lifetime byte limit is
+ * - `NATS_MAX_BYTES_REACHED` is returned when the lifetime byte limit is
  *   reached.
  * - Other status values represent error conditions.
  * @param closure completeClosure that was passed to js_PullSubscribeAsync

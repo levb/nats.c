@@ -1776,7 +1776,7 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, bool checkSts, bool *usr
         return NATS_OK;
 
     // 100 Idle hearbeat, return OK
-    if (strncmp(val, CTRL_STATUS, HDR_STATUS_LEN) == 0)
+    if (strncmp(val, HDR_STATUS_CTRL_100, HDR_STATUS_LEN) == 0)
         return NATS_OK;
 
     // Before checking for "errors", if the incoming status message is
@@ -1791,12 +1791,16 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, bool checkSts, bool *usr
     }
 
     // 404 indicating that there are no messages.
-    if (strncmp(val, NOT_FOUND_STATUS, HDR_STATUS_LEN) == 0)
+    if (strncmp(val, HDR_STATUS_NOT_FOUND_404, HDR_STATUS_LEN) == 0)
         return NATS_NOT_FOUND;
 
     // 408 indicating request timeout
-    if (strncmp(val, REQ_TIMEOUT, HDR_STATUS_LEN) == 0)
+    if (strncmp(val, HDR_STATUS_TIMEOUT_408, HDR_STATUS_LEN) == 0)
         return NATS_TIMEOUT;
+
+    // 409 indicating that MaxBytes has been reached
+    if (strncmp(val, HDR_STATUS_MAX_BYTES_409, HDR_STATUS_LEN) == 0)
+        return NATS_MAX_BYTES_REACHED;
 
     // The possible 503 is handled directly in natsSub_nextMsg(), so we
     // would never get it here in this function.
@@ -1833,6 +1837,7 @@ _sendPullRequest(natsConnection *nc, const char *subj, const char *rply,
     IFOK(s, natsConnection_PublishRequest(nc, subj, rply,
         natsBuf_Data(buf), natsBuf_Len(buf)));
 
+    printf("<>/<> Sent PULL REQUEST: '%s' '%s' %.*s\n", subj, rply, natsBuf_Len(buf), natsBuf_Data(buf));
     return NATS_UPDATE_ERR_STACK(s);
 }
 
@@ -3322,7 +3327,7 @@ natsMsg_isJSCtrl(natsMsg *msg, int *ctrlType)
     if ((*p == '\r') || (*p == '\n') || (*p == '\0'))
         return false;
 
-    if (strstr(p, CTRL_STATUS) != p)
+    if (strstr(p, HDR_STATUS_CTRL_100) != p)
         return false;
 
     p += HDR_STATUS_LEN;

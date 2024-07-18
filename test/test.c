@@ -29366,12 +29366,14 @@ test_JetStreamSubscribePullAsync(void)
     natsSubscription_Destroy(sub);
     sub = NULL;
 
-    // TEST exit criterion.
+    // TEST exit criteria.
     int batchWaitTimeout = 100; // milliseconds
     typedef struct {
         const char *name;
         bool noWait;
         int want;
+        int expires; // ms
+        int maxBytes;
         int before;
         int during;
         int fetchSize;
@@ -29393,7 +29395,7 @@ test_JetStreamSubscribePullAsync(void)
             .noWait = true,
             .want = 1000,
             .before = 117,
-            .fetchSize = 14,
+            .fetchSize = 20, // 117 is not divisible by 20
             .expectedStatus = NATS_TIMEOUT,
             .expectedN = 117,
         },
@@ -29435,7 +29437,6 @@ test_JetStreamSubscribePullAsync(void)
         },
         {
             .name = "single fetch, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
-            .noWait = false,
             .want = 2,
             .before = 20,
             .fetchSize = 13,
@@ -29444,14 +29445,20 @@ test_JetStreamSubscribePullAsync(void)
         },
         {
             .name = "multi-fetch WAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
-            .noWait = false,
             .want = 100,
             .before = 117,
             .fetchSize = 13,
             .expectedStatus = NATS_MAX_DELIVERED_MSGS,
             .expectedN = 100,
         },
-        // FIXME MaxBytes
+        {
+            .name = "MaxBytes",
+            .want = 1000,
+            .maxBytes = 100,
+            .before = 20,
+            .expectedStatus = NATS_MAX_BYTES_REACHED,
+            .expectedN = 1,
+        },
         {
             .name = NULL,
         },
@@ -29475,13 +29482,16 @@ test_JetStreamSubscribePullAsync(void)
         jsOptions_Init(&jsOpts);
         so.Config.MaxAckPending = 10;
         so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
+        so.Config.MaxRequestMaxBytes = 777;
         so.ManualAck = false;
         jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
         jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
         jsOpts.PullSubscribeAsync.FetchSize = tc->fetchSize;
         jsFetchRequest lifetime = {
             .Batch = tc->want,
+            .MaxBytes = tc->maxBytes,
             .NoWait = tc->noWait,
+            .Expires = NATS_MILLIS_TO_NANOS(tc->expires),
         };
         s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
         if ((s != NATS_OK) && (sub == NULL) && (jerr != 0))
@@ -29498,22 +29508,6 @@ test_JetStreamSubscribePullAsync(void)
     return; // <>/<>
 
 
-    test("Msg with 404 status present before fetch: ");
-    s = natsMsg_create(&msg, sub->subject, (int)strlen(sub->subject), NULL, 0,
-                       "NATS/1.0 404 No Messages\r\n\r\n", 28, 28);
-    IFOK(s, natsConnection_PublishMsg(nc, msg));
-    if (s == NATS_OK)
-        _waitSubPending(sub, 1);
-    IFOK(s, natsSubscription_Fetch(&list, sub, 1, 100, &jerr));
-    testCond((s == NATS_TIMEOUT) && (list.Msgs == NULL) && (list.Count == 0) && (jerr == 0));
-    nats_clearLastError();
-    natsMsg_Destroy(msg);
-    msg = NULL;
-    natsMsgList_Destroy(&list);
-
-    // Since we faked the 404, the server is going to send a 408 when the request
-    // expires, so wait for it to be sent.
-    nats_Sleep(200);
 
     test("Fetch returns on 408: ");
     natsMutex_Lock(args.m);
@@ -30983,14 +30977,14 @@ test_JetStreamConvertDirectMsg(void)
 
     test("Bad request: ");
     s = natsMsg_Create(&msg, "inbox", NULL, NULL, 0);
-    IFOK(s, natsMsgHeader_Set(msg, STATUS_HDR, REQ_TIMEOUT));
+    IFOK(s, natsMsgHeader_Set(msg, STATUS_HDR, HDR_STATUS_TIMEOUT_408));
     IFOK(s, natsMsgHeader_Set(msg, DESCRIPTION_HDR, "Bad Request"));
     IFOK(s, js_directGetMsgToJSMsg("test", msg));
     testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), "Bad Request") != NULL));
     nats_clearLastError();
 
     test("Not found: ");
-    s = natsMsgHeader_Set(msg, STATUS_HDR, NOT_FOUND_STATUS);
+    s = natsMsgHeader_Set(msg, STATUS_HDR, HDR_STATUS_NOT_FOUND_404);
     IFOK(s, natsMsgHeader_Set(msg, DESCRIPTION_HDR, "Message Not Found"));
     IFOK(s, js_directGetMsgToJSMsg("test", msg));
     testCond((s == NATS_NOT_FOUND) && (strstr(nats_GetLastError(NULL), natsStatus_GetText(NATS_NOT_FOUND)) != NULL));
