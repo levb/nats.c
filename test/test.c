@@ -29192,11 +29192,11 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
     else
         result = result && (args->sum == expectedMsgs);
 
-    // printf("TEST GOT: %d %d\n", args->status, args->sum);
-    // if (!result)
-    // {
-    //     printf("TEST Failed: %d %d %d %d %d\n", s, args->closed, args->status, args->sum, natsSubscription_IsValid(sub));
-    // }
+    printf("TEST GOT: %d %d\n", args->status, args->sum);
+    if (!result)
+    {
+        printf("TEST Failed: %d %d %d %d %d\n", s, args->closed, args->status, args->sum, natsSubscription_IsValid(sub));
+    }
 
     natsMutex_Unlock(args->m);
     return result;
