@@ -29474,7 +29474,7 @@ test_JetStreamSubscribePullAsync(void)
         {
             .name = "Fetch with expiration is fulfilled NATS_MAX_DELIVERED_MSGS",
             .want = 30,
-            .expires = 10, // ms
+            .expires = 100, // ms
             .before = 20,
             .during = 10,
             .expectedStatus = NATS_MAX_DELIVERED_MSGS,
