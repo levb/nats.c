@@ -29539,7 +29539,6 @@ test_JetStreamSubscribePullAsync(void)
         testCond(_testBatchCompleted(
             &args, sub, batchWaitTimeout, tc->expectedStatus, tc->expectedN, tc->orFewer));
     }
-
     natsSubscription_Destroy(sub);
     sub = NULL;
 
@@ -29568,26 +29567,22 @@ test_JetStreamSubscribePullAsync(void)
     natsMutex_Lock(args.m);
     testCond(strstr(args.lastErrorBuf, "heartbeat value too large") != NULL);
     natsMutex_Unlock(args.m);
-
-    goto __EXIT; // <>/<>
+    natsSubscription_Destroy(sub);
+    sub = NULL;
 
     test("Check idle hearbeat: ");
-    jsFetchRequest_Init(&fr);
-    fr.Batch = 10;
-    // Let's make it wait for 2 seconds
-    fr.Expires = NATS_SECONDS_TO_NANOS(2);
-    // And have HBs every 50ms
-    fr.Heartbeat = NATS_MILLIS_TO_NANOS(50);
-    // Set a message filter that will drop HB messages
-    natsConn_setFilter(nc, _dropIdleHBs);
-    start = nats_Now();
-    // We should be kicked out of the fetch request with an error indicating
-    // that we missed hearbeats.
-    s = natsSubscription_FetchRequest(&list, sub, &fr);
-    dur = nats_Now() - start;
-    testCond((s == NATS_MISSED_HEARTBEAT) && (dur < 500));
+    // Let's make it wait for 2 seconds, and have HBs every 50ms
+    lifetime.Batch = 10;
+    lifetime.Expires = NATS_SECONDS_TO_NANOS(2);
+    lifetime.Heartbeat = NATS_MILLIS_TO_NANOS(50);
 
-__EXIT:
+    // Set a message filter that will drop server's heartbeat messages.
+    natsConn_setFilter(nc, _dropIdleHBs);
+
+    start = nats_Now();
+    s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
+    testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, 100, NATS_MISSED_HEARTBEAT, 0, false));
+
     natsSubscription_Destroy(sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
