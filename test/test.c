@@ -29592,7 +29592,7 @@ test_JetStreamSubscribePullAsync(void)
     testCond((s == NATS_MISSED_HEARTBEAT) && (dur < 500));
 
 __EXIT:
-    // nats_Sleep(1);
+    nats_Sleep(10);
     natsSubscription_Destroy(sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
