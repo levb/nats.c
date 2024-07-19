@@ -23119,7 +23119,7 @@ ENSURE_JS_VERSION((major), (minor), (update)); \
 \
 _makeUniqueDir(datastore, sizeof(datastore), "datastore_"); \
 test("Start JS Server: ");                                  \
-snprintf(cmdLine, sizeof(cmdLine), "--debug --trace -js -sd %s", datastore);\
+snprintf(cmdLine, sizeof(cmdLine), "-js -sd %s", datastore);\
 pid = _startServer("nats://127.0.0.1:4222", cmdLine, true); \
 CHECK_SERVER_STARTED(pid);                                  \
 testCond(true);                                             \
@@ -28898,7 +28898,7 @@ test_JetStreamSubscribePull(void)
 
     test("Max waiting error: ");
     s = natsSubscription_Fetch(&list, sub, 1, 1000, &jerr);
-    testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), "Exceeded") != NULL));
+    testCond((s == NATS_LIMIT_REACHED) && (strstr(nats_GetLastError(NULL), "Exceeded") != NULL));
     nats_clearLastError();
 
     natsSubscription_Destroy(sub2);
@@ -29041,7 +29041,7 @@ test_JetStreamSubscribePull(void)
     fr.MaxBytes = 2048;
     fr.Expires = NATS_SECONDS_TO_NANOS(1);
     s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_ERR) && (list.Count == 0) && (list.Msgs == NULL)
+    testCond((s == NATS_LIMIT_REACHED) && (list.Count == 0) && (list.Msgs == NULL)
                 && (strstr(nats_GetLastError(NULL), "Exceeded MaxRequestMaxBytes") != NULL));
     nats_clearLastError();
 
@@ -29470,7 +29470,7 @@ test_JetStreamSubscribePullAsync(void)
             .want = 1000,
             .maxBytes = 100,
             .before = 20,
-            .expectedStatus = NATS_MAX_BYTES_REACHED,
+            .expectedStatus = NATS_LIMIT_REACHED,
             .expectedN = 1,
         },
         {

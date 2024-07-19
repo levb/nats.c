@@ -1795,9 +1795,13 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, bool checkSts, bool *usr
     if (strncmp(val, HDR_STATUS_TIMEOUT_408, HDR_STATUS_LEN) == 0)
         return NATS_TIMEOUT;
 
-    // 409 indicating that MaxBytes has been reached
+    // 409 indicating that MaxBytes has been reached, but it can come as other
+    // errors (e.g. "Exceeded MaxWaiting"), so set the last error.
     if (strncmp(val, HDR_STATUS_MAX_BYTES_409, HDR_STATUS_LEN) == 0)
-        return NATS_MAX_BYTES_REACHED;
+    {
+        natsMsgHeader_Get(msg, DESCRIPTION_HDR, &desc);
+        return nats_setError(NATS_LIMIT_REACHED, "%s", (desc == NULL ? "error checking pull subscribe message" : desc));
+    }
 
     // The possible 503 is handled directly in natsSub_nextMsg(), so we would
     // never get it here in this function, but in PullSubscribeAsync. There, we

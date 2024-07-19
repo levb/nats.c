@@ -265,7 +265,7 @@ void nats_dispatchMessages(natsDispatcher *d)
                     }
                     if (overMaxBytes)
                     {
-                        fetchStatus = NATS_MAX_BYTES_REACHED;
+                        fetchStatus = NATS_LIMIT_REACHED;
                     }
                 }
                 overLimit = (overLimit || overMaxFetch || overMaxBytes);
