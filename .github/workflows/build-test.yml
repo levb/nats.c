@@ -174,7 +174,7 @@ jobs:
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
           # ctest --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
-          ctest -R Test_JetStreamSubscribePullAsync --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
+          ctest -VV -R Test_JetStreamSubscribePullAsync --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
 
       - name: Upload coverage reports to Codecov
         # PRs from external contributors fail: https://github.com/codecov/feedback/issues/301
