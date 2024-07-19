@@ -29169,7 +29169,9 @@ _completePullAsync(natsConnection *nc, natsSubscription *sub, natsStatus exitSta
     natsMutex_Lock(arg->m);
     arg->closed = true;
     arg->status = exitStatus;
-    strncpy(arg->lastErrorBuf, nats_GetLastError(NULL), sizeof(arg->lastErrorBuf));
+    const char *le = nats_GetLastError(NULL);
+    if (le != NULL)
+        strncpy(arg->lastErrorBuf, le, sizeof(arg->lastErrorBuf));
     natsCondition_Broadcast(arg->c);
     natsMutex_Unlock(arg->m);
 }
@@ -29219,12 +29221,8 @@ test_JetStreamSubscribePullAsync(void)
     jsSubOptions so;
     struct threadArg args;
     int64_t start, dur;
-    int i;
-    natsThread *t = NULL;
     jsConsumerConfig cc;
     jsFetchRequest fr;
-    natsSubscription *sub2 = NULL;
-    natsSubscription *sub3 = NULL;
 
     JS_SETUP(2, 9, 2);
 
@@ -29380,196 +29378,196 @@ test_JetStreamSubscribePullAsync(void)
     natsSubscription_Destroy(sub);
     sub = NULL;
 
-    // // TEST exit criteria.
-    // int batchWaitTimeout = 100; // milliseconds
-    // typedef struct
-    // {
-    //     const char *name;
-    //     bool noWait;
-    //     int want;
-    //     int expires; // ms
-    //     int maxBytes;
-    //     int before;
-    //     int during;
-    //     int fetchSize;
-    //     natsStatus expectedStatus;
-    //     int expectedN;
-    //     bool orFewer;
-    // } nowaitTC_t;
-    // nowaitTC_t nowaitTCs[] = {
-    // {
-    //     .name = "single fetch NOWAIT, partially fulfilled NATS_TIMEOUT",
-    //     .noWait = true,
-    //     .want = 1000,
-    //     .before = 2,
-    //     .fetchSize = 13,
-    //     .expectedStatus = NATS_TIMEOUT,
-    //     .expectedN = 2,
-    // },
-    // {
-    //     .name = "multi-fetch NOWAIT, partially fulfilled NATS_TIMEOUT",
-    //     .noWait = true,
-    //     .want = 1000,
-    //     .before = 117,
-    //     .fetchSize = 20, // 117 is not divisible by 20
-    //     .expectedStatus = NATS_TIMEOUT,
-    //     .expectedN = 117,
-    // },
-    // {
-    //     .name = "fetch NOWAIT can get a NATS_NOT_FOUND immediately",
-    //     .noWait = true,
-    //     .want = 1000,
-    //     .before = 0,
-    //     .fetchSize = 5,
-    //     .expectedStatus = NATS_NOT_FOUND, // on the second request, since there are no messages waiting.
-    //     .expectedN = 0,
-    // },
-    // {
-    //     .name = "fetch NOWAIT can get a NATS_NOT_FOUND on Nth request",
-    //     .noWait = true,
-    //     .want = 1000,
-    //     .before = 10,
-    //     .fetchSize = 5,
-    //     .expectedStatus = NATS_NOT_FOUND, // on the second request, since there are no messages waiting.
-    //     .expectedN = 10,
-    // },
-    // {
-    //     .name = "single fetch NOWAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
-    //     .noWait = true,
-    //     .want = 2,
-    //     .before = 20,
-    //     .fetchSize = 13,
-    //     .expectedStatus = NATS_MAX_DELIVERED_MSGS,
-    //     .expectedN = 2,
-    // },
-    // {
-    //     .name = "multi-fetch NOWAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
-    //     .noWait = true,
-    //     .want = 100,
-    //     .before = 117,
-    //     .fetchSize = 13,
-    //     .expectedStatus = NATS_MAX_DELIVERED_MSGS,
-    //     .expectedN = 100,
-    // },
-    // {
-    //     .name = "single fetch, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
-    //     .want = 2,
-    //     .before = 20,
-    //     .fetchSize = 13,
-    //     .expectedStatus = NATS_MAX_DELIVERED_MSGS,
-    //     .expectedN = 2,
-    // },
-    // {
-    //     .name = "multi-fetch WAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
-    //     .want = 100,
-    //     .before = 117,
-    //     .fetchSize = 13,
-    //     .expectedStatus = NATS_MAX_DELIVERED_MSGS,
-    //     .expectedN = 100,
-    // },
-    // {
-    //     .name = "MaxBytes",
-    //     .want = 1000,
-    //     .maxBytes = 100,
-    //     .before = 20,
-    //     .expectedStatus = NATS_MAX_BYTES_REACHED,
-    //     .expectedN = 1,
-    // },
-    // {
-    //     .name = "Fetch with expiration is fulfilled NATS_MAX_DELIVERED_MSGS",
-    //     .want = 30,
-    //     .expires = 10, // ms
-    //     .before = 20,
-    //     .during = 10,
-    //     .expectedStatus = NATS_MAX_DELIVERED_MSGS,
-    //     .expectedN = 30,
-    // },
-    // {
-    //     .name = "Fetch with a short expiration is partially fulfilled NATS_TIMEOUT",
-    //     .want = 100,
-    //     .expires = 1, // ms
-    //     .during = 100,
-    //     .expectedStatus = NATS_TIMEOUT,
-    //     .expectedN = 100,
-    //     .orFewer = true,
-    // },
-    //     {
-    //         .name = NULL,
-    //     },
-    // };
-    // for (nowaitTC_t *tc = nowaitTCs; tc->name != NULL; tc++)
-    // {
-    //     natsSubscription_Destroy(sub);
+    // TEST exit criteria.
+    int batchWaitTimeout = 100; // milliseconds
+    typedef struct
+    {
+        const char *name;
+        bool noWait;
+        int want;
+        int expires; // ms
+        int maxBytes;
+        int before;
+        int during;
+        int fetchSize;
+        natsStatus expectedStatus;
+        int expectedN;
+        bool orFewer;
+    } nowaitTC_t;
+    nowaitTC_t nowaitTCs[] = {
+        {
+            .name = "single fetch NOWAIT, partially fulfilled NATS_TIMEOUT",
+            .noWait = true,
+            .want = 1000,
+            .before = 2,
+            .fetchSize = 13,
+            .expectedStatus = NATS_TIMEOUT,
+            .expectedN = 2,
+        },
+        {
+            .name = "multi-fetch NOWAIT, partially fulfilled NATS_TIMEOUT",
+            .noWait = true,
+            .want = 1000,
+            .before = 117,
+            .fetchSize = 20, // 117 is not divisible by 20
+            .expectedStatus = NATS_TIMEOUT,
+            .expectedN = 117,
+        },
+        {
+            .name = "fetch NOWAIT can get a NATS_NOT_FOUND immediately",
+            .noWait = true,
+            .want = 1000,
+            .before = 0,
+            .fetchSize = 5,
+            .expectedStatus = NATS_NOT_FOUND, // on the second request, since there are no messages waiting.
+            .expectedN = 0,
+        },
+        {
+            .name = "fetch NOWAIT can get a NATS_NOT_FOUND on Nth request",
+            .noWait = true,
+            .want = 1000,
+            .before = 10,
+            .fetchSize = 5,
+            .expectedStatus = NATS_NOT_FOUND, // on the second request, since there are no messages waiting.
+            .expectedN = 10,
+        },
+        {
+            .name = "single fetch NOWAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .noWait = true,
+            .want = 2,
+            .before = 20,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 2,
+        },
+        {
+            .name = "multi-fetch NOWAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .noWait = true,
+            .want = 100,
+            .before = 117,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 100,
+        },
+        {
+            .name = "single fetch, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .want = 2,
+            .before = 20,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 2,
+        },
+        {
+            .name = "multi-fetch WAIT, fulfilled msgs NATS_MAX_DELIVERED_MSGS",
+            .want = 100,
+            .before = 117,
+            .fetchSize = 13,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 100,
+        },
+        {
+            .name = "MaxBytes",
+            .want = 1000,
+            .maxBytes = 100,
+            .before = 20,
+            .expectedStatus = NATS_MAX_BYTES_REACHED,
+            .expectedN = 1,
+        },
+        {
+            .name = "Fetch with expiration is fulfilled NATS_MAX_DELIVERED_MSGS",
+            .want = 30,
+            .expires = 10, // ms
+            .before = 20,
+            .during = 10,
+            .expectedStatus = NATS_MAX_DELIVERED_MSGS,
+            .expectedN = 30,
+        },
+        {
+            .name = "Fetch with a short expiration is partially fulfilled NATS_TIMEOUT",
+            .want = 100,
+            .expires = 1, // ms
+            .during = 100,
+            .expectedStatus = NATS_TIMEOUT,
+            .expectedN = 100,
+            .orFewer = true,
+        },
+        {
+            .name = NULL,
+        },
+    };
+    for (nowaitTC_t *tc = nowaitTCs; tc->name != NULL; tc++)
+    {
+        natsSubscription_Destroy(sub);
 
-    //     for (int i = 0; (s == NATS_OK) && (i < tc->before); i++)
-    //         s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
-    //     if (s != NATS_OK)
-    //         FAIL("Failed to publish, unusual");
+        for (int i = 0; (s == NATS_OK) && (i < tc->before); i++)
+            s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+        if (s != NATS_OK)
+            FAIL("Failed to publish, unusual");
 
-    //     natsMutex_Lock(args.m);
-    //     args.control = 0;      // don't ack, will be auto-ack
-    //     args.status = NATS_OK; // batch exit status will be here
-    //     args.msgReceived = false;
-    //     args.closed = false;
-    //     args.sum = 0;
-    //     jsSubOptions_Init(&so);
-    //     jsOptions_Init(&jsOpts);
-    //     so.Config.MaxAckPending = 10;
-    //     so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
-    //     so.Config.MaxRequestMaxBytes = 777;
-    //     so.ManualAck = false;
-    //     jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
-    //     jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
-    //     jsOpts.PullSubscribeAsync.FetchSize = tc->fetchSize;
-    //     jsFetchRequest lifetime = {
-    //         .Batch = tc->want,
-    //         .MaxBytes = tc->maxBytes,
-    //         .NoWait = tc->noWait,
-    //         .Expires = NATS_MILLIS_TO_NANOS(tc->expires),
-    //     };
-    //     s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
-    //     if ((s != NATS_OK) && (sub == NULL) && (jerr != 0))
-    //         FAIL("Failed to create pull subscription, unusual");
-    //     natsMutex_Unlock(args.m);
+        natsMutex_Lock(args.m);
+        args.control = 0;      // don't ack, will be auto-ack
+        args.status = NATS_OK; // batch exit status will be here
+        args.msgReceived = false;
+        args.closed = false;
+        args.sum = 0;
+        jsSubOptions_Init(&so);
+        jsOptions_Init(&jsOpts);
+        so.Config.MaxAckPending = 10;
+        so.Config.AckWait = NATS_MILLIS_TO_NANOS(300);
+        so.Config.MaxRequestMaxBytes = 777;
+        so.ManualAck = false;
+        jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+        jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
+        jsOpts.PullSubscribeAsync.FetchSize = tc->fetchSize;
+        jsFetchRequest lifetime = {
+            .Batch = tc->want,
+            .MaxBytes = tc->maxBytes,
+            .NoWait = tc->noWait,
+            .Expires = NATS_MILLIS_TO_NANOS(tc->expires),
+        };
+        s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
+        if ((s != NATS_OK) && (sub == NULL) && (jerr != 0))
+            FAIL("Failed to create pull subscription, unusual");
+        natsMutex_Unlock(args.m);
 
-    //     for (int i = 0; (s == NATS_OK) && (i < tc->during); i++)
-    //         s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
-    //     if (s != NATS_OK)
-    //         FAIL("Failed to publish, unusual");
+        for (int i = 0; (s == NATS_OK) && (i < tc->during); i++)
+            s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+        if (s != NATS_OK)
+            FAIL("Failed to publish, unusual");
 
-    //     testf("%s: ", tc->name);
-    //     testCond(_testBatchCompleted(
-    //         &args, sub, batchWaitTimeout, tc->expectedStatus, tc->expectedN, tc->orFewer));
-    // }
+        testf("%s: ", tc->name);
+        testCond(_testBatchCompleted(
+            &args, sub, batchWaitTimeout, tc->expectedStatus, tc->expectedN, tc->orFewer));
+    }
 
-    // natsSubscription_Destroy(sub);
-    // sub = NULL;
+    natsSubscription_Destroy(sub);
+    sub = NULL;
 
-    // test("Check invalid heartbeat : ");
-    // natsMutex_Lock(args.m);
-    // args.control = 0;      // don't ack, will be auto-ack
-    // args.status = NATS_OK; // batch exit status will be here
-    // args.msgReceived = false;
-    // args.closed = false;
-    // args.sum = 0;
-    // jsSubOptions_Init(&so);
-    // jsOptions_Init(&jsOpts);
-    // jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
-    // jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
-    // jsFetchRequest lifetime = {
-    //     .Batch = 100,
-    //     .Expires = NATS_MILLIS_TO_NANOS(1),
-    //     .Heartbeat = NATS_MILLIS_TO_NANOS(10),
-    // };
-    // natsMutex_Unlock(args.m);
+    test("Check invalid heartbeat : ");
+    natsMutex_Lock(args.m);
+    args.control = 0;      // don't ack, will be auto-ack
+    args.status = NATS_OK; // batch exit status will be here
+    args.msgReceived = false;
+    args.closed = false;
+    args.sum = 0;
+    jsSubOptions_Init(&so);
+    jsOptions_Init(&jsOpts);
+    jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
+    jsFetchRequest lifetime = {
+        .Batch = 100,
+        .Expires = NATS_MILLIS_TO_NANOS(1),
+        .Heartbeat = NATS_MILLIS_TO_NANOS(10),
+    };
+    natsMutex_Unlock(args.m);
 
-    // s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
-    // testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, 100, NATS_ERR, 0, false));
+    s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
+    testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, 100, NATS_ERR, 0, false));
 
-    // test("Check the error to be 'heartbeat value too large': ");
-    // natsMutex_Lock(args.m);
-    // testCond(strstr(args.lastErrorBuf, "heartbeat value too large") != NULL);
-    // natsMutex_Unlock(args.m);
+    test("Check the error to be 'heartbeat value too large': ");
+    natsMutex_Lock(args.m);
+    testCond(strstr(args.lastErrorBuf, "heartbeat value too large") != NULL);
+    natsMutex_Unlock(args.m);
 
     goto __EXIT; // <>/<>
 
@@ -29590,10 +29588,7 @@ test_JetStreamSubscribePullAsync(void)
     testCond((s == NATS_MISSED_HEARTBEAT) && (dur < 500));
 
 __EXIT:
-    printf("<>/<> TEST: final cleanup:%p\n", sub);
-    // nats_Sleep(10);
     natsSubscription_Destroy(sub);
-    printf("<>/<> TEST: ---final cleanup:%p\n", sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
 }
