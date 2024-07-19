@@ -3072,14 +3072,14 @@ js_PullSubscribeAsync(natsSubscription **newsub, jsCtx *js, const char *subject,
 
         // Start the timers. They will live for the entire length of the
         // subscription (the missed heartbeat timer may be reset as needed).
-        if (lifetime->Expires > 0)
-        {
-            sub->refs++;
-            s = natsTimer_Create(&fetch->expiresTimer, _fetchExpiredFired, _releaseSubWhenStopped,
-                                 lifetime->Expires, (void *)sub);
-            if (s != NATS_OK)
-                sub->refs--;
-        }
+        // if (lifetime->Expires > 0)
+        // {
+        //     sub->refs++;
+        //     s = natsTimer_Create(&fetch->expiresTimer, _fetchExpiredFired, _releaseSubWhenStopped,
+        //                          lifetime->Expires, (void *)sub);
+        //     if (s != NATS_OK)
+        //         sub->refs--;
+        // }
 
         if ((s == NATS_OK) && (lifetime->Heartbeat > 0))
         {

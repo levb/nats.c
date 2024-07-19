@@ -73,6 +73,8 @@ _runOwnDispatcher(natsSubscription *sub, bool forReplies)
 
     sub->dispatcher = &sub->ownDispatcher;
 
+    printf("<>/<> _runOwnDispatcher: '%s' forReplies: %d\n", sub->subject, forReplies);
+
     natsLib_Retain();
     s = natsThread_Create(&sub->ownDispatcher.thread,
                           forReplies ? nats_dispatchRepliesOwnThreadf : nats_dispatchMessagesOwnThreadf,

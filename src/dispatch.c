@@ -349,6 +349,7 @@ void nats_dispatchMessages(natsDispatcher *d)
             // it and freed by release.
             if (d->dedicatedTo != NULL)
             {
+                printf("<>/<> QUIT DEDICATED Dispatcher for %s\n", d->dedicatedTo->subject);
                 natsSub_release(sub);
                 natsLib_Release();
                 return;
