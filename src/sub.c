@@ -753,6 +753,8 @@ _unsubscribe(natsSubscription *sub, int max, bool drainMode, int64_t timeout)
     {
         if (jsi->hbTimer != NULL)
             natsTimer_Stop(jsi->hbTimer);
+        if ((jsi->fetch != NULL) && (jsi->fetch->expiresTimer != NULL))
+            natsTimer_Stop(jsi->fetch->expiresTimer);
 
         dc = jsi->dc;
     }

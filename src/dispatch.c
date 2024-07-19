@@ -366,18 +366,13 @@ void nats_dispatchMessages(natsDispatcher *d)
             natsConn_removeSubscription(nc, sub);
             continue;
         }
-        else if (fetchStatus == NATS_MISSED_HEARTBEAT)
-        {
-            printf("<>/<> MISSED HB\n");
-            // FIXME:
-            natsMsg_Destroy(msg);
-            continue;
-        }
         else if ((fetchStatus != NATS_OK) && !lastMessageInFetch)
         {
             // If last message in fetch, will call the callback after the
             // message is delievered.
             // FIXME: do we care to send an async error, if serious?
+
+            printf("<>/<> MISSED HB???\n");
 
             if (fetch->completeCB != NULL)
                 fetch->completeCB(nc, sub, fetchStatus, fetch->completeCBClosure);

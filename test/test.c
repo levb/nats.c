@@ -29230,6 +29230,14 @@ test_JetStreamSubscribePullAsync(void)
     if (s != NATS_OK)
         FAIL("Unable to setup test");
 
+    test("Create stream: ");
+    jsStreamConfig_Init(&sc);
+    sc.Name = "TEST";
+    sc.Subjects = (const char *[1]){"foo"};
+    sc.SubjectsLen = 1;
+    s = js_AddStream(NULL, js, &sc, NULL, &jerr);
+    testCond((s == NATS_OK) && (jerr == 0));
+
     // TEST various error conditions.
 
     test("Create pull sub async (invalid args): ");
@@ -29244,14 +29252,6 @@ test_JetStreamSubscribePullAsync(void)
         s = js_PullSubscribeAsync(&sub, js, "foo", "dur", NULL, &args, NULL, NULL, NULL, &jerr);
     testCond((s == NATS_INVALID_ARG) && (sub == NULL) && (jerr == 0));
     nats_clearLastError();
-
-    test("Create stream: ");
-    jsStreamConfig_Init(&sc);
-    sc.Name = "TEST";
-    sc.Subjects = (const char *[1]){"foo"};
-    sc.SubjectsLen = 1;
-    s = js_AddStream(NULL, js, &sc, NULL, &jerr);
-    testCond((s == NATS_OK) && (jerr == 0));
 
     test("AckNone ok: ");
     jsSubOptions_Init(&so);
@@ -29571,17 +29571,37 @@ test_JetStreamSubscribePullAsync(void)
     sub = NULL;
 
     test("Check idle hearbeat: ");
-    // Let's make it wait for 2 seconds, and have HBs every 50ms
-    lifetime.Batch = 10;
-    lifetime.Expires = NATS_SECONDS_TO_NANOS(2);
+    natsMutex_Lock(args.m);
+    args.control = 0;      // don't ack, will be auto-ack
+    args.status = NATS_OK; // batch exit status will be here
+    args.msgReceived = false;
+    args.closed = false;
+    args.sum = 0;
+    jsSubOptions_Init(&so);
+    jsOptions_Init(&jsOpts);
+    jsOpts.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    jsOpts.PullSubscribeAsync.CompleteHandlerClosure = &args;
+    natsMutex_Unlock(args.m);
+    // Let's make it wait for 20 seconds, and have HBs every 50ms
+    lifetime.Batch = 100;
+    lifetime.Expires = NATS_SECONDS_TO_NANOS(20);
     lifetime.Heartbeat = NATS_MILLIS_TO_NANOS(50);
 
-    // Set a message filter that will drop server's heartbeat messages.
-    natsConn_setFilter(nc, _dropIdleHBs);
-
-    start = nats_Now();
     s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &lifetime, &jsOpts, &so, &jerr);
-    testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, 100, NATS_MISSED_HEARTBEAT, 0, false));
+    if (s != NATS_OK)
+        FAIL("Failed to create pull subscription, unusual");
+
+    nats_Sleep(100);
+    natsMutex_Lock(args.m);
+    if (args.closed)
+        FAIL("Subscription closed too early, unusual");
+    natsMutex_Unlock(args.m);
+
+    // Set a message filter that will drop subsequent server's heartbeat
+    // messages.
+    natsConn_setFilter(nc, _dropIdleHBs);
+    testCond((s == NATS_OK) && 
+        _testBatchCompleted(&args, sub, 500, NATS_MISSED_HEARTBEAT, 0, false));
 
     natsSubscription_Destroy(sub);
     JS_TEARDOWN;
