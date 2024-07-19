@@ -270,8 +270,13 @@ void natsSub_close(natsSubscription *sub, bool connectionClosed)
         sub->closed = true;
         sub->connClosed = connectionClosed;
 
-        if ((sub->jsi != NULL) && (sub->jsi->hbTimer != NULL))
-            natsTimer_Stop(sub->jsi->hbTimer);
+        if (sub->jsi != NULL)
+        {
+            if (sub->jsi->hbTimer != NULL)
+                natsTimer_Stop(sub->jsi->hbTimer);
+            if ((sub->jsi->fetch != NULL) && (sub->jsi->fetch->expiresTimer != NULL))
+                natsTimer_Stop(sub->jsi->fetch->expiresTimer);
+        }
 
         // If this is a subscription with timeout, stop the timer.
         if (sub->timeout != 0)
