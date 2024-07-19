@@ -53,8 +53,6 @@ static inline void _freeControlMessages(natsSubscription *sub)
     if (sub->control == NULL)
         return;
 
-    // printf("<>/<> FREE CONTROL for '%s'\n", sub->subject);
-
     _destroyControlMessage(sub->control->sub.timeout);
     _destroyControlMessage(sub->control->sub.close);
     _destroyControlMessage(sub->control->sub.drain);
@@ -72,8 +70,6 @@ _runOwnDispatcher(natsSubscription *sub, bool forReplies)
         return NATS_ILLEGAL_STATE; // already running
 
     sub->dispatcher = &sub->ownDispatcher;
-
-    printf("<>/<> _runOwnDispatcher: '%s' forReplies: %d\n", sub->subject, forReplies);
 
     natsLib_Retain();
     s = natsThread_Create(&sub->ownDispatcher.thread,
@@ -131,8 +127,6 @@ void _freeSub(natsSubscription *sub)
     if (sub == NULL)
         return;
 
-    printf("<>/<> _FREESUB!!!!!!!!\n");
-
     _freeControlMessages(sub);
     _cleanupOwnDispatcher(sub);
 
@@ -159,7 +153,6 @@ void natsSub_release(natsSubscription *sub)
     natsMutex_Lock(sub->mu);
 
     refs = --(sub->refs);
-    printf("<>/<> natsSub_release: '%s' refs: %d\n", sub->subject, refs);
 
     natsMutex_Unlock(sub->mu);
 
@@ -1368,6 +1361,5 @@ void natsSubscription_Destroy(natsSubscription *sub)
     if (doUnsub)
         (void)natsSubscription_Unsubscribe(sub);
 
-    printf("<>/<> natsSubscription_Destroy: %s, calling release\n", sub->subject);
     natsSub_release(sub);
 }

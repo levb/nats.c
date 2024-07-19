@@ -1785,10 +1785,7 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, bool checkSts, bool *usr
     // proceed as if nothing was received.
     int64_t id = _fetchIDFromSubject(sub, natsMsg_GetSubject(msg));
     if (id != (int64_t) sub->jsi->fetchID)
-    {
-        printf("<>/<> FetchID mismatch: %d vs %d\n", (int) id, (int) sub->jsi->fetchID);
         return NATS_OK;
-    }
 
     // 404 indicating that there are no messages.
     if (strncmp(val, HDR_STATUS_NOT_FOUND_404, HDR_STATUS_LEN) == 0)

@@ -306,8 +306,6 @@ void nats_dispatchMessages(natsDispatcher *d)
         completeCBClosure = sub->onCompleteCBClosure;
         ctrl = sub->control;
         closed = sub->closed;
-        // jsi = sub->jsi;
-        // fetch = (jsi != NULL) ? jsi->fetch : NULL;
 
         // Check for flow control response and update the sub while under lock.
         // We will publish this in the end of the dispatch loop. (Control
@@ -349,7 +347,6 @@ void nats_dispatchMessages(natsDispatcher *d)
             // it and freed by release.
             if (d->dedicatedTo != NULL)
             {
-                printf("<>/<> QUIT DEDICATED Dispatcher for %s\n", d->dedicatedTo->subject);
                 natsSub_release(sub);
                 natsLib_Release();
                 return;
