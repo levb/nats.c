@@ -159,10 +159,10 @@ void natsSub_release(natsSubscription *sub)
     natsMutex_Lock(sub->mu);
 
     refs = --(sub->refs);
-
-        natsMutex_Unlock(sub->mu);
-
     printf("<>/<> natsSub_release: '%s' refs: %d\n", sub->subject, refs);
+
+    natsMutex_Unlock(sub->mu);
+
     if (refs == 0)
         _freeSub(sub);
 }
