@@ -29379,8 +29379,8 @@ test_JetStreamSubscribePullAsync(void)
     // args.msgReceived = false;
     // natsMutex_Unlock(args.m);
 
-    natsSubscription_Destroy(sub);
-    sub = NULL;
+    // natsSubscription_Destroy(sub);
+    // sub = NULL;
 
     // // TEST exit criteria.
     // int batchWaitTimeout = 100; // milliseconds
@@ -29592,9 +29592,10 @@ test_JetStreamSubscribePullAsync(void)
     testCond((s == NATS_MISSED_HEARTBEAT) && (dur < 500));
 
 __EXIT:
-    // printf("<>/<> TEST: final sleep\n");
+    printf("<>/<> TEST: final cleanup:%p\n", sub);
     // nats_Sleep(10);
-    // natsSubscription_Destroy(sub);
+    natsSubscription_Destroy(sub);
+    printf("<>/<> TEST: ---final cleanup:%p\n", sub);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
 }

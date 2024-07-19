@@ -160,6 +160,7 @@ void natsSub_release(natsSubscription *sub)
 
         natsMutex_Unlock(sub->mu);
 
+    printf("<>/<> natsSub_release: '%s' refs: %d\n", sub->subject, refs);
     if (refs == 0)
         _freeSub(sub);
 }
@@ -1360,5 +1361,6 @@ void natsSubscription_Destroy(natsSubscription *sub)
     if (doUnsub)
         (void)natsSubscription_Unsubscribe(sub);
 
+    printf("<>/<> natsSubscription_Destroy: %s, calling release\n", sub->subject);
     natsSub_release(sub);
 }
