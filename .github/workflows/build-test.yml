@@ -183,11 +183,30 @@ jobs:
 
       - name: "Download benchmark results from ${{ github.event.pull_request.base.ref }}"
         if: inputs.benchmark == 'ON' && github.event.pull_request.base.ref
-        uses: actions/download-artifact@v2
+        uses: actions/cache@v4
         with:
-          name: benchmark_results_${{ github.event.pull_request.base.ref }}
-          path: ./build/prev_bench.log
+          key: bench_${{ github.event.pull_request.base.ref }}
+          path: ./build/bench_${{ github.event.pull_request.base.ref }}.log
         continue-on-error: true
+
+      - name: "Upload benchmark result for PR ${{ github.event.pull_request.head.ref }}"
+        if: inputs.benchmark == 'ON' && github.event.pull_request.head.ref
+        uses: actions/cache@v4
+        with:
+          key: bench_${{ github.event.pull_request.head.ref }}
+          path: ./build/bench.log
+
+      - name: Extract branch name
+        if: inputs.benchmark == 'ON' && !github.event.pull_request.head.ref
+        id: extract_branch
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: "Upload benchmark result for branch ${{ env.BRANCH_NAME }}"
+        if: inputs.benchmark == 'ON' && !github.event.pull_request.head.ref
+        uses: actions/cache@v4
+        with:
+          key: bench_${{ env.BRANCH_NAME }}
+          path: ./build/bench.log
 
       - name: "Benchmark"
         if: inputs.benchmark == 'ON'
@@ -199,22 +218,3 @@ jobs:
           ctest -L 'bench' --timeout 600 -VV | tee bench.log
           #
           # ...coming: compare to base branch
-
-      - name: "Upload benchmark result for PR ${{ github.event.pull_request.head.ref }}"
-        if: inputs.benchmark == 'ON' && github.event.pull_request.head.ref
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark_results_${{ github.event.pull_request.head.ref }}
-          path: ./build/bench.log
-
-      - name: Extract branch name
-        if: inputs.benchmark == 'ON' && !github.event.pull_request.head.ref
-        id: extract_branch
-        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-
-      - name: "Upload benchmark result for branch ${{ env.BRANCH_NAME }}"
-        if: inputs.benchmark == 'ON' && !github.event.pull_request.head.ref
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark_results_${{ env.BRANCH_NAME }}
-          path: ./build/bench.log
