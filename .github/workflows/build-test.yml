@@ -197,6 +197,7 @@ jobs:
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
           ctest -L 'bench' --timeout 600 -VV | tee bench.log
+          go run ../test/diffstat_sub_async.go prev_bench.log bench.log
           #
           # ...coming: compare to base branch
 

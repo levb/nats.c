@@ -97,9 +97,9 @@ func calculateDiff(main, bench []TestData) (*DiffData, error) {
 		}
 
 		// Exclude records with less than .5% difference from the output
-		threshold := 0.05
+		threshold := 0.0 // 0.05
 		d := float64(b.Average-m.Average) / float64(m.Average)
-		if d > threshold || d < -threshold {
+		if d >= threshold || d <= -threshold {
 			diff.Records = append(diff.Records, DiffRecord{
 				Subs:          m.Subs,
 				Threads:       m.Threads,
