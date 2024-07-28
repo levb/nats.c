@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+const NOISE_THRESHOLD = 0.03
+
 type TestData struct {
 	Subs     int `json:"subs"`
 	Threads  int `json:"threads"`
@@ -97,9 +99,8 @@ func calculateDiff(main, bench []TestData) (*DiffData, error) {
 		}
 
 		// Exclude records with less than .5% difference from the output
-		threshold := 0.0 // 0.05
 		d := float64(b.Average-m.Average) / float64(m.Average)
-		if d >= threshold || d <= -threshold {
+		if d >= NOISE_THRESHOLD || d <= -NOISE_THRESHOLD {
 			diff.Records = append(diff.Records, DiffRecord{
 				Subs:          m.Subs,
 				Threads:       m.Threads,
@@ -168,7 +169,7 @@ func readFile(path string) (map[string][]TestData, error) {
 				}
 			}
 			if err := json.Unmarshal([]byte(jsonData), &data); err != nil {
-				return nil, fmt.Errorf("failed to parse JSON data: %w", err)
+				return nil, fmt.Errorf("%s: failed to parse JSON data: %w", path, err)
 			}
 			if key != "" {
 				result[key] = data
