@@ -172,12 +172,12 @@ void test_BenchSubscribeAsync_InjectSlow(void)
 
 static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector, int lens, int NMessages, ENV *env)
 {
-    printf("[\n");
-    if (natsMutex_Create(&(env->mu)) != NATS_OK)
+    if (natsMutex_Create(&env->mu) != NATS_OK)
     {
-        nats_PrintLastErrorStack(stderr);
+        fprintf(stderr, "Error creating mutex\n");
         exit(1);
     }
+    printf("[\n");
     for (int *sv = subsVector; sv < subsVector + lens; sv++)
     {
         int numSubs = *sv;
@@ -292,6 +292,7 @@ static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
     }
 
     b = w = a = 0;
+    natsMutex_Lock(env->mu);
     if (s == NATS_OK)
     {
         for (int i = 0; i < env->numSubs; i++)
@@ -315,9 +316,7 @@ static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
                 break;
             }
 
-            natsMutex_Lock(env->mu);
             int64_t dur = env->subs[i].closedTimestamp - start;
-            natsMutex_Unlock(env->mu);
             if (dur > w)
                 w = dur;
             if ((dur < b) || (b == 0))
@@ -325,6 +324,7 @@ static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
             a += dur;
         }
     }
+    natsMutex_Unlock(env->mu);
 
     // cleanup
     for (int i = 0; i < env->numSubs; i++)
