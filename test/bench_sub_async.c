@@ -39,6 +39,7 @@ typedef natsStatus (*publishFunc)(natsConnection *nc, const char *subject, ENV *
 
 struct __env
 {
+    natsMutex *mu;
     int numSubs;
     threadConfig threads;
     int numPubMessages;
@@ -170,6 +171,11 @@ void test_BenchSubscribeAsync_InjectSlow(void)
 
 static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector, int lens, int NMessages, ENV *env)
 {
+    if (natsMutex_Create(&env->mu) != NATS_OK)
+    {
+        fprintf(stderr, "Error creating mutex\n");
+        exit(1);
+    }
     printf("[\n");
     for (int *sv = subsVector; sv < subsVector + lens; sv++)
     {
@@ -284,6 +290,7 @@ static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
     }
 
     b = w = a = 0;
+    natsMutex_Lock(env->mu);
     if (s == NATS_OK)
     {
         for (int i = 0; i < env->numSubs; i++)
@@ -315,6 +322,7 @@ static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
             a += dur;
         }
     }
+    natsMutex_Unlock(env->mu);
 
     // cleanup
     for (int i = 0; i < env->numSubs; i++)
@@ -362,7 +370,9 @@ static void _onMessage(natsConnection *nc, natsSubscription *sub, natsMsg *msg, 
 static void _onComplete(void *closure)
 {
     subState *ss = (subState *)closure;
+    natsMutex_Lock(ss->env->mu);
     ss->closedTimestamp = nats_Now();
+    natsMutex_Unlock(ss->env->mu);
 }
 
 static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
