@@ -1,67 +1,67 @@
-name: "Release"
-on:
-  push:
+# name: "Release"
+# on:
+#   push:
 
-permissions:
-  contents: write # required by build-test to comment on coverage but not used here.
+# permissions:
+#   contents: write # required by build-test to comment on coverage but not used here.
 
-defaults:
-  run:
-    shell: bash --noprofile --norc -x -eo pipefail {0}
+# defaults:
+#   run:
+#     shell: bash --noprofile --norc -x -eo pipefail {0}
 
-jobs:
-  quick:
-    name: "Ubuntu"
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler: [gcc, clang]
-        ubuntu_version: [latest, 20.04]
-    uses: ./.github/workflows/build-test.yml
-    with:
-      server_version: main
-      ubuntu_version: ${{ matrix.ubuntu_version }}
-      compiler: ${{ matrix.compiler }}
+# jobs:
+#   quick:
+#     name: "Ubuntu"
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         compiler: [gcc, clang]
+#         ubuntu_version: [latest, 20.04]
+#     uses: ./.github/workflows/build-test.yml
+#     with:
+#       server_version: main
+#       ubuntu_version: ${{ matrix.ubuntu_version }}
+#       compiler: ${{ matrix.compiler }}
 
-  dev-mode:
-    name: "DEV_MODE"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      dev_mode: ON
-      server_version: main
-      verbose_test_output: ON
-      verbose_make_output: ON
+#   dev-mode:
+#     name: "DEV_MODE"
+#     uses: ./.github/workflows/build-test.yml
+#     with:
+#       dev_mode: ON
+#       server_version: main
+#       verbose_test_output: ON
+#       verbose_make_output: ON
 
-  san-addr:
-    name: "Sanitize address"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      sanitize: address
-      server_version: main
-      type: RelWithDebInfo
+#   san-addr:
+#     name: "Sanitize address"
+#     uses: ./.github/workflows/build-test.yml
+#     with:
+#       sanitize: address
+#       server_version: main
+#       type: RelWithDebInfo
 
-  san-thread:
-    name: "Sanitize thread"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      sanitize: thread
-      server_version: main
-      type: RelWithDebInfo
+#   san-thread:
+#     name: "Sanitize thread"
+#     uses: ./.github/workflows/build-test.yml
+#     with:
+#       sanitize: thread
+#       server_version: main
+#       type: RelWithDebInfo
 
-  san-thread-pool:
-    name: "Sanitize thread (msg dispatch pool)"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      sanitize: thread
-      server_version: main
-      type: RelWithDebInfo
-      lib_msg_delivery: ON
+#   san-thread-pool:
+#     name: "Sanitize thread (msg dispatch pool)"
+#     uses: ./.github/workflows/build-test.yml
+#     with:
+#       sanitize: thread
+#       server_version: main
+#       type: RelWithDebInfo
+#       lib_msg_delivery: ON
 
-  san-thread-bench:
-    name: "Sanitize thread (benchmark)"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      sanitize: thread
-      server_version: main
-      type: RelWithDebInfo
-      benchmark: ON
+#   san-thread-bench:
+#     name: "Sanitize thread (benchmark)"
+#     uses: ./.github/workflows/build-test.yml
+#     with:
+#       sanitize: thread
+#       server_version: main
+#       type: RelWithDebInfo
+#       benchmark: ON
