@@ -86,7 +86,7 @@ static const char *natsStreamingServerExe = "nats-streaming-server";
 natsMutex *slMu  = NULL;
 natsHash  *slMap = NULL;
 
-#define test(s)         { printf("#%02d ", ++tests);printf("%s\n", (s)); fflush(stdout); }
+#define test(s)         { printf("#%02d ", ++tests); printf("%s\n", (s)); fflush(stdout); }
 #define testf(s, ...)   { printf("#%02d ", ++tests); printf((s "\n"), __VA_ARGS__); fflush(stdout); }
 
 #ifdef _WIN32
