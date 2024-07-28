@@ -84,7 +84,7 @@ jobs:
     with:
       server_version: main
       benchmark: ON
-      type: Release
+      type: RelWithDebInfo
       sanitize: thread
       compiler: ${{ matrix.compiler }}
 
