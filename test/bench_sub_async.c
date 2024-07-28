@@ -79,13 +79,13 @@ void test_BenchSubscribeAsync_Small(void)
         // {true, 7},
     };
 
-    int subs[] = {1, 2, 3, 4, 5};
+    int subs[] = {1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13};
 
     ENV env = {
         .pubf = _publish,
         .progressiveFlush = false,
     };
-    RUN_MATRIX(threads, subs, 50 * 1000, &env);
+    RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark publishes messages, flushing the connection every now and then
@@ -109,7 +109,7 @@ void test_BenchSubscribeAsync_Large(void)
         .progressiveFlush = true,
     };
 
-    RUN_MATRIX(threads, subs, 50 * 1000, &env);
+    RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -135,7 +135,7 @@ void test_BenchSubscribeAsync_Inject(void)
         .pubf = _inject,
     };
 
-    RUN_MATRIX(threads, subs, 50 * 1000, &env);
+    RUN_MATRIX(threads, subs, 200 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -169,7 +169,7 @@ void test_BenchSubscribeAsync_InjectSlow(void)
         .delayNano = 100 * 1000, // 100µs
     };
 
-    RUN_MATRIX(threads, subs, 1000, &env);
+    RUN_MATRIX(threads, subs, 10000, &env);
 #endif // _WIN32
 }
 
