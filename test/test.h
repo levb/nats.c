@@ -11,22 +11,70 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __BENCH_H
-#define __BENCH_H
-
-#include <limits.h>
-
 #include "natsp.h"
 #include "comsock.h"
 
+#if defined(NATS_HAS_STREAMING)
+static const char *clusterName = "test-cluster";
+#endif
+
+#ifdef _WIN32
+#define NATS_INVALID_PID (NULL)
+#define LOGFILE_NAME "wserver.log"
+#else
+#define NATS_INVALID_PID (-1)
+#define LOGFILE_NAME "server.log"
+#endif
+
+#define FAIL(m)                    \
+    {                              \
+        printf("@@ %s @@\n", (m)); \
+        failed = true;             \
+        return;                    \
+    }
+
+#define CHECK_SERVER_STARTED(p)  \
+    if ((p) == NATS_INVALID_PID) \
+    FAIL("Unable to start or verify that the server was started!")
+
+extern natsMutex *slMu;
+extern natsHash *slMap;
+extern bool keepServerOutput;
+extern bool failed;
+
 static const char *natsServerExe = "nats-server";
 
-#define CHECK_SERVER_STARTED(p)                                                    \
-    if ((p) == NATS_INVALID_PID)                                                   \
-    {                                                                              \
-        fprintf(stderr, "Unable to start or verify that the server was started!"); \
-        exit(1);                                                                   \
+static natsStatus
+_checkStreamingStart(const char *url, int maxAttempts)
+{
+    natsStatus s = NATS_NOT_PERMITTED;
+
+#if defined(NATS_HAS_STREAMING)
+
+    stanConnOptions *opts = NULL;
+    stanConnection *sc = NULL;
+    int attempts = 0;
+
+    s = stanConnOptions_Create(&opts);
+    IFOK(s, stanConnOptions_SetURL(opts, url));
+    IFOK(s, stanConnOptions_SetConnectionWait(opts, 250));
+    if (s == NATS_OK)
+    {
+        while (((s = stanConnection_Connect(&sc, clusterName, "checkStart", opts)) != NATS_OK) && (attempts++ < maxAttempts))
+        {
+            nats_Sleep(200);
+        }
     }
+
+    stanConnection_Destroy(sc);
+    stanConnOptions_Destroy(opts);
+
+    if (s != NATS_OK)
+        nats_clearLastError();
+#else
+#endif
+    return s;
+}
 
 static natsStatus
 _checkStart(const char *url, int orderIP, int maxAttempts)
@@ -65,14 +113,6 @@ _checkStart(const char *url, int orderIP, int maxAttempts)
 }
 
 #ifdef _WIN32
-#define NATS_INVALID_PID (NULL)
-#define LOGFILE_NAME "wserver.log"
-#else
-#define NATS_INVALID_PID (-1)
-#define LOGFILE_NAME "server.log"
-#endif
-
-#ifdef _WIN32
 
 typedef PROCESS_INFORMATION *natsPid;
 
@@ -90,6 +130,11 @@ _stopServer(natsPid pid)
     CloseHandle(pid->hProcess);
     CloseHandle(pid->hThread);
 
+    natsMutex_Lock(slMu);
+    if (slMap != NULL)
+        natsHash_Remove(slMap, (int64_t)pid);
+    natsMutex_Unlock(slMu);
+
     free(pid);
 }
 
@@ -101,7 +146,6 @@ _startServerImpl(const char *serverExe, const char *url, const char *cmdLineOpts
     HANDLE h;
     PROCESS_INFORMATION *pid;
     DWORD flags = 0;
-    BOOL createdOk = FALSE;
     BOOL hInheritance = FALSE;
     char *exeAndCmdLine = NULL;
     int ret;
@@ -121,6 +165,37 @@ _startServerImpl(const char *serverExe, const char *url, const char *cmdLineOpts
         printf("No memory allocating command line string!\n");
         free(pid);
         return NATS_INVALID_PID;
+    }
+
+    if (!keepServerOutput)
+    {
+        ZeroMemory(&sa, sizeof(sa));
+        sa.nLength = sizeof(sa);
+        sa.lpSecurityDescriptor = NULL;
+        sa.bInheritHandle = TRUE;
+
+        h = logHandle;
+        if (h == NULL)
+        {
+            h = CreateFile(LOGFILE_NAME,
+                           GENERIC_WRITE,
+                           FILE_SHARE_WRITE | FILE_SHARE_READ,
+                           &sa,
+                           CREATE_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL,
+                           NULL);
+        }
+
+        si.dwFlags |= STARTF_USESTDHANDLES;
+        si.hStdInput = NULL;
+        si.hStdError = h;
+        si.hStdOutput = h;
+
+        hInheritance = TRUE;
+        flags = CREATE_NO_WINDOW;
+
+        if (logHandle == NULL)
+            logHandle = h;
     }
 
     // Start the child process.
@@ -148,13 +223,22 @@ _startServerImpl(const char *serverExe, const char *url, const char *cmdLineOpts
     {
         natsStatus s;
 
-        s = _checkStart(url, 46, 10);
+        if (strcmp(serverExe, natsServerExe) == 0)
+            s = _checkStart(url, 46, 10);
+        else
+            s = _checkStreamingStart(url, 10);
+
         if (s != NATS_OK)
         {
             _stopServer(pid);
             return NATS_INVALID_PID;
         }
     }
+
+    natsMutex_Lock(slMu);
+    if (slMap != NULL)
+        natsHash_Set(slMap, (int64_t)pid, NULL, NULL);
+    natsMutex_Unlock(slMu);
 
     return (natsPid)pid;
 }
@@ -181,6 +265,11 @@ _stopServer(natsPid pid)
     }
 
     waitpid(pid, &status, 0);
+
+    natsMutex_Lock(slMu);
+    if (slMap != NULL)
+        natsHash_Remove(slMap, (int64_t)pid);
+    natsMutex_Unlock(slMu);
 }
 
 static natsPid
@@ -205,10 +294,11 @@ _startServerImpl(const char *serverExe, const char *url, const char *cmdLineOpts
         if ((cmdLineOpts == NULL) || (strstr(cmdLineOpts, "-a ") == NULL))
             overrideAddr = true;
 
-        ret = nats_asprintf(&exeAndCmdLine, "%s%s%s%s", serverExe,
+        ret = nats_asprintf(&exeAndCmdLine, "%s%s%s%s%s", serverExe,
                             (cmdLineOpts != NULL ? " " : ""),
                             (cmdLineOpts != NULL ? cmdLineOpts : ""),
-                            (overrideAddr ? " -a 127.0.0.1" : ""));
+                            (overrideAddr ? " -a 127.0.0.1" : ""),
+                            (keepServerOutput ? "" : " -l " LOGFILE_NAME));
         if (ret < 0)
         {
             perror("No memory allocating command line string!\n");
@@ -240,13 +330,22 @@ _startServerImpl(const char *serverExe, const char *url, const char *cmdLineOpts
     {
         natsStatus s;
 
-        s = _checkStart(url, 46, 10);
+        if (strcmp(serverExe, natsServerExe) == 0)
+            s = _checkStart(url, 46, 10);
+        else
+            s = _checkStreamingStart(url, 10);
+
         if (s != NATS_OK)
         {
             _stopServer(pid);
             return NATS_INVALID_PID;
         }
     }
+
+    natsMutex_Lock(slMu);
+    if (slMap != NULL)
+        natsHash_Set(slMap, (int64_t)pid, NULL, NULL);
+    natsMutex_Unlock(slMu);
 
     // parent, return the child's PID back.
     return pid;
@@ -259,12 +358,3 @@ _startServer(const char *url, const char *cmdLineOpts, bool checkStart)
     return _startServerImpl(natsServerExe, url, cmdLineOpts, checkStart);
 }
 
-static void
-asyncCb(natsConnection *nc, natsSubscription *sub, natsStatus err, void *closure)
-{
-    int64_t dropped = 0;
-    natsSubscription_GetDropped(sub, (int64_t *)&dropped);
-    printf("Async error: sid:%" PRId64 ", dropped:%" PRId64 ": %u - %s\n", sub->sid, dropped, err, natsStatus_GetText(err));
-}
-
-#endif // __BENCH_H
