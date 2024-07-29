@@ -27,13 +27,13 @@
 
 #ifdef DEV_MODE
 
-static void _retain(natsSubscription *sub) { sub->refs++; }
-static void _release(natsSubscription *sub) { sub->refs--; }
+static inline int _retain(natsSubscription *sub) { return ++(sub->refs); }
+static inline int _release(natsSubscription *sub) { return --(sub->refs); }
 
 #else
 
-#define _retain(s) ((s)->refs++)
-#define _release(s) ((s)->refs--)
+#define _retain(s) (++((s)->refs))
+#define _release(s) (--((s)->refs))
 
 #endif // DEV_MODE
 
@@ -132,7 +132,7 @@ void natsSub_release(natsSubscription *sub)
 
     natsSub_Lock(sub);
 
-    refs = --(sub->refs);
+    refs = _release(sub);
 
     natsSub_Unlock(sub);
 
@@ -144,10 +144,7 @@ void natsSub_unlockRelease(natsSubscription *sub)
 {
     int refs = 0;
 
-    if (sub == NULL)
-        return;
-
-    refs = --(sub->refs);
+    refs = _release(sub);
 
     natsSub_Unlock(sub);
 
@@ -348,10 +345,10 @@ bool natsSub_setMax(natsSubscription *sub, uint64_t max)
 {
     bool accepted = false;
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     sub->max = (max <= sub->delivered ? 0 : max);
     accepted = sub->max != 0;
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
     return accepted;
 }
 
@@ -378,7 +375,7 @@ natsSubscription_SetOnCompleteCB(natsSubscription *sub, natsOnCompleteCB cb, voi
 
 void natsSub_close(natsSubscription *sub, bool connectionClosed)
 {
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (!(sub->closed))
     {
@@ -407,7 +404,7 @@ void natsSub_close(natsSubscription *sub, bool connectionClosed)
         }
     }
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 }
 
 static void
@@ -419,7 +416,7 @@ _asyncTimeoutCb(natsTimer *timer, void *closure)
     if (sub->dispatcher == NULL)
         return;
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     // If the subscription has already timed out and has not reset, is closed or
     // draining - do nothing.
     if (!sub->closed && !sub->timedOut && !sub->timeoutSuspended)
@@ -435,7 +432,7 @@ _asyncTimeoutCb(natsTimer *timer, void *closure)
         // Post a control message to the worker thread.
         natsSub_enqueueCtrlMsg(sub, sub->control->sub.timeout);
     }
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 }
 
 static void
@@ -910,10 +907,10 @@ natsSubscription_AutoUnsubscribe(natsSubscription *sub, int max)
 
 void natsSub_drain(natsSubscription *sub)
 {
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return;
     }
     sub->draining = true;
@@ -935,7 +932,7 @@ void natsSub_drain(natsSubscription *sub)
         natsCondition_Broadcast(sub->ownDispatcher.cond);
     }
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 }
 
 static void
@@ -956,10 +953,10 @@ void natsSub_updateDrainStatus(natsSubscription *sub, natsStatus s)
 // Mark the subscription such that connection stops to try to push messages into its list.
 void natsSub_setDrainSkip(natsSubscription *sub, natsStatus s)
 {
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     _updateDrainStatus(sub, s);
     sub->drainSkip = true;
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 }
 
 static void
@@ -1228,11 +1225,11 @@ natsSubscription_GetPending(natsSubscription *sub, int *msgs, int *bytes)
     if (sub == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
@@ -1242,7 +1239,7 @@ natsSubscription_GetPending(natsSubscription *sub, int *msgs, int *bytes)
     if (bytes != NULL)
         *bytes = sub->ownDispatcher.queue.bytes;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }
@@ -1257,18 +1254,18 @@ natsSubscription_SetPendingLimits(natsSubscription *sub, int msgLimit, int bytes
         return nats_setError(NATS_INVALID_ARG, "%s",
                              "Limits must be either > 0 or negative to specify no limit");
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
     sub->msgsLimit = msgLimit;
     sub->bytesLimit = bytesLimit;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }
@@ -1279,11 +1276,11 @@ natsSubscription_GetPendingLimits(natsSubscription *sub, int *msgLimit, int *byt
     if (sub == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
@@ -1293,7 +1290,7 @@ natsSubscription_GetPendingLimits(natsSubscription *sub, int *msgLimit, int *byt
     if (bytesLimit != NULL)
         *bytesLimit = sub->bytesLimit;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }
@@ -1304,17 +1301,17 @@ natsSubscription_GetDelivered(natsSubscription *sub, int64_t *msgs)
     if ((sub == NULL) || (msgs == NULL))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
     *msgs = (int64_t)sub->delivered;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }
@@ -1325,17 +1322,17 @@ natsSubscription_GetDropped(natsSubscription *sub, int64_t *msgs)
     if ((sub == NULL) || (msgs == NULL))
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
     *msgs = sub->dropped;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }
@@ -1346,11 +1343,11 @@ natsSubscription_GetMaxPending(natsSubscription *sub, int *msgs, int *bytes)
     if (sub == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
@@ -1360,7 +1357,7 @@ natsSubscription_GetMaxPending(natsSubscription *sub, int *msgs, int *bytes)
     if (bytes != NULL)
         *bytes = sub->bytesMax;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }
@@ -1371,18 +1368,17 @@ natsSubscription_ClearMaxPending(natsSubscription *sub)
     if (sub == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    natsSub_Lock(sub);
-
+    nats_lockSubAndDispatcher(sub);
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
     sub->msgsMax = 0;
     sub->bytesMax = 0;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }
@@ -1399,11 +1395,11 @@ natsSubscription_GetStats(natsSubscription *sub,
     if (sub == NULL)
         return nats_setDefaultError(NATS_INVALID_ARG);
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
 
     if (sub->closed)
     {
-        natsSub_Unlock(sub);
+        nats_unlockSubAndDispatcher(sub);
         return nats_setDefaultError(NATS_INVALID_SUBSCRIPTION);
     }
 
@@ -1426,7 +1422,7 @@ natsSubscription_GetStats(natsSubscription *sub,
     if (droppedMsgs != NULL)
         *droppedMsgs = sub->dropped;
 
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     return NATS_OK;
 }

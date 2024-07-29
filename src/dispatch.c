@@ -28,7 +28,6 @@
 natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool force)
 {
     bool signal = false;
-    bool shared = (sub->dispatcher->dedicatedTo == NULL);
 
     natsDispatchQueue *toQ = &sub->dispatcher->queue;
     natsDispatchQueue *statsQ = &sub->ownDispatcher.queue;
@@ -59,12 +58,6 @@ natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool forc
     }
     sub->slowConsumer = false;
 
-    // For shared dispatchers, we need to lock the dispatcher to place items on
-    // its queue. When we have a dedicated one, it uses the sub's mu and it's
-    // already locked.
-    if (shared)
-        nats_lockDispatcher(sub->dispatcher);
-
     if (toQ->head == NULL)
     {
         signal = true;
@@ -86,9 +79,6 @@ natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool forc
     {
         natsCondition_Signal(sub->dispatcher->cond);
     }
-
-    if (shared)
-        nats_unlockDispatcher(sub->dispatcher);
 
     return NATS_OK;
 }
