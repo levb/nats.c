@@ -98,7 +98,7 @@ static inline void _cleanupOwnDispatcher(natsSubscription *sub)
         sub->ownDispatcher.thread = NULL;
     }
 
-    nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
+    // nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
     natsCondition_Destroy(sub->ownDispatcher.cond);
 }
 
@@ -333,12 +333,7 @@ _runOwnDispatcher(natsSubscription *sub, bool forReplies)
 
     sub->dispatcher = &sub->ownDispatcher;
 
-    natsLib_Retain();
-    s = natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
-    if (s != NATS_OK)
-        natsLib_Release();
-
-    return s;
+    return natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
 }
 
 bool natsSub_setMax(natsSubscription *sub, uint64_t max)
