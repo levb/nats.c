@@ -11038,6 +11038,7 @@ void test_AsyncSubscribeTimeout(void)
         natsMutex_Lock(arg.m);
         while ((s != NATS_TIMEOUT) && (arg.timerFired != 1))
             s = natsCondition_TimedWait(arg.c, arg.m, 5000);
+        printf("<>/<> TEST: 1: %d, %d\n", s, arg.timerFired);
         natsMutex_Unlock(arg.m);
 
         // Wait half the timeout
