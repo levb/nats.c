@@ -61,26 +61,6 @@ static inline void _freeControlMessages(natsSubscription *sub)
     NATS_FREE(sub->control);
 }
 
-// Should be called during the subscription creation process, or under the sub's lock.
-static inline natsStatus
-_runOwnDispatcher(natsSubscription *sub, bool forReplies)
-{
-    natsStatus s = NATS_OK;
-    if (sub->ownDispatcher.thread != NULL)
-        return NATS_ILLEGAL_STATE; // already running
-
-    sub->dispatcher = &sub->ownDispatcher;
-
-    natsLib_Retain();
-    s = natsThread_Create(&sub->ownDispatcher.thread,
-                          forReplies ? nats_dispatchRepliesOwnThreadf : nats_dispatchMessagesOwnThreadf,
-                          sub->dispatcher);
-    if (s != NATS_OK)
-        natsLib_Release();
-
-    return s;
-}
-
 static inline natsStatus _createControlMessage(natsMsg **msg, natsSubscription *sub)
 {
     natsStatus s = natsMsg_create(msg, NULL, 0, NULL, 0, NULL, 0, -1);
@@ -222,6 +202,148 @@ void natsSub_setDrainCompleteState(natsSubscription *sub)
     natsSub_Unlock(sub);
 }
 
+// _deliverMsgs is used to deliver messages to asynchronous subscribers.
+void natsSub_deliverMsgs(void *arg)
+{
+    natsSubscription *sub = (natsSubscription *)arg;
+    natsConnection *nc = sub->conn;
+    natsMsgHandler mcb = sub->msgCb;
+    void *mcbClosure = sub->msgCbClosure;
+    uint64_t delivered;
+    uint64_t max;
+    natsMsg *msg;
+    int64_t timeout;
+    natsStatus s = NATS_OK;
+    bool draining = false;
+    bool rmSub = false;
+    natsOnCompleteCB onCompleteCB = NULL;
+    void *onCompleteCBClosure = NULL;
+    char *fcReply = NULL;
+    jsSub *jsi = NULL;
+
+    // This just serves as a barrier for the creation of this thread.
+    natsConn_Lock(nc);
+    natsConn_Unlock(nc);
+
+    natsSub_Lock(sub);
+    timeout = sub->timeout;
+    jsi = sub->jsi;
+    natsSub_Unlock(sub);
+
+    while (true)
+    {
+        natsSub_Lock(sub);
+
+        s = NATS_OK;
+        while (((msg = sub->ownDispatcher.queue.head) == NULL) && !(sub->closed) && !(sub->draining) && (s != NATS_TIMEOUT))
+        {
+            if (timeout != 0)
+                s = natsCondition_TimedWait(sub->ownDispatcher.cond, sub->mu, timeout);
+            else
+                natsCondition_Wait(sub->ownDispatcher.cond, sub->mu);
+        }
+
+        if (sub->closed)
+        {
+            natsSub_Unlock(sub);
+            break;
+        }
+        draining = sub->draining;
+
+        // Will happen with timeout subscription
+        if (msg == NULL)
+        {
+            natsSub_Unlock(sub);
+            if (draining)
+            {
+                rmSub = true;
+                break;
+            }
+            // If subscription timed-out, invoke callback with NULL message.
+            if (s == NATS_TIMEOUT)
+                (*mcb)(nc, sub, NULL, mcbClosure);
+            continue;
+        }
+
+        delivered = ++(sub->delivered);
+
+        sub->ownDispatcher.queue.head = msg->next;
+
+        if (sub->ownDispatcher.queue.tail == msg)
+            sub->ownDispatcher.queue.tail = NULL;
+
+        sub->ownDispatcher.queue.msgs--;
+        sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
+
+        msg->next = NULL;
+
+        // Capture this under lock.
+        max = sub->max;
+
+        // Check for JS flow control
+        fcReply = (jsi == NULL ? NULL : jsSub_checkForFlowControlResponse(sub));
+
+        natsSub_Unlock(sub);
+
+        if ((max == 0) || (delivered <= max))
+        {
+            (*mcb)(nc, sub, msg, mcbClosure);
+        }
+        else
+        {
+            // We need to destroy the message since the user can't do it
+            natsMsg_Destroy(msg);
+        }
+
+        if (fcReply != NULL)
+        {
+            natsConnection_Publish(nc, fcReply, NULL, 0);
+            NATS_FREE(fcReply);
+        }
+
+        // Don't do 'else' because we need to remove when we have hit
+        // the max (after the callback returns).
+        if ((max > 0) && (delivered >= max))
+        {
+            // If we have hit the max for delivered msgs, remove sub.
+            rmSub = true;
+            break;
+        }
+    }
+
+    natsSub_Lock(sub);
+    onCompleteCB = sub->onCompleteCB;
+    onCompleteCBClosure = sub->onCompleteCBClosure;
+    _setDrainCompleteState(sub);
+    natsSub_Unlock(sub);
+
+    if (rmSub)
+        natsConn_removeSubscription(nc, sub);
+
+    if (onCompleteCB != NULL)
+        (*onCompleteCB)(onCompleteCBClosure);
+
+    natsSub_release(sub);
+}
+
+// Should be called during the subscription creation process, or under the sub's lock.
+static inline natsStatus
+_runOwnDispatcher(natsSubscription *sub, bool forReplies)
+{
+    natsStatus s = NATS_OK;
+    if (sub->ownDispatcher.thread != NULL)
+        return NATS_ILLEGAL_STATE; // already running
+
+    sub->dispatcher = &sub->ownDispatcher;
+
+    natsLib_Retain();
+    s = natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
+    if (s != NATS_OK)
+        natsLib_Release();
+
+    return s;
+}
+
 bool natsSub_setMax(natsSubscription *sub, uint64_t max)
 {
     bool accepted = false;
@@ -300,8 +422,12 @@ _asyncTimeoutCb(natsTimer *timer, void *closure)
     natsSub_Lock(sub);
     // If the subscription has already timed out and has not reset, is closed or
     // draining - do nothing.
-    if (!sub->closed && !sub->timeoutSuspended)
+    if (!sub->closed && !sub->timedOut && !sub->timeoutSuspended)
     {
+        // Prevent from scheduling another control message while we are not
+        // done with previous one.
+        sub->timedOut = true;
+
         // Set the timer to a very high value, it will be reset from the
         // worker thread.
         natsTimer_Reset(sub->timeoutTimer, 60 * 60 * 1000);
@@ -397,9 +523,9 @@ natsSub_create(natsSubscription **newSub, natsConnection *nc, const char *subj,
             sub->dispatcher = &sub->ownDispatcher;
             _release(sub);
         }
-        else if (useShared)
+        else if (useShared && !forReplies)
         {
-            s = nats_assignSubToDispatch(sub, forReplies);
+            s = nats_assignSubToDispatch(sub);
 
             // If we are using a shared dispatcher, we need to start the
             // timeout timer. Own dispatcher uses a timed wait on the

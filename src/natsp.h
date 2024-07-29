@@ -906,4 +906,6 @@ static inline void nats_unlockDispatcher(natsDispatcher *d)
         natsMutex_Unlock(d->mu);
 }
 
+void nats_deliverMsgsPoolf(void *arg);
+
 #endif /* NATSP_H_ */
