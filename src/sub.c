@@ -91,13 +91,15 @@ _initOwnDispatcher(natsSubscription *sub)
 
 static inline void _cleanupOwnDispatcher(natsSubscription *sub)
 {
-    // nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
-
     if (sub->ownDispatcher.thread != NULL)
     {
         natsThread_Join(sub->ownDispatcher.thread);
         natsThread_Destroy(sub->ownDispatcher.thread);
         sub->ownDispatcher.thread = NULL;
+    }
+    else
+    {
+        nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
     }
 
     natsCondition_Destroy(sub->ownDispatcher.cond);
@@ -240,6 +242,8 @@ void natsSub_deliverMsgs(void *arg)
             else
                 natsCondition_Wait(sub->ownDispatcher.cond, sub->mu);
         }
+
+        // printf("<>/<> message, timeout, or flag: %p %d %d %d\n", (void*)msg, timeout, sub->closed, sub->draining);
 
         if (sub->closed)
         {
