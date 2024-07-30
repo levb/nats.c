@@ -91,6 +91,8 @@ _initOwnDispatcher(natsSubscription *sub)
 
 static inline void _cleanupOwnDispatcher(natsSubscription *sub)
 {
+    nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
+
     if (sub->ownDispatcher.thread != NULL)
     {
         natsThread_Join(sub->ownDispatcher.thread);
@@ -98,7 +100,6 @@ static inline void _cleanupOwnDispatcher(natsSubscription *sub)
         sub->ownDispatcher.thread = NULL;
     }
 
-    // nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
     natsCondition_Destroy(sub->ownDispatcher.cond);
 }
 
