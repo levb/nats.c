@@ -333,10 +333,7 @@ _runOwnDispatcher(natsSubscription *sub, bool forReplies)
         return NATS_ILLEGAL_STATE; // already running
 
     sub->dispatcher = &sub->ownDispatcher;
-    _retain(sub);
     s = natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
-    if (s != NATS_OK)
-        _release(sub);
     return s;
 }
 
