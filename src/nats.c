@@ -243,6 +243,12 @@ nats_deliverMsgsPoolf(void *arg)
         mcbClosure = sub->msgCbClosure;
         max = sub->max;
 
+        // Update the sub's stats before checking closed state. (We now post
+        // control messages to the sub's queue, because hbTimer processing is
+        // expecting it, so need to clear the stats for them, too)
+        sub->ownDispatcher.queue.msgs--;
+        sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
+
         // Is this a control message?
         if (msg->subject[0] == '\0')
         {
@@ -286,7 +292,6 @@ nats_deliverMsgsPoolf(void *arg)
             }
             else if (timedOut)
             {
-                printf("<>/<> got timeout!\n");
                 // Invoke the callback with a NULL message.
                 (*mcb)(nc, sub, NULL, mcbClosure);
             }
@@ -300,17 +305,12 @@ nats_deliverMsgsPoolf(void *arg)
                 // subscription to timeout again, and reset the
                 // timer to fire again starting from now.
                 sub->timedOut = false;
-                printf("<>/<> resetting timer after timeout\n");
                 natsTimer_Reset(sub->timeoutTimer, sub->timeout);
             }
 
             // Go back to top of loop.
             continue;
         }
-
-        // Update before checking closed state.
-        sub->dispatcher->queue.msgs--;
-        sub->dispatcher->queue.bytes -= natsMsg_dataAndHdrLen(msg);
 
         // Need to check for closed subscription again here.
         // The subscription could have been unsubscribed from a callback
@@ -336,8 +336,7 @@ nats_deliverMsgsPoolf(void *arg)
 
             // If we are dealing with the last pending message for this sub,
             // we will reset the timer after the user callback returns.
-            printf("<>/<> timer needs reset: %d\n", sub->dispatcher->queue.msgs == 0);
-            if (sub->dispatcher->queue.msgs == 0)
+            if (sub->ownDispatcher.queue.msgs == 0)
                 timerNeedReset = true;
         }
 
@@ -345,7 +344,6 @@ nats_deliverMsgsPoolf(void *arg)
 
         if ((max == 0) || (delivered <= max))
         {
-            printf("<>/<> got user message '%.*s'\n", (int) msg->dataLen, msg->data);
             (*mcb)(nc, sub, msg, mcbClosure);
         }
         else
@@ -375,7 +373,6 @@ nats_deliverMsgsPoolf(void *arg)
         // Check if timer need to be reset for subscriptions that can timeout.
         if (!sub->closed && (sub->timeout != 0) && timerNeedReset)
         {
-            printf("<>/<> resetting timer after message\n");
             timerNeedReset = false;
 
             // Do this only on timer reset instead of after each return

@@ -327,12 +327,10 @@ void natsSub_deliverMsgs(void *arg)
 static inline natsStatus
 _runOwnDispatcher(natsSubscription *sub, bool forReplies)
 {
-    natsStatus s = NATS_OK;
     if (sub->ownDispatcher.thread != NULL)
         return NATS_ILLEGAL_STATE; // already running
 
     sub->dispatcher = &sub->ownDispatcher;
-
     return natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
 }
 
@@ -918,7 +916,7 @@ void natsSub_drain(natsSubscription *sub)
         sub->timeoutSuspended = true;
     }
 
-    if ((sub->dispatcher != NULL) && (sub->dispatcher->thread != NULL))
+    if (sub->dispatcher != &sub->ownDispatcher)
     {
         natsSub_enqueueCtrlMsg(sub, sub->control->sub.drain);
     }
