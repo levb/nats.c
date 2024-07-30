@@ -2672,7 +2672,7 @@ PROCESS_INFO:
         else
         {
             maxap = info->Config->MaxAckPending;
-            natsSub_Lock(sub);
+            nats_lockSubAndDispatcher(sub);
             jsi->dc = true;
             jsi->pending = info->NumPending + info->Delivered.Consumer;
             // There may be a race in the case of an ordered consumer where by this
@@ -2689,7 +2689,7 @@ PROCESS_INFO:
                         s = nats_setDefaultError(NATS_NO_MEMORY);
                 }
             }
-            natsSub_Unlock(sub);
+            nats_unlockSubAndDispatcher(sub);
         }
     }
 
