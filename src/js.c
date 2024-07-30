@@ -844,9 +844,9 @@ _timeoutPubAsync(natsTimer *t, void *closure)
 
         // Best attempt, ignore NATS_SLOW_CONSUMER errors which may be returned
         // here.
-        natsSub_Lock(js->rsub);
+        nats_lockSubAndDispatcher(js->rsub);
         natsSub_enqueueMsg(js->rsub, m);
-        natsSub_Unlock(js->rsub);
+        nats_unlockSubAndDispatcher(js->rsub);
 
         js->pmHead = pm->next;
         _destroyPMInfo(pm);
