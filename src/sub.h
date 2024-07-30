@@ -54,7 +54,6 @@ static inline void natsSub_retain(natsSubscription *sub)
 void natsSub_release(natsSubscription *sub);
 
 // lock/unlock sub's dispatcher ONLY
-// <>/<> FIXME compile a list of sub fields that can be accessed without locking the sub, in dispatcher under this lock
 static inline void natsSub_lockDispatcher(natsSubscription *sub)
 {
     if (sub->dispatcher != &sub->ownDispatcher)

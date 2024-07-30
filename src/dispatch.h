@@ -52,8 +52,6 @@ static inline void nats_destroyQueuedMessages(natsDispatchQueue *queue)
     for (natsMsg *msg = queue->head; msg != NULL; msg = next)
     {
         next = msg->next;
-
-        printf("<>/<> Destroying leftover queue message: '%s' '%.*s\n", msg->subject, (int) msg->dataLen, msg->data);
         natsMsg_Destroy(msg);
     }
 }
