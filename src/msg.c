@@ -683,6 +683,8 @@ natsMsg_Destroy(natsMsg *msg)
     if (natsMsg_isNoDestroy(msg))
         return;
 
+    printf("<>/<> ===== DESTROY: '%s' '%.*s\n", msg->subject, (int)msg->dataLen, msg->data);
+
     if (natsGC_collect((natsGCItem *) msg))
         return;
 

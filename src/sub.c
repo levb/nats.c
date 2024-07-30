@@ -91,15 +91,14 @@ _initOwnDispatcher(natsSubscription *sub)
 
 static inline void _cleanupOwnDispatcher(natsSubscription *sub)
 {
+    nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
+
     if (sub->ownDispatcher.thread != NULL)
     {
         natsThread_Join(sub->ownDispatcher.thread);
+        printf("<>/<> JOINED own dispatcher\n");
         natsThread_Destroy(sub->ownDispatcher.thread);
         sub->ownDispatcher.thread = NULL;
-    }
-    else
-    {
-        nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
     }
 
     natsCondition_Destroy(sub->ownDispatcher.cond);
@@ -394,7 +393,7 @@ void natsSub_close(natsSubscription *sub, bool connectionClosed)
         if (sub->timeout != 0)
             natsTimer_Stop(sub->timeoutTimer);
 
-        if (sub->dispatcher->thread != NULL)
+        if (sub->dispatcher != &sub->ownDispatcher)
         {
             // Post a control message to wake-up the worker which will ensure
             // that all pending messages for this subscription are removed,
