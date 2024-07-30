@@ -97,10 +97,8 @@ static inline void _cleanupOwnDispatcher(natsSubscription *sub)
         natsThread_Destroy(sub->ownDispatcher.thread);
         sub->ownDispatcher.thread = NULL;
     }
-    else
-    {
-        nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
-    }
+
+    nats_destroyQueuedMessages(&sub->ownDispatcher.queue);
 
     natsCondition_Destroy(sub->ownDispatcher.cond);
 }
@@ -248,6 +246,7 @@ void natsSub_deliverMsgs(void *arg)
         if (sub->closed)
         {
             natsSub_Unlock(sub);
+            printf("<>/<> CLOSED own dispatcher\n");
             break;
         }
         draining = sub->draining;
@@ -259,6 +258,7 @@ void natsSub_deliverMsgs(void *arg)
             if (draining)
             {
                 rmSub = true;
+                printf("<>/<> DRAINING own dispatcher\n");
                 break;
             }
             // If subscription timed-out, invoke callback with NULL message.
@@ -294,6 +294,7 @@ void natsSub_deliverMsgs(void *arg)
         else
         {
             // We need to destroy the message since the user can't do it
+            printf("<>/<> Destroying UNDELIVERABLE message: '%s' '%.*s\n", msg->subject, (int)msg->dataLen, msg->data);
             natsMsg_Destroy(msg);
         }
 
@@ -309,6 +310,7 @@ void natsSub_deliverMsgs(void *arg)
         {
             // If we have hit the max for delivered msgs, remove sub.
             rmSub = true;
+            printf("<>/<> MAX DELIVERED own dispatcher\n");
             break;
         }
     }
@@ -325,6 +327,7 @@ void natsSub_deliverMsgs(void *arg)
     if (onCompleteCB != NULL)
         (*onCompleteCB)(onCompleteCBClosure);
 
+    printf("<>/<> QUIT own dispatcher\n");
     natsSub_release(sub);
 }
 
@@ -813,6 +816,7 @@ natsSub_nextMsg(natsMsg **nextMsg, natsSubscription *sub, int64_t timeout, bool 
     }
     if ((s == NATS_OK) && natsMsg_IsNoResponders(msg))
     {
+        printf("<>/<> Destroying NO_RESPONDERS message: '%s' '%.*s\n", msg->subject, (int)msg->dataLen, msg->data);
         natsMsg_Destroy(msg);
         s = NATS_NO_RESPONDERS;
     }
