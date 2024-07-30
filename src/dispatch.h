@@ -49,8 +49,7 @@ static void nats_dispatchRepliesOwnThreadf(void *arg) { nats_dispatchMessages((n
 static inline void nats_destroyQueuedMessages(natsDispatchQueue *queue)
 {
     natsMsg *next = NULL;
-    int n = 0;
-    for (natsMsg *msg = queue->head; msg != NULL; msg = next, n++)
+    for (natsMsg *msg = queue->head; msg != NULL; msg = next)
     {
         next = msg->next;
         natsMsg_Destroy(msg);
