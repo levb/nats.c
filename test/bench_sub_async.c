@@ -71,13 +71,13 @@ static uint64_t _expectedXOR(int N);
 void test_BenchSubscribeAsync_Small(void)
 {
     threadConfig threads[] = {
-        // {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
         {true, 1},
         {true, 2},
         {true, 3},
-        // {true, 5},
-        // // These should show no material difference since no extra threads will be spun up
-        // {true, 7},
+        {true, 5},
+        // Next should show no material difference since no extra threads will be spun up
+        {true, 7},
     };
 
     int subs[] = {1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13};
@@ -95,22 +95,22 @@ void test_BenchSubscribeAsync_Small(void)
 // subscribers, but can be too slow for a few subscriptions.
 void test_BenchSubscribeAsync_Large(void)
 {
-    // threadConfig threads[] = {
-    //     {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-    //     // {true, 1},
-    //     // {true, 2},
-    //     // {true, 11},
-    //     // {true, 163}, // to compare to non-pooled
-    // };
+    threadConfig threads[] = {
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 1},
+        {true, 2},
+        {true, 11},
+        {true, 163}, // to compare to non-pooled
+    };
 
-    // int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
+    int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
 
-    // ENV env = {
-    //     .pubf = _publish,
-    //     .progressiveFlush = true,
-    // };
+    ENV env = {
+        .pubf = _publish,
+        .progressiveFlush = true,
+    };
 
-    // RUN_MATRIX(threads, subs, 100 * 1000, &env);
+    RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -118,14 +118,14 @@ void test_BenchSubscribeAsync_Large(void)
 void test_BenchSubscribeAsync_Inject(void)
 {
     threadConfig threads[] = {
-        // {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-            {true, 1},
-            {true, 2},
-        //     {true, 3},
-        //     {true, 7},
-        //     {true, 11},
-        //     {true, 19},
-        //     {true, 163},
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 1},
+        {true, 2},
+        {true, 3},
+        {true, 7},
+        {true, 11},
+        {true, 19},
+        {true, 163},
     };
 
     int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
@@ -152,19 +152,18 @@ void test_BenchSubscribeAsync_InjectSlow(void)
 #else
 
     threadConfig threads[] = {
-        // {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        // {true, 1},
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 1},
         {true, 2},
         {true, 3},
-        // {true, 3},
-        // {true, 7},
+        {true, 3},
+        {true, 7},
         {true, 11},
-        // {true, 79},
-        // {true, 499},
+        {true, 79},
+        {true, 499},
     };
 
     int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
-    // int subs[] = {1, 8, 12, 83, 163, 499};
 
     ENV env = {
         .pubf = _inject,
