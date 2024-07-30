@@ -324,15 +324,20 @@ void natsSub_deliverMsgs(void *arg)
     natsSub_release(sub);
 }
 
-// Should be called during the subscription creation process, or under the sub's lock.
+// Should be called only during the subscription creation process, no need to lock
 static inline natsStatus
 _runOwnDispatcher(natsSubscription *sub, bool forReplies)
 {
+    natsStatus s = NATS_OK;
     if (sub->ownDispatcher.thread != NULL)
         return NATS_ILLEGAL_STATE; // already running
 
     sub->dispatcher = &sub->ownDispatcher;
-    return natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
+    _retain(sub);
+    s = natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
+    if (s != NATS_OK)
+        _release(sub);
+    return s;
 }
 
 bool natsSub_setMax(natsSubscription *sub, uint64_t max)
