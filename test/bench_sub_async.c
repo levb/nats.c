@@ -95,15 +95,14 @@ void test_BenchSubscribeAsync_Small(void)
 void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
-        // {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        // {true, 5},
-        // {true, 11},
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 5},
+        {true, 11},
         {true, 23},
-        // {true, 47}, // to compare to non-pooled
+        {true, 47}, // to compare to non-pooled
     };
 
-    int subs[] = { 17};
-    // int subs[] = {1, 3, 4, 5, 7, 10, 17, 47};
+    int subs[] = {1, 3, 4, 5, 7, 10, 17, 47};
 
     ENV env = {
         .pubf = _publish,
@@ -401,7 +400,6 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
 
     int flushAfter = progressiveFlush ? numPubMessages / (numSubs * 2) : // trigger
                          numPubMessages + 1;                             // do not trigger
-    printf("<>/<> flushAfter: %d\n", flushAfter);
     for (int i = 0; i < numPubMessages; i++)
     {
         snprintf(buf, sizeof(buf), "%d", i);
@@ -409,14 +407,13 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
 
         if ((i != 0) && (i % flushAfter) == 0)
         {
-            printf("<>/<> flushing: %d\n", i);
             IFOK(s, natsConnection_Flush(nc));
         }
-        // if (i == (numPubMessages - 1)) // last message in batch
-        // {
-        //     printf("<>/<> flushing last: %d\n", i);
-        //     IFOK(s, natsConnection_Flush(nc));
-        // }
+        if (i == (numPubMessages - 1)) // last message in batch
+        {
+            printf("<>/<> flushing last: %d\n", i);
+            IFOK(s, natsConnection_Flush(nc));
+        }
     }
     printf("<>/<> done publish:\n");
 
