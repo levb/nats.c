@@ -176,7 +176,7 @@ static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector,
     if (valgrind)
     {
         REPEAT = 1;
-        NMessages /= 10;
+        NMessages /= 20;
     }
     if (natsMutex_Create(&env->mu) != NATS_OK)
     {
