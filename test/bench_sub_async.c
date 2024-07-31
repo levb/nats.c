@@ -101,7 +101,7 @@ void test_BenchSubscribeAsync_Large(void)
         {true, 163}, // to compare to non-pooled
     };
 
-    int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
+    int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 160};
 
     ENV env = {
         .pubf = _publish,
