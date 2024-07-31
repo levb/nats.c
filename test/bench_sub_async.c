@@ -399,6 +399,7 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
 
     int flushAfter = progressiveFlush ? numPubMessages / (numSubs * 2) : // trigger
                          numPubMessages + 1;                             // do not trigger
+    printf("<>/<> flushAfter: %d\n", flushAfter);
     for (int i = 0; i < numPubMessages; i++)
     {
         snprintf(buf, sizeof(buf), "%d", i);
