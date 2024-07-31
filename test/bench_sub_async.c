@@ -407,16 +407,16 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
         snprintf(buf, sizeof(buf), "%d", i);
         IFOK(s, natsConnection_PublishString(nc, subject, buf));
 
-        if ((i != 0) && ((i % flushAfter) == 0)) // progressive flush
+        if (i % 5) // progressive flush
         {
             printf("<>/<> flushing progressive: %d\n", i);
             IFOK(s, natsConnection_Flush(nc));
         }
-        if (i == (numPubMessages - 1)) // last message in batch
-        {
-            printf("<>/<> flushing last: %d\n", i);
-            IFOK(s, natsConnection_Flush(nc));
-        }
+        // if (i == (numPubMessages - 1)) // last message in batch
+        // {
+        //     printf("<>/<> flushing last: %d\n", i);
+        //     IFOK(s, natsConnection_Flush(nc));
+        // }
     }
     printf("<>/<> done publish:\n");
 
