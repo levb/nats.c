@@ -11713,8 +11713,7 @@ void test_SubRemovedWhileProcessingMsg(void)
     IFOK(s, natsConnection_Subscribe(&sub, nc, "foo", _recvTestString, NULL));
     testCond(s == NATS_OK);
 
-    natsMutex_Lock(sub->dispatcher->mu);
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     test("Send message: ");
     s = natsConnection_PublishString(nc, "foo", "hello");
     testCond(s == NATS_OK);
@@ -11723,30 +11722,26 @@ void test_SubRemovedWhileProcessingMsg(void)
     testCond(sub->ownDispatcher.queue.msgs == 0);
 
     test("Close sub: ");
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
     natsSub_close(sub, false);
     testCond(s == NATS_OK);
 
     test("The message is enqueued: ");
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     testCond(sub->ownDispatcher.queue.msgs == 1);
-    natsSub_Unlock(sub);
-
-    test("Unlock the dispatcher to see what it does: ");
-    natsMutex_Unlock(sub->dispatcher->mu);
-    testCond(s == NATS_OK);
+    nats_unlockSubAndDispatcher(sub);
 
     test("Check message is not given to callback, but is gone quickly: ");
     natsMutex_Lock(arg.m);
     while ((s != NATS_TIMEOUT) && !arg.msgReceived)
         s = natsCondition_TimedWait(arg.c, arg.m, 10);
 
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     testCond((s == NATS_TIMEOUT) &&
              (arg.msgReceived == false) &&
              (sub->ownDispatcher.queue.msgs == 0));
     natsMutex_Unlock(arg.m);
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
 
     natsSubscription_Destroy(sub);
     natsConnection_Destroy(nc);
@@ -27517,9 +27512,9 @@ void test_JetStreamSubscribeIdleHearbeat(void)
 
     test("Check HB received: ");
     nats_Sleep(300);
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     s = (sub->jsi->mismatch.dseq == 1 ? NATS_OK : NATS_ERR);
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
     testCond(s == NATS_OK);
 
     test("Check HB is not given to app: ");
@@ -27610,9 +27605,9 @@ void test_JetStreamSubscribeIdleHearbeat(void)
     // Send real message so that all clears up
     s = js_Publish(NULL, js, "foo", "msg3", 4, NULL, &jerr);
     nats_Sleep(300);
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     s = (sub->jsi->ssmn == false ? NATS_OK : NATS_ERR);
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
     testCond(s == NATS_OK);
 
     test("Skip again: ");
@@ -27714,9 +27709,9 @@ void test_JetStreamSubscribeIdleHearbeat(void)
     // Send real message so that all clears up
     s = js_Publish(NULL, js, "foo", "msg4", 4, NULL, &jerr);
     nats_Sleep(300);
-    natsSub_Lock(sub);
+    nats_lockSubAndDispatcher(sub);
     s = (sub->jsi->ssmn == false && sub->jsi->sm == false ? NATS_OK : NATS_ERR);
-    natsSub_Unlock(sub);
+    nats_unlockSubAndDispatcher(sub);
     testCond(s == NATS_OK);
 
     test("Skip again: ");
