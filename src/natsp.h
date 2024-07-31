@@ -723,7 +723,7 @@ struct __natsConnection
     // New Request style
     char                respId[NATS_MAX_REQ_ID_LEN+1];
     int                 respIdPos;
-    int                 respIdVal;
+    char                respIdVal;
     char                *respSub;   // The wildcard subject
     natsSubscription    *respMux;   // A single response subscription
     natsStrHash         *respMap;   // Request map for the response msg
@@ -905,5 +905,7 @@ static inline void nats_unlockDispatcher(natsDispatcher *d)
     if (d->mu != NULL)
         natsMutex_Unlock(d->mu);
 }
+
+void nats_deliverMsgsPoolf(void *arg);
 
 #endif /* NATSP_H_ */

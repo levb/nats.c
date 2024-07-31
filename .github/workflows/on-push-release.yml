@@ -57,10 +57,11 @@ jobs:
       type: RelWithDebInfo
       lib_msg_delivery: ON
 
-  bench:
-    name: "Benchmark"
+  san-thread-bench:
+    name: "Sanitize thread (benchmark)"
     uses: ./.github/workflows/build-test.yml
     with:
+      sanitize: thread
       server_version: main
+      type: RelWithDebInfo
       benchmark: ON
-      type: Release
