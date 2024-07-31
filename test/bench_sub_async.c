@@ -14,8 +14,6 @@
 #include "test.h"
 #include "sub.h"
 
-#define REPEAT 7
-
 typedef struct __env ENV;
 
 typedef struct
@@ -172,6 +170,13 @@ void test_BenchSubscribeAsync_InjectSlow(void)
 
 static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector, int lens, int NMessages, ENV *env)
 {
+    int REPEAT = 7;
+
+    if (valgrind)
+    {
+        REPEAT = 1;
+        NMessages /= 10;
+    }
     if (natsMutex_Create(&env->mu) != NATS_OK)
     {
         fprintf(stderr, "Error creating mutex\n");

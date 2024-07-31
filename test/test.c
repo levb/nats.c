@@ -76,7 +76,7 @@ static int  tests  = 0;
 bool failed = false;
 
 bool keepServerOutput    = false;
-static bool valgrind            = false;
+bool valgrind            = false;
 static bool runOnTravis         = false;
 
 static const char *serverVersion = NULL;

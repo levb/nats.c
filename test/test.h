@@ -40,6 +40,7 @@ static const char *clusterName = "test-cluster";
 extern natsMutex *slMu;
 extern natsHash *slMap;
 extern bool keepServerOutput;
+extern bool valgrind;
 extern bool failed;
 
 static const char *natsServerExe = "nats-server";
