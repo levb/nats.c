@@ -14,7 +14,7 @@
 #include "test.h"
 #include "sub.h"
 
-#define REPEAT 5
+#define REPEAT 7
 
 typedef struct __env ENV;
 
@@ -96,10 +96,9 @@ void test_BenchSubscribeAsync_Small(void)
 void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
-        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        {true, 1},
-        {true, 2},
+        {true, 5},
         {true, 11},
+        {true, 23},
         {true, 163}, // to compare to non-pooled
     };
 
@@ -130,8 +129,6 @@ void test_BenchSubscribeAsync_Inject(void)
 
     int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
 
-    // int subs[] = {1, 8, 23, 83, 163, 499};
-
     ENV env = {
         .pubf = _inject,
     };
@@ -155,7 +152,6 @@ void test_BenchSubscribeAsync_InjectSlow(void)
         {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
         {true, 1},
         {true, 2},
-        {true, 3},
         {true, 3},
         {true, 7},
         {true, 11},
@@ -233,6 +229,7 @@ static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector,
         }
     }
     printf("]\n");
+    natsMutex_Destroy(env->mu);
 }
 
 static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
