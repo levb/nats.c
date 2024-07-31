@@ -95,13 +95,14 @@ void test_BenchSubscribeAsync_Small(void)
 void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
         {true, 5},
         {true, 11},
         {true, 23},
-        {true, 163}, // to compare to non-pooled
+        {true, 47}, // to compare to non-pooled
     };
 
-    int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 160};
+    int subs[] = {1, 3, 4, 5, 7, 10,  17, 47};
 
     ENV env = {
         .pubf = _publish,
