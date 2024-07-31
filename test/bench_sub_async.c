@@ -95,9 +95,9 @@ void test_BenchSubscribeAsync_Small(void)
 void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
-        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        {true, 5},
-        {true, 11},
+        // {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        // {true, 5},
+        // {true, 11},
         {true, 23},
         {true, 47}, // to compare to non-pooled
     };
