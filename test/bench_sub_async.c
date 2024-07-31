@@ -404,7 +404,6 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
     printf("<>/<> flushAfter: %d\n", flushAfter);
     for (int i = 0; i < numPubMessages; i++)
     {
-        printf("<>/<> ...: %d\n", i);
         snprintf(buf, sizeof(buf), "%d", i);
         IFOK(s, natsConnection_PublishString(nc, subject, buf));
 
