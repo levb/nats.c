@@ -63,5 +63,5 @@ jobs:
     with:
       sanitize: thread
       server_version: main
-      type: RelWithDebInfo
+      type: Debug
       benchmark: ON
