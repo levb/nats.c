@@ -387,16 +387,25 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
 {
     natsStatus s = NATS_OK;
     char buf[16];
+    int numPubMessages = 0;
+    int numSubs = 0;
+    bool progressiveFlush = false;
 
-    int flushAfter = env->progressiveFlush ? env->numPubMessages / (env->numSubs * 2) : // trigger
-                         env->numPubMessages + 1;                                       // do not trigger
-    for (int i = 0; i < env->numPubMessages; i++)
+    natsMutex_Lock(env->mu);
+    numPubMessages = env->numPubMessages;
+    numSubs = env->numSubs;
+    progressiveFlush = env->progressiveFlush;
+    natsMutex_Unlock(env->mu);
+
+    int flushAfter = progressiveFlush ? numPubMessages / (numSubs * 2) : // trigger
+                         numPubMessages + 1;                             // do not trigger
+    for (int i = 0; i < numPubMessages; i++)
     {
         snprintf(buf, sizeof(buf), "%d", i);
         IFOK(s, natsConnection_PublishString(nc, subject, buf));
 
         if (((i != 0) && ((i % flushAfter) == 0)) || // progressive flush
-            (i == (env->numPubMessages - 1)))        // last message in batch
+            (i == (numPubMessages - 1)))             // last message in batch
         {
             IFOK(s, natsConnection_Flush(nc));
         }
