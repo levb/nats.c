@@ -418,25 +418,25 @@ typedef struct __jsSub
     jsConsumerConfig    *ocCfg;
 
     // Flags, at the end for compactness.
-    unsigned pull : 1;
-    unsigned inFetch : 1;
-    unsigned ordered : 1;
-    unsigned dc : 1; // delete JS consumer in Unsub()/Drain()
-    unsigned ackNone : 1;
-    unsigned active : 1;
+    bool pull;
+    bool inFetch;
+    bool ordered;
+    bool dc; // delete JS consumer in Unsub()/Drain()
+    bool ackNone;
+    bool active;
 
     // Skip sequence mismatch notification. This is used for
     // async subscriptions to notify the asyn err handler only
     // once. Should the mismatch be resolved, this will be
     // cleared so notification can happen again.
-    unsigned ssmn : 1;
+    bool ssmn;
     // Sequence mismatch. This is for synchronous subscription
     // so that they don't have to rely on async error callback.
     // Calling NextMsg() when this is true will cause NextMsg()
     // to return NATS_SLOW_CONSUMER, so that user can check
     // the sequence mismatch report. Should the mismatch be
     // resolved, this will be cleared.
-    unsigned sm : 1;
+    bool sm;
 
 } jsSub;
 
@@ -582,24 +582,24 @@ struct __natsSubscription
     // Flags, groupped together to save space.
 
     // True if msgList.count is over pendingMax
-    unsigned slowConsumer : 1;
+    bool slowConsumer;
 
     // The subscriber is closed (or closing).
-    unsigned closed : 1;
+    bool closed;
 
     // Indicates if this subscription is actively draining.
-    unsigned draining : 1;
+    bool draining;
 
     // This is set if the flush failed and will prevent the connection for pushing further messages.
-    unsigned drainSkip : 1;
+    bool drainSkip;
 
     // If true, the subscription is closed, but because the connection
     // was closed, not because of subscription (auto-)unsubscribe.
-    unsigned connClosed : 1;
+    bool connClosed;
 
-    unsigned timedOut : 1;
+    bool timedOut;
 
-    unsigned timeoutSuspended : 1;
+    bool timeoutSuspended;
 };
 
 typedef struct __natsPong
@@ -905,5 +905,7 @@ static inline void nats_unlockDispatcher(natsDispatcher *d)
     if (d->mu != NULL)
         natsMutex_Unlock(d->mu);
 }
+
+void nats_deliverMsgsPoolf(void *arg);
 
 #endif /* NATSP_H_ */

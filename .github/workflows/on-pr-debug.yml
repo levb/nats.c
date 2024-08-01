@@ -60,7 +60,7 @@ jobs:
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: main
-      type: Debug
+      type: RelWithDebInfo
       compiler: ${{ matrix.compiler }}
       sanitize: ${{ matrix.sanitize }}
       lib_msg_delivery: ${{ matrix.pooled_delivery }}
@@ -69,16 +69,21 @@ jobs:
     name: "Sanitize address (lib_write_deadline)"
     uses: ./.github/workflows/build-test.yml
     with:
-      type: Debug
+      type: RelWithDebInfo
       sanitize: address
       server_version: main
       lib_write_deadline: ON
 
   bench:
     name: "Benchmark"
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: main
+      compiler: ${{ matrix.compiler }}
       benchmark: ON
       type: Release
 

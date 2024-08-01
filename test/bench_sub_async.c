@@ -39,6 +39,7 @@ typedef natsStatus (*publishFunc)(natsConnection *nc, const char *subject, ENV *
 
 struct __env
 {
+    natsMutex *mu;
     int numSubs;
     threadConfig threads;
     int numPubMessages;
@@ -73,7 +74,6 @@ void test_BenchSubscribeAsync_Small(void)
         {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
         {true, 1},
         {true, 5},
-        // These should show no material difference since no extra threads will be spun up
         {true, 7},
     };
 
@@ -93,45 +93,45 @@ void test_BenchSubscribeAsync_Small(void)
 void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
-        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {false, 1},
         {true, 1},
         {true, 2},
+        {true, 5},
         {true, 11},
-        {true, 163}, // to compare to non-pooled
+        {true, 23},
+        {true, 47},
+        {true, 90},
     };
 
-    int subs[] = {23, 83, 163};
+    int subs[] = {1, 2, 23, 47, 83};
 
     ENV env = {
         .pubf = _publish,
         .progressiveFlush = true,
     };
 
-    RUN_MATRIX(threads, subs, 500 * 1000, &env);
+    RUN_MATRIX(threads, subs, 50 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
 // delivery, bypassing the publish step.
 void test_BenchSubscribeAsync_Inject(void)
 {
-    threadConfig threads[] = {
-        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        {true, 1},
-        {true, 2},
-        {true, 3},
-        {true, 7},
-        {true, 11},
-        {true, 19},
-        {true, 163},
-    };
+    // threadConfig threads[] = {
+    //     {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+    //     {true, 2},
+    //     {true, 7},
+    //     {true, 19},
+    //     {true, 163},
+    // };
 
-    int subs[] = {1, 8, 23, 83, 163, 499};
+    // int subs[] = {1, 2, 3, 5, 10, 23, 83, 163, 499};
 
-    ENV env = {
-        .pubf = _inject,
-    };
+    // ENV env = {
+    //     .pubf = _inject,
+    // };
 
-    RUN_MATRIX(threads, subs, 1000 * 1000, &env);
+    // RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -139,37 +139,39 @@ void test_BenchSubscribeAsync_Inject(void)
 // callback.
 void test_BenchSubscribeAsync_InjectSlow(void)
 {
-#ifdef _WIN32
-    // This test relies on nanosleep, not sure what the Windows equivalent is. Skip fr now.
-    printf("Skipping BenchSubscribeAsync_InjectSlow on Windows\n");
-    return;
+// #ifdef _WIN32
+//     // This test relies on nanosleep, not sure what the Windows equivalent is. Skip fr now.
+//     printf("Skipping BenchSubscribeAsync_InjectSlow on Windows\n");
+//     return;
 
-#else
+// #else
 
-    threadConfig threads[] = {
-        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        {true, 1},
-        {true, 2},
-        {true, 3},
-        {true, 7},
-        {true, 11},
-        {true, 79},
-        {true, 499},
-    };
+//     threadConfig threads[] = {
+//         {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+//         {true, 1},
+//         {true, 2},
+//         {true, 3},
+//         {true, 79},
+//     };
 
-    int subs[] = {1, 8, 12, 83, 163, 499};
+//     int subs[] = {1, 3, 7, 23, 83, 163, 499};
 
-    ENV env = {
-        .pubf = _inject,
-        .delayNano = 10 * 1000, // 10µs
-    };
+//     ENV env = {
+//         .pubf = _inject,
+//         .delayNano = 10 * 1000, // 10µs
+//     };
 
-    RUN_MATRIX(threads, subs, 20 * 1000, &env);
-#endif // _WIN32
+//     RUN_MATRIX(threads, subs, 10000, &env);
+// #endif // _WIN32
 }
 
 static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector, int lens, int NMessages, ENV *env)
 {
+    if (natsMutex_Create(&env->mu) != NATS_OK)
+    {
+        fprintf(stderr, "Error creating mutex\n");
+        exit(1);
+    }
     printf("[\n");
     for (int *sv = subsVector; sv < subsVector + lens; sv++)
     {
@@ -222,6 +224,7 @@ static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector,
         }
     }
     printf("]\n");
+    natsMutex_Destroy(env->mu);
 }
 
 static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
@@ -284,6 +287,7 @@ static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
     }
 
     b = w = a = 0;
+    natsMutex_Lock(env->mu);
     if (s == NATS_OK)
     {
         for (int i = 0; i < env->numSubs; i++)
@@ -315,6 +319,7 @@ static natsStatus _bench(ENV *env, int *best, int *avg, int *worst)
             a += dur;
         }
     }
+    natsMutex_Unlock(env->mu);
 
     // cleanup
     for (int i = 0; i < env->numSubs; i++)
@@ -362,7 +367,9 @@ static void _onMessage(natsConnection *nc, natsSubscription *sub, natsMsg *msg, 
 static void _onComplete(void *closure)
 {
     subState *ss = (subState *)closure;
+    natsMutex_Lock(ss->env->mu);
     ss->closedTimestamp = nats_Now();
+    natsMutex_Unlock(ss->env->mu);
 }
 
 static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
@@ -370,7 +377,7 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
     natsStatus s = NATS_OK;
     char buf[16];
 
-    int flushAfter = env->progressiveFlush ? env->numPubMessages / (env->numSubs * 2) : // trigger
+    int flushAfter = env->progressiveFlush ? env->numPubMessages / (env->numSubs * 3) : // trigger
                          env->numPubMessages + 1;                                       // do not trigger
     for (int i = 0; i < env->numPubMessages; i++)
     {
@@ -400,9 +407,11 @@ static natsStatus _inject(natsConnection *nc, const char *subject, ENV *env)
             snprintf(buf, sizeof(buf), "%d", i);
 
             s = natsMsg_Create(&m, subject, NULL, buf, (int)strlen(buf));
-            natsSub_Lock(env->subs[n].sub);
-            IFOK(s, natsSub_enqueueMsg(env->subs[n].sub, m));
-            natsSub_Unlock(env->subs[n].sub);
+            natsSubscription *sub = env->subs[n].sub;
+            m->sub = sub;
+            nats_lockSubAndDispatcher(sub);
+            IFOK(s, natsSub_enqueueUserMessage(sub, m));
+            nats_unlockSubAndDispatcher(sub);
         }
     }
 

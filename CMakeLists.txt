@@ -175,7 +175,7 @@ if(UNIX)
      endif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   endif(NATS_COMPILER_HARDENING)
 
-  set(NATS_WARNINGS "-fstrict-aliasing -Wall -W -Wno-unused-parameter -Wno-unused-function -Wstrict-prototypes -Wwrite-strings")
+  set(NATS_WARNINGS "-fstrict-aliasing -Wall -W -Winline -Wno-unused-parameter -Wno-unused-function -Wstrict-prototypes -Wwrite-strings")
   set(NATS_PLATFORM_INCLUDE "unix")
 
   if(APPLE)
@@ -294,7 +294,6 @@ add_subdirectory(examples/getstarted)
 if(NATS_BUILD_STREAMING)
   add_subdirectory(examples/stan)
 endif()
-add_subdirectory(bench)
 add_subdirectory(test)
 add_subdirectory(test/dylib)
 #----------------------------
