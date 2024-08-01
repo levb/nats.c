@@ -122,19 +122,6 @@ natsSub_nextMsg(natsMsg **nextMsg, natsSubscription *sub, int64_t timeout, bool 
 void
 natsSub_close(natsSubscription *sub, bool connectionClosed);
 
-natsStatus
-natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool ctrl);
-
-static natsStatus natsSub_enqueueMsg(natsSubscription *sub, natsMsg *msg)
-{
-    return natsSub_enqueueMsgImpl(sub, msg, false);
-}
-
-static natsStatus natsSub_enqueueCtrlMsg(natsSubscription *sub, natsMsg *msg)
-{
-    return natsSub_enqueueMsgImpl(sub, msg, true);
-}
-
 natsStatus nats_createControlMessages(natsSubscription *sub);
 
 #endif /* SUB_H_ */

@@ -845,7 +845,7 @@ _timeoutPubAsync(natsTimer *t, void *closure)
         // Best attempt, ignore NATS_SLOW_CONSUMER errors which may be returned
         // here.
         nats_lockSubAndDispatcher(js->rsub);
-        natsSub_enqueueMsg(js->rsub, m);
+        natsSub_enqueueUserMessage(js->rsub, m);
         nats_unlockSubAndDispatcher(js->rsub);
 
         js->pmHead = pm->next;
@@ -2043,7 +2043,7 @@ _hbTimerFired(natsTimer *timer, void* closure)
         // we will check missed HBs again.
         if (sub->ownDispatcher.queue.msgs == 0)
         {
-            natsSub_enqueueCtrlMsg(sub, sub->control->batch.missedHeartbeat);
+            natsSub_enqueueMessage(sub, sub->control->batch.missedHeartbeat);
             natsTimer_Stop(timer);
         }
         nats_unlockSubAndDispatcher(sub);

@@ -390,7 +390,7 @@ void natsSub_close(natsSubscription *sub, bool connectionClosed)
             // Post a control message to wake-up the worker which will ensure
             // that all pending messages for this subscription are removed,
             // release the subscription and self-destroy.
-            natsSub_enqueueCtrlMsg(sub, sub->control->sub.close);
+            natsSub_enqueueMessage(sub, sub->control->sub.close);
         }
         else
         {
@@ -426,7 +426,7 @@ _asyncTimeoutCb(natsTimer *timer, void *closure)
         natsTimer_Reset(sub->timeoutTimer, 60 * 60 * 1000);
 
         // Post a control message to the worker thread.
-        natsSub_enqueueCtrlMsg(sub, sub->control->sub.timeout);
+        natsSub_enqueueMessage(sub, sub->control->sub.timeout);
     }
     nats_unlockSubAndDispatcher(sub);
 }
@@ -921,7 +921,7 @@ void natsSub_drain(natsSubscription *sub)
 
     if (sub->dispatcher != &sub->ownDispatcher)
     {
-        natsSub_enqueueCtrlMsg(sub, sub->control->sub.drain);
+        natsSub_enqueueMessage(sub, sub->control->sub.drain);
     }
     else
     {

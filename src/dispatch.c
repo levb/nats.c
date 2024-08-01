@@ -21,67 +21,65 @@
 #include "sub.h"
 #include "glib/glib.h"
 
-// When using the global dispatch queue, we still use the subscription's own
-// queue storage to keep track of message stats.
-//
-// sub lock must be held
-natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool ctrl)
+// sub and dispatcher locks must be held.
+void natsSub_enqueueMessage(natsSubscription *sub, natsMsg *msg)
 {
     bool signal = false;
+    natsDispatchQueue *q = &sub->dispatcher->queue;
 
+    if (q->head == NULL)
+    {
+        signal = true;
+        msg->next = NULL;
+        q->head = msg;
+        if (q->tail == NULL)
+            q->tail = msg;
+    }
+    else
+    {
+        q->tail->next = msg;
+        q->tail = msg;
+    }
+
+    q->msgs++;
+    q->bytes += natsMsg_dataAndHdrLen(msg);
+
+    if (signal)
+        natsCondition_Signal(sub->dispatcher->cond);
+}
+
+// sub and dispatcher locks must be held.
+natsStatus natsSub_enqueueUserMessage(natsSubscription *sub, natsMsg *msg)
+{
     natsDispatchQueue *toQ = &sub->dispatcher->queue;
     natsDispatchQueue *statsQ = &sub->ownDispatcher.queue;
-    int newMsgs = statsQ->msgs;
-    int newBytes = statsQ->bytes;
+    int newMsgs = statsQ->msgs + 1;
+    int newBytes = statsQ->bytes + natsMsg_dataAndHdrLen(msg);
 
-    if (!ctrl)
+    if (((sub->msgsLimit > 0) && (newMsgs > sub->msgsLimit)) ||
+        ((sub->bytesLimit > 0) && (newBytes > sub->bytesLimit)))
     {
-        newMsgs += 1;
-        newBytes += natsMsg_dataAndHdrLen(msg);
-
-        if (((sub->msgsLimit > 0) && (newMsgs > sub->msgsLimit)) ||
-            ((sub->bytesLimit > 0) && (newBytes > sub->bytesLimit)))
-        {
-            return NATS_SLOW_CONSUMER;
-        }
+        return NATS_SLOW_CONSUMER;
     }
+    sub->slowConsumer = false;
 
     if (newMsgs > sub->msgsMax)
         sub->msgsMax = newMsgs;
     if (newBytes > sub->bytesMax)
         sub->bytesMax = newBytes;
 
+    if ((sub->jsi != NULL) && sub->jsi->ackNone)
+        natsMsg_setAcked(msg);
+
     // Update the subscription stats if separate, the queue stats will be
     // updated below.
-    if (!ctrl && (toQ != statsQ))
+    if (toQ != statsQ)
     {
         statsQ->msgs++;
         statsQ->bytes += natsMsg_dataAndHdrLen(msg);
     }
-    sub->slowConsumer = false;
 
-    if (toQ->head == NULL)
-    {
-        signal = true;
-        msg->next = NULL;
-        toQ->head = msg;
-        if (toQ->tail == NULL)
-            toQ->tail = msg;
-    }
-    else
-    {
-        toQ->tail->next = msg;
-        toQ->tail = msg;
-    }
-
-    toQ->msgs++;
-    toQ->bytes += natsMsg_dataAndHdrLen(msg);
-
-    if (signal)
-    {
-        natsCondition_Signal(sub->dispatcher->cond);
-    }
-
+    natsSub_enqueueMessage(sub, msg);
     return NATS_OK;
 }
 

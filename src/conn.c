@@ -2736,10 +2736,8 @@ natsConn_processMsg(natsConnection *nc, char *buf, int bufLen)
     {
         // Do this before we attempt to enqueue the message, even if it were to fail.
         msg->sub = sub;
-        if ((jsi != NULL) && jsi->ackNone)
-            natsMsg_setAcked(msg);
 
-        s = natsSub_enqueueMsg(sub, msg);
+        s = natsSub_enqueueUserMessage(sub, msg);
         if (s == NATS_OK)
         {
             sub->slowConsumer = false;
