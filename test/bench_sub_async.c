@@ -95,13 +95,14 @@ void test_BenchSubscribeAsync_Small(void)
 void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
+        {false, 1},
         {true, 5},
         {true, 11},
         {true, 23},
-        {true, 163}, // to compare to non-pooled
+        {true, 47},
     };
 
-    int subs[] = {1, 2, 17, 23, 83, 163};
+    int subs[] = {1, 2, 23, 47, 120};
 
     ENV env = {
         .pubf = _publish,
@@ -381,7 +382,7 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
     natsStatus s = NATS_OK;
     char buf[16];
 
-    int flushAfter = env->progressiveFlush ? env->numPubMessages / (env->numSubs * 2) : // trigger
+    int flushAfter = env->progressiveFlush ? env->numPubMessages / (env->numSubs * 3) : // trigger
                          env->numPubMessages + 1;                                       // do not trigger
     for (int i = 0; i < env->numPubMessages; i++)
     {
