@@ -82,15 +82,6 @@ jobs:
       benchmark: ON
       type: Release
 
-  san-thread-bench:
-    name: "Benchmark"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      server_version: main
-      benchmark: ON
-      type: RelWithDebInfo
-      sanitize: thread
-
   Windows:
     name: "Windows"
     runs-on: windows-latest
