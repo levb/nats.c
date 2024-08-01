@@ -40,11 +40,11 @@ typedef struct __natsDispatcher_s
 } natsDispatcher;
 
 // Dispatcher main function with syntactic sugar for the callstack.
-void nats_dispatchMessages(natsDispatcher *d);
-static void nats_dispatchMessagesPoolThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
-static void nats_dispatchMessagesOwnThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
-static void nats_dispatchRepliesPoolThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
-static void nats_dispatchRepliesOwnThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
+// void nats_dispatchMessages(natsDispatcher *d);
+// static void nats_dispatchMessagesPoolThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
+// static void nats_dispatchMessagesOwnThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
+// static void nats_dispatchRepliesPoolThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
+// static void nats_dispatchRepliesOwnThreadf(void *arg) { nats_dispatchMessages((natsDispatcher *)arg); }
 
 static inline void nats_destroyQueuedMessages(natsDispatchQueue *queue)
 {
