@@ -74,6 +74,14 @@ jobs:
       server_version: main
       lib_write_deadline: ON
 
+  bench:
+    name: "Benchmark"
+    uses: ./.github/workflows/build-test.yml
+    with:
+      server_version: main
+      benchmark: ON
+      type: Release
+
   Windows:
     name: "Windows"
     runs-on: windows-latest
