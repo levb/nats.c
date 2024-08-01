@@ -5,7 +5,7 @@ include(CTest)
 include(FindPackageHandleStandardArgs)
 
 # Uncomment to have the build process verbose
-# set(CMAKE_VERBOSE_MAKEFILE TRUE)
+set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
