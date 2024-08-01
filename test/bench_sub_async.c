@@ -389,8 +389,8 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
         snprintf(buf, sizeof(buf), "%d", i);
         IFOK(s, natsConnection_PublishString(nc, subject, buf));
 
-        if (((i != 0) && (i % flushAfter) == 0) || // progressive flush
-            (i == (env->numPubMessages - 1)))      // last message in batch
+        if (((i != 0) && ((i % flushAfter) == 0)) || // progressive flush
+            (i == (env->numPubMessages - 1)))        // last message in batch
         {
             IFOK(s, natsConnection_Flush(nc));
         }
