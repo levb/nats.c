@@ -76,11 +76,10 @@ void test_BenchSubscribeAsync_Small(void)
         {true, 2},
         {true, 3},
         {true, 5},
-        // Next should show no material difference since no extra threads will be spun up
         {true, 7},
     };
 
-    int subs[] = {1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13};
+    int subs[] = {1, 2, 3, 7, 8, 13};
 
     ENV env = {
         .pubf = _publish,
@@ -102,14 +101,14 @@ void test_BenchSubscribeAsync_Large(void)
         {true, 163}, // to compare to non-pooled
     };
 
-    int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
+    int subs[] = {1, 2, 17, 23, 83, 163};
 
     ENV env = {
         .pubf = _publish,
         .progressiveFlush = true,
     };
 
-    RUN_MATRIX(threads, subs, 100 * 1000, &env);
+    RUN_MATRIX(threads, subs, 50 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -127,13 +126,13 @@ void test_BenchSubscribeAsync_Inject(void)
         {true, 163},
     };
 
-    int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
+    int subs[] = {1, 2, 3, 5, 10, 23, 83, 163, 499};
 
     ENV env = {
         .pubf = _inject,
     };
 
-    RUN_MATRIX(threads, subs, 200 * 1000, &env);
+    RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -156,14 +155,14 @@ void test_BenchSubscribeAsync_InjectSlow(void)
         {true, 7},
         {true, 11},
         {true, 79},
-        {true, 499},
+        {true, 163},
     };
 
-    int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
+    int subs[] = {1, 3, 7, 23, 83, 163, 499};
 
     ENV env = {
         .pubf = _inject,
-        .delayNano = 100 * 1000, // 100µs
+        .delayNano = 10 * 1000, // 10µs
     };
 
     RUN_MATRIX(threads, subs, 10000, &env);
