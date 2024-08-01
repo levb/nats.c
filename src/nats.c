@@ -243,12 +243,6 @@ nats_deliverMsgsPoolf(void *arg)
         mcbClosure = sub->msgCbClosure;
         max = sub->max;
 
-        // Update the sub's stats before checking closed state. (We now post
-        // control messages to the sub's queue, because hbTimer processing is
-        // expecting it, so need to clear the stats for them, too)
-        sub->ownDispatcher.queue.msgs--;
-        sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
-
         // Is this a control message?
         if (msg->subject[0] == '\0')
         {
@@ -311,6 +305,12 @@ nats_deliverMsgsPoolf(void *arg)
             // Go back to top of loop.
             continue;
         }
+
+        // Update the sub's stats before checking closed state. (We now post
+        // control messages to the sub's queue, because hbTimer processing is
+        // expecting it, so need to clear the stats for them, too)
+        sub->ownDispatcher.queue.msgs--;
+        sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
 
         // Need to check for closed subscription again here.
         // The subscription could have been unsubscribed from a callback

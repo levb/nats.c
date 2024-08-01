@@ -11656,23 +11656,14 @@ void test_DoubleUnsubscribe(void)
 
 void test_SubRemovedWhileProcessingMsg(void)
 {
-    natsStatus          s;
-    natsConnection      *nc       = NULL;
-    natsOptions         *opts     = NULL;
-    natsSubscription    *sub      = NULL;
-    natsPid             serverPid = NATS_INVALID_PID;
-    struct threadArg arg;
+    natsStatus s;
+    natsConnection *nc = NULL;
+    natsOptions *opts = NULL;
+    natsSubscription *sub = NULL;
+    natsPid serverPid = NATS_INVALID_PID;
 
     serverPid = _startServer("nats://127.0.0.1:4222", NULL, true);
     CHECK_SERVER_STARTED(serverPid);
-
-    s = _createDefaultThreadArgsForCbTests(&arg);
-    if (s != NATS_OK)
-        FAIL("Unable to setup test");
-
-    arg.status = NATS_OK;
-    arg.control = 12;
-    arg.N = 1;
 
     test("Connect and create sub: ")
     s = natsConnection_ConnectTo(&nc, NATS_DEFAULT_URL);
@@ -11710,7 +11701,7 @@ void test_SubRemovedWhileProcessingMsg(void)
 
     test("Connect and create sub: ");
     s = natsConnection_Connect(&nc, opts);
-    IFOK(s, natsConnection_Subscribe(&sub, nc, "foo", _recvTestString, NULL));
+    IFOK(s, natsConnection_Subscribe(&sub, nc, "foo", _dummyMsgHandler, NULL));
     testCond(s == NATS_OK);
 
     nats_lockSubAndDispatcher(sub);
@@ -11718,36 +11709,20 @@ void test_SubRemovedWhileProcessingMsg(void)
     s = natsConnection_PublishString(nc, "foo", "hello");
     testCond(s == NATS_OK);
 
-    test("Make sure the message is not enqueued yet: ");
-    testCond(sub->ownDispatcher.queue.msgs == 0);
-
     test("Close sub: ");
     nats_unlockSubAndDispatcher(sub);
     natsSub_close(sub, false);
     testCond(s == NATS_OK);
 
-    test("The message is enqueued: ");
+    test("Check msg not given: ");
     nats_lockSubAndDispatcher(sub);
-    testCond(sub->ownDispatcher.queue.msgs == 1);
-    nats_unlockSubAndDispatcher(sub);
-
-    test("Check message is not given to callback, but is gone quickly: ");
-    natsMutex_Lock(arg.m);
-    while ((s != NATS_TIMEOUT) && !arg.msgReceived)
-        s = natsCondition_TimedWait(arg.c, arg.m, 10);
-
-    nats_lockSubAndDispatcher(sub);
-    testCond((s == NATS_TIMEOUT) &&
-             (arg.msgReceived == false) &&
-             (sub->ownDispatcher.queue.msgs == 0));
-    natsMutex_Unlock(arg.m);
+    testCond(sub->ownDispatcher.queue.msgs == 0);
     nats_unlockSubAndDispatcher(sub);
 
     natsSubscription_Destroy(sub);
     natsConnection_Destroy(nc);
     natsOptions_Destroy(opts);
 
-    _destroyDefaultThreadArgs(&arg);
     _stopServer(serverPid);
 }
 

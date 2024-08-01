@@ -25,18 +25,20 @@
 // queue storage to keep track of message stats.
 //
 // sub lock must be held
-natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool force)
+natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool ctrl)
 {
     bool signal = false;
 
     natsDispatchQueue *toQ = &sub->dispatcher->queue;
     natsDispatchQueue *statsQ = &sub->ownDispatcher.queue;
+    int newMsgs = statsQ->msgs;
+    int newBytes = statsQ->bytes;
 
-    int newMsgs = statsQ->msgs + 1;
-    int newBytes = statsQ->bytes + natsMsg_dataAndHdrLen(msg);
-
-    if (!force)
+    if (!ctrl)
     {
+        newMsgs += 1;
+        newBytes += natsMsg_dataAndHdrLen(msg);
+
         if (((sub->msgsLimit > 0) && (newMsgs > sub->msgsLimit)) ||
             ((sub->bytesLimit > 0) && (newBytes > sub->bytesLimit)))
         {
@@ -51,7 +53,7 @@ natsStatus natsSub_enqueueMsgImpl(natsSubscription *sub, natsMsg *msg, bool forc
 
     // Update the subscription stats if separate, the queue stats will be
     // updated below.
-    if (toQ != statsQ)
+    if (!ctrl && (toQ != statsQ))
     {
         statsQ->msgs++;
         statsQ->bytes += natsMsg_dataAndHdrLen(msg);
