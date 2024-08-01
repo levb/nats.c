@@ -27529,10 +27529,10 @@ void test_JetStreamSubscribeIdleHearbeat(void)
     // server state.
 #define PUBLISH_FAKE_JS_MSG_WITH_SEQ(_reply, _msg)                         \
     {                                                                      \
-        natsSub_Lock(sub);                                                 \
+        nats_lockSubAndDispatcher(sub);                                    \
         inbox = sub->subject;                                              \
         sub->jsi->ackNone = true;                                          \
-        natsSub_Unlock(sub);                                               \
+        nats_unlockSubAndDispatcher(sub);                                  \
                                                                            \
         natsConn_setFilterWithClosure(nc, _setMsgReply, (void *)(_reply)); \
         s = natsConnection_PublishString(nc, inbox, (_msg));               \
