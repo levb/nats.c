@@ -14,6 +14,8 @@
 #include "test.h"
 #include "sub.h"
 
+#define REPEAT 5
+
 typedef struct __env ENV;
 
 typedef struct
@@ -69,23 +71,21 @@ static uint64_t _expectedXOR(int N);
 // send too many messages at once.
 void test_BenchSubscribeAsync_Small(void)
 {
-    // threadConfig threads[] = {
-    //     {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-    //     {true, 1},
-    //     {true, 2},
-    //     {true, 3},
-    //     {true, 5},
-    //     // Next should show no material difference since no extra threads will be spun up
-    //     {true, 7},
-    // };
+    threadConfig threads[] = {
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 1},
+        {true, 5},
+        // Next should show no material difference since no extra threads will be spun up
+        {true, 7},
+    };
 
-    // int subs[] = {1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13};
+    int subs[] = {1, 2, 3, 5};
 
-    // ENV env = {
-    //     .pubf = _publish,
-    //     .progressiveFlush = false,
-    // };
-    // RUN_MATRIX(threads, subs, 100 * 1000, &env);
+    ENV env = {
+        .pubf = _publish,
+        .progressiveFlush = false,
+    };
+    RUN_MATRIX(threads, subs, 500 * 1000, &env);
 }
 
 // This benchmark publishes messages, flushing the connection every now and then
@@ -95,45 +95,45 @@ void test_BenchSubscribeAsync_Small(void)
 void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
-        // {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        // {true, 5},
-        // {true, 11},
-        {true, 23},
-        {true, 47}, // to compare to non-pooled
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 1},
+        {true, 2},
+        {true, 11},
+        {true, 163},
     };
 
-    int subs[] = {1, 3, 4, 5, 7, 10, 17, 47};
+    int subs[] = {23, 83, 163};
 
     ENV env = {
         .pubf = _publish,
         .progressiveFlush = true,
     };
 
-    RUN_MATRIX(threads, subs, 100 * 1000, &env);
+    RUN_MATRIX(threads, subs, 500 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
 // delivery, bypassing the publish step.
 void test_BenchSubscribeAsync_Inject(void)
 {
-    // threadConfig threads[] = {
-    //     {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-    //     {true, 1},
-    //     {true, 2},
-    //     {true, 3},
-    //     {true, 7},
-    //     {true, 11},
-    //     {true, 19},
-    //     {true, 163},
-    // };
+    threadConfig threads[] = {
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 1},
+        {true, 2},
+        {true, 3},
+        {true, 7},
+        {true, 11},
+        {true, 19},
+        {true, 163},
+    };
 
-    // int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
+    int subs[] = {1, 8, 23, 83, 163, 499};
 
-    // ENV env = {
-    //     .pubf = _inject,
-    // };
+    ENV env = {
+        .pubf = _inject,
+    };
 
-    // RUN_MATRIX(threads, subs, 200 * 1000, &env);
+    RUN_MATRIX(threads, subs, 1000 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -141,44 +141,37 @@ void test_BenchSubscribeAsync_Inject(void)
 // callback.
 void test_BenchSubscribeAsync_InjectSlow(void)
 {
-// #ifdef _WIN32
-//     // This test relies on nanosleep, not sure what the Windows equivalent is. Skip fr now.
-//     printf("Skipping BenchSubscribeAsync_InjectSlow on Windows\n");
-//     return;
+#ifdef _WIN32
+    // This test relies on nanosleep, not sure what the Windows equivalent is. Skip fr now.
+    printf("Skipping BenchSubscribeAsync_InjectSlow on Windows\n");
+    return;
 
-// #else
+#else
 
-//     threadConfig threads[] = {
-//         {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-//         {true, 1},
-//         {true, 2},
-//         {true, 3},
-//         {true, 7},
-//         {true, 11},
-//         {true, 79},
-//         {true, 499},
-//     };
+    threadConfig threads[] = {
+        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+        {true, 1},
+        {true, 2},
+        {true, 3},
+        {true, 7},
+        {true, 11},
+        {true, 79},
+        {true, 499},
+    };
 
-//     int subs[] = {1, 2, 3, 4, 5, 7, 10, 13, 17, 23, 83, 163};
+    int subs[] = {1, 8, 12, 83, 163, 499};
 
-//     ENV env = {
-//         .pubf = _inject,
-//         .delayNano = 100 * 1000, // 100µs
-//     };
+    ENV env = {
+        .pubf = _inject,
+        .delayNano = 10 * 1000, // 100µs
+    };
 
-//     RUN_MATRIX(threads, subs, 10000, &env);
-// #endif // _WIN32
+    RUN_MATRIX(threads, subs, 20 * 1000, &env);
+#endif // _WIN32
 }
 
 static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector, int lens, int NMessages, ENV *env)
 {
-    int REPEAT = 7;
-
-    if (valgrind)
-    {
-        REPEAT = 1;
-        NMessages /= 50;
-    }
     if (natsMutex_Create(&env->mu) != NATS_OK)
     {
         fprintf(stderr, "Error creating mutex\n");
@@ -388,34 +381,20 @@ static natsStatus _publish(natsConnection *nc, const char *subject, ENV *env)
 {
     natsStatus s = NATS_OK;
     char buf[16];
-    int numPubMessages = 0;
-    int numSubs = 0;
-    bool progressiveFlush = false;
 
-    natsMutex_Lock(env->mu);
-    numPubMessages = env->numPubMessages;
-    numSubs = env->numSubs;
-    progressiveFlush = env->progressiveFlush;
-    natsMutex_Unlock(env->mu);
-
-    int flushAfter = progressiveFlush ? numPubMessages / (numSubs * 2) : // trigger
-                         numPubMessages + 1;                             // do not trigger
-    for (int i = 0; i < numPubMessages; i++)
+    int flushAfter = env->progressiveFlush ? env->numPubMessages / (env->numSubs * 2) : // trigger
+                         env->numPubMessages + 1;                                       // do not trigger
+    for (int i = 0; i < env->numPubMessages; i++)
     {
         snprintf(buf, sizeof(buf), "%d", i);
         IFOK(s, natsConnection_PublishString(nc, subject, buf));
 
-        if ((i != 0) && (i % flushAfter) == 0)
+        if (((i != 0) && (i % flushAfter) == 0) || // progressive flush
+            (i == (env->numPubMessages - 1)))      // last message in batch
         {
-            IFOK(s, natsConnection_Flush(nc));
-        }
-        if (i == (numPubMessages - 1)) // last message in batch
-        {
-            printf("<>/<> flushing last: %d\n", i);
             IFOK(s, natsConnection_Flush(nc));
         }
     }
-    printf("<>/<> done publish:\n");
 
     return s;
 }
