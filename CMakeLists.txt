@@ -5,7 +5,7 @@ include(CTest)
 include(FindPackageHandleStandardArgs)
 
 # Uncomment to have the build process verbose
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
+# set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -175,7 +175,7 @@ if(UNIX)
      endif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   endif(NATS_COMPILER_HARDENING)
 
-  set(NATS_WARNINGS "-fstrict-aliasing -Wall -W -Wno-unused-parameter -Wno-unused-function -Wstrict-prototypes -Wwrite-strings")
+  set(NATS_WARNINGS "-fstrict-aliasing -Wall -W -Winline -Wno-unused-parameter -Wno-unused-function -Wstrict-prototypes -Wwrite-strings")
   set(NATS_PLATFORM_INCLUDE "unix")
 
   if(APPLE)
