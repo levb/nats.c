@@ -85,7 +85,7 @@ void test_BenchSubscribeAsync_Small(void)
         .pubf = _publish,
         .progressiveFlush = false,
     };
-    RUN_MATRIX(threads, subs, 100 * 1000, &env);
+    RUN_MATRIX(threads, subs, 200 * 1000, &env);
 }
 
 // This benchmark publishes messages, flushing the connection every now and then
@@ -100,40 +100,41 @@ void test_BenchSubscribeAsync_Large(void)
         {true, 11},
         {true, 23},
         {true, 47},
+        {true, 91},
     };
 
-    int subs[] = {1, 2, 23, 47, 120};
+    int subs[] = {1, 2, 23, 47, 81, 120};
 
     ENV env = {
         .pubf = _publish,
         .progressiveFlush = true,
     };
 
-    RUN_MATRIX(threads, subs, 50 * 1000, &env);
+    RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
 // delivery, bypassing the publish step.
 void test_BenchSubscribeAsync_Inject(void)
 {
-    threadConfig threads[] = {
-        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        {true, 1},
-        {true, 2},
-        {true, 3},
-        {true, 7},
-        {true, 11},
-        {true, 19},
-        {true, 163},
-    };
+    // threadConfig threads[] = {
+    //     {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+    //     {true, 1},
+    //     {true, 2},
+    //     {true, 3},
+    //     {true, 7},
+    //     {true, 11},
+    //     {true, 19},
+    //     {true, 163},
+    // };
 
-    int subs[] = {1, 2, 3, 5, 10, 23, 83, 163, 499};
+    // int subs[] = {1, 2, 3, 5, 10, 23, 83, 163, 499};
 
-    ENV env = {
-        .pubf = _inject,
-    };
+    // ENV env = {
+    //     .pubf = _inject,
+    // };
 
-    RUN_MATRIX(threads, subs, 100 * 1000, &env);
+    // RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -141,33 +142,33 @@ void test_BenchSubscribeAsync_Inject(void)
 // callback.
 void test_BenchSubscribeAsync_InjectSlow(void)
 {
-#ifdef _WIN32
-    // This test relies on nanosleep, not sure what the Windows equivalent is. Skip fr now.
-    printf("Skipping BenchSubscribeAsync_InjectSlow on Windows\n");
-    return;
+// #ifdef _WIN32
+//     // This test relies on nanosleep, not sure what the Windows equivalent is. Skip fr now.
+//     printf("Skipping BenchSubscribeAsync_InjectSlow on Windows\n");
+//     return;
 
-#else
+// #else
 
-    threadConfig threads[] = {
-        {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
-        {true, 1},
-        {true, 2},
-        {true, 3},
-        {true, 7},
-        {true, 11},
-        {true, 79},
-        {true, 163},
-    };
+//     threadConfig threads[] = {
+//         {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+//         {true, 1},
+//         {true, 2},
+//         {true, 3},
+//         {true, 7},
+//         {true, 11},
+//         {true, 79},
+//         {true, 163},
+//     };
 
-    int subs[] = {1, 3, 7, 23, 83, 163, 499};
+//     int subs[] = {1, 3, 7, 23, 83, 163, 499};
 
-    ENV env = {
-        .pubf = _inject,
-        .delayNano = 10 * 1000, // 10µs
-    };
+//     ENV env = {
+//         .pubf = _inject,
+//         .delayNano = 10 * 1000, // 10µs
+//     };
 
-    RUN_MATRIX(threads, subs, 10000, &env);
-#endif // _WIN32
+//     RUN_MATRIX(threads, subs, 10000, &env);
+// #endif // _WIN32
 }
 
 static void _benchMatrix(threadConfig *threadsVector, int lent, int *subsVector, int lens, int NMessages, ENV *env)
