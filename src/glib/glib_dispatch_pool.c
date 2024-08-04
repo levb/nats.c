@@ -155,7 +155,6 @@ nats_assignSubToDispatch(natsSubscription *sub)
     natsStatus s = NATS_OK;
     natsDispatcher *d = NULL;
     natsDispatcherPool *pool = &lib->messageDispatchers;
-    // void (*threadf)(void*) = forReplies ? nats_dispatchRepliesPoolThreadf : nats_dispatchMessagesPoolThreadf;
 
     natsMutex_Lock(pool->lock);
 
