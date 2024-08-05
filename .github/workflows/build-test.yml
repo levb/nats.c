@@ -181,7 +181,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           # verbose: true
 
-      - name: "Check cache for base benchmark for ${{ github.event.pull_request.base.ref }}"
+      - name: "Cache for base benchmark for ${{ github.event.pull_request.base.ref }}"
         id: cache-base-bench
         if: inputs.benchmark == 'ON' && github.event.pull_request.base.ref
         uses: actions/cache@v4
@@ -196,7 +196,7 @@ jobs:
           export PATH=../deps/nats-server:../deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
-          ctest -L 'bench' --timeout 600 -VV | tee ${HOME}/bench.log
+          ctest -L 'bench' --timeout 600 -VV | tee bench.log
 
       - name: "Checkout nats.c for ${{ github.event.pull_request.base.ref }}"
         if: inputs.benchmark == 'ON' && github.event.pull_request.base.ref && steps.cache-base-bench.outputs.cache-hit != 'true'
@@ -216,7 +216,7 @@ jobs:
           export PATH=../deps/nats-server:../deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
-          ctest -L 'bench' --timeout 600 -VV | tee ${HOME}/bench-${{ github.event.pull_request.base.ref }}.log
+          ctest -L 'bench' --timeout 600 -VV | tee bench-${{ github.event.pull_request.base.ref }}.log
 
       - name: "Checkout HEAD ${{ github.event.pull_request.head.ref }}"
         if: inputs.benchmark == 'ON' && github.event.pull_request.head.ref && steps.cache-base-bench.outputs.cache-hit != 'true'
@@ -228,4 +228,4 @@ jobs:
         if: inputs.benchmark == 'ON' && github.event.pull_request.base.ref
         run: |
           cd build
-          go run ../test/diffstat_sub_async.go ${HOME}/bench-${{ github.event.pull_request.base.ref }}.log ${HOME}/bench.log 
+          go run ../test/diffstat_sub_async.go bench-${{ github.event.pull_request.base.ref }}.log bench.log
