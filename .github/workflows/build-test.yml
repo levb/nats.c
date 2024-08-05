@@ -203,6 +203,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
+          clean: false
 
       - name: "Benchmark ${{ github.event.pull_request.base.ref }} for comparison"
         if: inputs.benchmark == 'ON' && github.event.pull_request.base.ref && steps.cache-base-bench.outputs.cache-hit != 'true'
