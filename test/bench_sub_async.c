@@ -73,17 +73,19 @@ void test_BenchSubscribeAsync_Small(void)
     threadConfig threads[] = {
         {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
         {true, 1},
+        {true, 2},
+        {true, 3},
         {true, 5},
         {true, 7},
     };
 
-    int subs[] = {1, 2, 3, 5};
+    int subs[] = {1, 2, 3, 7, 8, 13};
 
     ENV env = {
         .pubf = _publish,
         .progressiveFlush = false,
     };
-    RUN_MATRIX(threads, subs, 500 * 1000, &env);
+    RUN_MATRIX(threads, subs, 200 * 1000, &env);
 }
 
 // This benchmark publishes messages, flushing the connection every now and then
@@ -94,23 +96,21 @@ void test_BenchSubscribeAsync_Large(void)
 {
     threadConfig threads[] = {
         {false, 1},
-        {true, 1},
-        {true, 2},
         {true, 5},
         {true, 11},
         {true, 23},
         {true, 47},
-        {true, 90},
+        {true, 91},
     };
 
-    int subs[] = {1, 2, 23, 47, 83};
+    int subs[] = {1, 2, 23, 47, 81, 120};
 
     ENV env = {
         .pubf = _publish,
         .progressiveFlush = true,
     };
 
-    RUN_MATRIX(threads, subs, 50 * 1000, &env);
+    RUN_MATRIX(threads, subs, 100 * 1000, &env);
 }
 
 // This benchmark injects the messages directly into the relevant queue for
@@ -119,8 +119,11 @@ void test_BenchSubscribeAsync_Inject(void)
 {
     // threadConfig threads[] = {
     //     {false, 1}, // 1 is not used in this case, just to quiet nats_SetMessageDeliveryPoolSize
+    //     {true, 1},
     //     {true, 2},
+    //     {true, 3},
     //     {true, 7},
+    //     {true, 11},
     //     {true, 19},
     //     {true, 163},
     // };
@@ -151,7 +154,10 @@ void test_BenchSubscribeAsync_InjectSlow(void)
 //         {true, 1},
 //         {true, 2},
 //         {true, 3},
+//         {true, 7},
+//         {true, 11},
 //         {true, 79},
+//         {true, 163},
 //     };
 
 //     int subs[] = {1, 3, 7, 23, 83, 163, 499};

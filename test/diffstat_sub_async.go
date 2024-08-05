@@ -14,26 +14,28 @@ import (
 
 const NOISE_THRESHOLD = 0.03
 
-type TestData struct {
+type Key struct {
 	Subs     int `json:"subs"`
 	Threads  int `json:"threads"`
 	Messages int `json:"messages"`
-	Best     int `json:"best"`
-	Average  int `json:"average"`
-	Worst    int `json:"worst"`
 }
 
-type DiffRecord struct {
-	Subs          int     `json:"subs"`
-	Threads       int     `json:"threads"`
-	Messages      int     `json:"messages"`
+type TestData struct {
+	Key
+	Best    int `json:"best"`
+	Average int `json:"average"`
+	Worst   int `json:"worst"`
+}
+
+type Diff struct {
+	Key
 	BaseAverage   int     `json:"base"`
 	BranchAverage int     `json:"branch"`
 	Diff          float64 `json:"diff"`
 }
 
 type DiffData struct {
-	Records []DiffRecord `json:"records"`
+	Records []Diff `json:"records"`
 
 	Total struct {
 		BestDiff    float64 `json:"best"`
@@ -89,26 +91,27 @@ func main() {
 	}
 }
 
-func calculateDiff(main, bench []TestData) (*DiffData, error) {
+func calculateDiff(main, bench map[Key]TestData) (*DiffData, error) {
 	diff := DiffData{}
 	mBestSum, mAverageSum, mWorstSum := 0, 0, 0
 	bBestSum, bAverageSum, bWorstSum := 0, 0, 0
 
-	for i := 0; i < len(bench); i++ {
-		m := main[i]
-		b := bench[i]
-
-		if m.Subs != b.Subs || m.Threads != b.Threads || m.Messages != b.Messages {
-			return nil, fmt.Errorf("mismatched data: %v != %v", m, b)
+	for key, b := range bench {
+		m, ok := main[key]
+		if !ok {
+			log.Printf("warning: missing key %+v in main data", key)
+			continue
 		}
 
 		// Exclude records with less than .5% difference from the output
 		d := float64(b.Average-m.Average) / float64(m.Average)
 		if d >= NOISE_THRESHOLD || d <= -NOISE_THRESHOLD {
-			diff.Records = append(diff.Records, DiffRecord{
-				Subs:          m.Subs,
-				Threads:       m.Threads,
-				Messages:      m.Messages,
+			diff.Records = append(diff.Records, Diff{
+				Key: Key{
+					Subs:     m.Subs,
+					Threads:  m.Threads,
+					Messages: m.Messages,
+				},
 				BaseAverage:   m.Average,
 				BranchAverage: b.Average,
 				Diff:          d,
@@ -133,13 +136,13 @@ func calculateDiff(main, bench []TestData) (*DiffData, error) {
 	return &diff, nil
 }
 
-func readFile(path string) (map[string][]TestData, error) {
+func readFile(path string) (map[string]map[Key]TestData, error) {
 	r, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	scanner := bufio.NewScanner(r)
-	result := make(map[string][]TestData)
+	result := make(map[string]map[Key]TestData)
 	var benchName string
 	re := regexp.MustCompile(`^\d+: (.*)`)
 
@@ -175,8 +178,13 @@ func readFile(path string) (map[string][]TestData, error) {
 			if err := json.Unmarshal([]byte(jsonData), &data); err != nil {
 				return nil, fmt.Errorf("%s: failed to parse JSON data: %w", path, err)
 			}
+
+			hash := make(map[Key]TestData)
+			for _, d := range data {
+				hash[d.Key] = d
+			}
 			if benchName != "" {
-				result[benchName] = data
+				result[benchName] = hash
 			}
 		}
 	}
