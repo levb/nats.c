@@ -218,6 +218,12 @@ jobs:
           flags=""
           ctest -L 'bench' --timeout 600 -VV | tee ${HOME}/bench-${{ github.event.pull_request.base.ref }}.log
 
+      - name: "Checkout HEAD ${{ github.event.pull_request.head.ref }}"
+        if: inputs.benchmark == 'ON' && github.event.pull_request.head.ref && steps.cache-base-bench.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          clean: false
+
       - name: "Compare benchmark to ${{ github.event.pull_request.base.ref }}"
         if: inputs.benchmark == 'ON' && github.event.pull_request.base.ref
         run: |
