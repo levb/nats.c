@@ -19,6 +19,7 @@
 #include "mem.h"
 #include "conn.h"
 #include "sub.h"
+#include "js.h"
 #include "glib/glib.h"
 
 // sub and dispatcher locks must be held.
@@ -85,3 +86,290 @@ natsStatus natsSub_enqueueUserMessage(natsSubscription *sub, natsMsg *msg)
     return NATS_OK;
 }
 
+void nats_deliverMsgsPoolf(void *arg)
+{
+    natsDispatcher *d = (natsDispatcher *)arg;
+
+    nats_lockDispatcher(d);
+
+    while (true)
+    {
+        natsMsg *msg = NULL;
+        char *fcReply = NULL;
+        bool timerNeedReset = false;
+        bool userMsg = true;
+        bool timeout = false;
+        bool overLimit = false;
+        bool lastMessageInSub = false;
+        bool lastMessageInFetch = false;
+        natsStatus fetchStatus = NATS_OK;
+
+        while (((msg = d->queue.head) == NULL) && !d->shutdown)
+            natsCondition_Wait(d->cond, d->mu);
+
+        // Break out only when list is empty
+        if ((msg == NULL) && d->shutdown)
+        {
+            break;
+        }
+
+        // Remove message from list now...
+        d->queue.head = msg->next;
+        if (d->queue.tail == msg)
+            d->queue.tail = NULL;
+        msg->next = NULL;
+
+        // Get subscription reference from message and capture values we need
+        // while under lock.
+        natsSubscription *sub = msg->sub;
+        natsConnection *nc = sub->conn;
+        jsSub *jsi = sub->jsi;
+        jsFetch *fetch = (jsi != NULL) ? jsi->fetch : NULL;
+        natsMsgHandler messageCB = sub->msgCb;
+        void *messageClosure = sub->msgCbClosure;
+        natsOnCompleteCB completeCB = sub->onCompleteCB;
+        void *completeCBClosure = sub->onCompleteCBClosure;
+        natsSubscriptionControlMessages *ctrl = sub->control;
+        bool closed = sub->closed;
+        bool draining = sub->draining;
+
+        // Is this a fetch status-only or synthetic message?
+        if (fetch != NULL)
+            fetchStatus = js_checkFetchedMsg(sub, msg, true, &userMsg);
+
+        // Is it another kind of synthetic message?
+        userMsg = userMsg && (msg->subject[0] != '\0');
+
+        // Check the limits.
+        if (userMsg)
+        {
+            if (sub->max > 0)
+            {
+                overLimit = (sub->delivered == sub->max);
+                lastMessageInSub = (sub->delivered == (sub->max - 1));
+            }
+
+            if (fetch)
+            {
+                bool overMaxBytes = ((fetch->lifetime.MaxBytes > 0) && ((fetch->deliveredBytes) > fetch->lifetime.MaxBytes));
+                bool overMaxFetch = ((fetch->deliveredMsgs >= fetch->lifetime.Batch) || overMaxBytes);
+
+                lastMessageInFetch = (fetch->deliveredMsgs == (fetch->lifetime.Batch - 1) || overMaxBytes);
+
+                // See if we want to override fetch status based on our own data.
+                if (fetchStatus == NATS_OK)
+                {
+                    if (lastMessageInFetch || overMaxFetch)
+                    {
+                        fetchStatus = NATS_MAX_DELIVERED_MSGS;
+                    }
+                    if (overMaxBytes)
+                    {
+                        fetchStatus = NATS_LIMIT_REACHED;
+                    }
+                }
+                overLimit = (overLimit || overMaxFetch || overMaxBytes);
+                lastMessageInSub = (lastMessageInSub || lastMessageInFetch);
+            }
+
+            if (!overLimit)
+            {
+                sub->delivered++;
+                if (fetch)
+                {
+                    fetch->deliveredMsgs++;
+                    fetch->deliveredBytes += natsMsg_dataAndHdrLen(msg);
+                }
+            }
+
+            fcReply = (jsi == NULL ? NULL : jsSub_checkForFlowControlResponse(sub));
+        }
+
+        bool isRealMessage = (msg->subject[0] != '\0');
+        if (isRealMessage)
+        {
+            sub->ownDispatcher.queue.msgs--;
+            sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
+        }
+
+        timerNeedReset = false;
+        if (userMsg || (msg == sub->control->sub.timeout))
+        {
+            sub->timeoutSuspended = true;
+            // Need to reset the timer after the user callback returns, but only
+            // if we are already in a timeout, or there are no more messages in
+            // the queue.
+            if (!sub->draining && !sub->closed && (sub->timeout > 0))
+                if (timeout || (sub->ownDispatcher.queue.msgs == 0))
+                {
+                    timerNeedReset = true; // after the callbacks return
+                }
+        }
+
+        // -- Handle sub timeout
+        if (msg == ctrl->sub.drain)
+        {
+            // Subscription is draining, we are past the last message,
+            // remove the subscription. This will schedule another
+            // control message for the close.
+            nats_unlockDispatcher(d);
+            natsSub_setDrainCompleteState(sub);
+            natsConn_removeSubscription(nc, sub);
+            nats_lockDispatcher(d);
+            continue;
+        }
+        else if (msg == ctrl->sub.close)
+        {
+            nats_unlockDispatcher(d);
+            // Call this in case the subscription was draining.
+            natsSub_setDrainCompleteState(sub);
+
+            if (completeCB != NULL)
+                (*completeCB)(completeCBClosure);
+
+            // Subscription closed, just release
+            natsSub_release(sub);
+
+            nats_lockDispatcher(d);
+            continue;
+        }
+        else if (msg == ctrl->sub.timeout)
+        {
+            nats_unlockDispatcher(d);
+
+            // Invoke the callback with a NULL message.
+            (*messageCB)(nc, sub, NULL, messageClosure);
+
+            nats_lockDispatcher(d);
+
+            if (!draining && !closed)
+            {
+                // Reset the timedOut boolean to allow for the
+                // subscription to timeout again, and reset the
+                // timer to fire again starting from now.
+                sub->timedOut = false;
+                natsTimer_Reset(sub->timeoutTimer, sub->timeout);
+            }
+            continue;
+        }
+
+        // Fetch control messages
+        else if ((fetchStatus != NATS_OK) && !lastMessageInFetch)
+        {
+            // We drop here only if this is not already marked as last message
+            // in fetch. The last message will be delivered first.
+            natsFetchCompleteHandler fetchCompleteCB = fetch->completeCB;
+            void *fetchCompleteCBClosure = fetch->completeCBClosure;
+
+            // FIXME: handling missed heartbeat: user option on what to do?
+            // FIXME: ignore missed heartbeat if the sub is reconnecting? Or should this be done in the readloop?
+
+            nats_unlockDispatcher(d);
+            if (fetchCompleteCB != NULL)
+                (*fetchCompleteCB)(nc, sub, fetchStatus, fetchCompleteCBClosure);
+
+            // Call this blindly, it will be a no-op if the subscription
+            // was not draining.
+            natsSub_setDrainCompleteState(sub);
+            natsConn_removeSubscription(nc, sub);
+            natsMsg_Destroy(msg); // may be an actual headers-only message
+            nats_lockDispatcher(d);
+            continue;
+        }
+        else if ((fetch != NULL) && (fetchStatus == NATS_OK) && !userMsg)
+        {
+            // Fetch heartbeat. Need to set the active bit to prevent the missed
+            // heartbeat condition when the timer fires.
+            jsi->active = true;
+            natsMsg_Destroy(msg);
+            continue;
+        }
+
+        // Need to check for closed subscription again here.
+        // The subscription could have been unsubscribed from a callback
+        // but there were already pending messages. The control message
+        // is queued up. Until it is processed, we need to simply
+        // discard the message and continue.
+        else if (sub->closed)
+        {
+            natsMsg_Destroy(msg);
+            continue;
+        }
+        else if ((msg->sub == NULL) || (msg->subject == NULL) || (strcmp(msg->subject, "") == 0))
+        {
+            // invalid state.
+            natsMsg_Destroy(msg);
+            continue;
+        }
+
+        // --- Normal user message delivery. ---
+
+        // Is this a subscription that can timeout?
+        if (!sub->draining && (sub->timeout != 0))
+        {
+            // Prevent the timer from posting a timeout synthetic message.
+            sub->timeoutSuspended = true;
+
+            // If we are dealing with the last pending message for this sub,
+            // we will reset the timer after the user callback returns.
+            if (sub->ownDispatcher.queue.msgs == 0)
+                timerNeedReset = true;
+        }
+
+        nats_unlockDispatcher(d);
+
+        // If we are fetching, see if we need to ask the server for more.
+        if (fetch != NULL)
+            js_maybeFetchMore(sub, fetch);
+
+        if (!overLimit)
+            (*messageCB)(nc, sub, msg, messageClosure);
+        else
+            natsMsg_Destroy(msg);
+
+        if (fcReply != NULL)
+        {
+            natsConnection_Publish(nc, fcReply, NULL, 0);
+            NATS_FREE(fcReply);
+        }
+
+        if (lastMessageInFetch)
+        {
+            if (fetch->completeCB != NULL)
+                fetch->completeCB(nc, sub, fetchStatus, fetch->completeCBClosure);
+        }
+
+        // If we have reached the sub's message max, we need to remove
+        // the sub.
+        if (lastMessageInSub)
+        {
+            // Call this blindly, it will be a no-op if the subscription
+            // was not draining.
+            natsSub_setDrainCompleteState(sub);
+            natsConn_removeSubscription(nc, sub);
+        }
+
+        nats_lockDispatcher(d);
+
+        // Check if timer need to be reset for subscriptions that can timeout.
+        if (!sub->closed && (sub->timeout != 0) && timerNeedReset)
+        {
+            timerNeedReset = false;
+
+            // Do this only on timer reset instead of after each return
+            // from callback. The reason is that if there are still pending
+            // messages for this subscription (this is the case otherwise
+            // timerNeedReset would be false), we should prevent
+            // the subscription to timeout anyway.
+            sub->timeoutSuspended = false;
+
+            // Reset the timer to fire in `timeout` from now.
+            natsTimer_Reset(sub->timeoutTimer, sub->timeout);
+        }
+    }
+
+    nats_destroyQueuedMessages(&d->queue);
+    nats_unlockDispatcher(d);
+
+    natsLib_Release();
+}

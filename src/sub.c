@@ -56,8 +56,8 @@ static inline void _freeControlMessages(natsSubscription *sub)
     _destroyControlMessage(sub->control->sub.timeout);
     _destroyControlMessage(sub->control->sub.close);
     _destroyControlMessage(sub->control->sub.drain);
-    _destroyControlMessage(sub->control->batch.expired);
-    _destroyControlMessage(sub->control->batch.missedHeartbeat);
+    _destroyControlMessage(sub->control->fetch.expired);
+    _destroyControlMessage(sub->control->fetch.missedHeartbeat);
     NATS_FREE(sub->control);
 }
 
@@ -378,8 +378,13 @@ void natsSub_close(natsSubscription *sub, bool connectionClosed)
         sub->closed = true;
         sub->connClosed = connectionClosed;
 
-        if ((sub->jsi != NULL) && (sub->jsi->hbTimer != NULL))
-            natsTimer_Stop(sub->jsi->hbTimer);
+        if (sub->jsi != NULL)
+        {
+            if (sub->jsi->hbTimer != NULL)
+                natsTimer_Stop(sub->jsi->hbTimer);
+            if ((sub->jsi->fetch != NULL) && (sub->jsi->fetch->expiresTimer != NULL))
+                natsTimer_Stop(sub->jsi->fetch->expiresTimer);
+        }
 
         // If this is a subscription with timeout, stop the timer.
         if (sub->timeout != 0)
@@ -451,8 +456,8 @@ natsStatus nats_createControlMessages(natsSubscription *sub)
     IFOK(s, _createControlMessage(&(sub->control->sub.timeout), sub));
     IFOK(s, _createControlMessage(&sub->control->sub.close, sub));
     IFOK(s, _createControlMessage(&sub->control->sub.drain, sub));
-    IFOK(s, _createControlMessage(&sub->control->batch.expired, sub));
-    IFOK(s, _createControlMessage(&sub->control->batch.missedHeartbeat, sub));
+    IFOK(s, _createControlMessage(&sub->control->fetch.expired, sub));
+    IFOK(s, _createControlMessage(&sub->control->fetch.missedHeartbeat, sub));
 
     // no need to free on failure, sub's free will clean it up.
     return NATS_UPDATE_ERR_STACK(s);
@@ -867,6 +872,8 @@ _unsubscribe(natsSubscription *sub, int max, bool drainMode, int64_t timeout)
     {
         if (jsi->hbTimer != NULL)
             natsTimer_Stop(jsi->hbTimer);
+        if ((jsi->fetch != NULL) && (jsi->fetch->expiresTimer != NULL))
+            natsTimer_Stop(jsi->fetch->expiresTimer);
 
         dc = jsi->dc;
     }
