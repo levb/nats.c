@@ -28625,7 +28625,7 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
 
     // We may get called before the delivery thread terminates the sub, this
     // yields and avoids the race for the purpose of the test.
-    nats_Sleep(5);
+    nats_Sleep(20);
     result = result && !natsSubscription_IsValid(sub);
 
     if (!result)
