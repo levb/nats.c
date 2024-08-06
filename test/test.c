@@ -28626,14 +28626,7 @@ _testBatchCompleted(struct threadArg *args, natsSubscription *sub, int waitMS, n
     // We may get called before the delivery thread terminates the sub, this
     // yields and avoids the race for the purpose of the test.
     nats_Sleep(20);
-    result = result && !natsSubscription_IsValid(sub);
-
-    if (!result)
-    {
-        printf("TEST Failed: %d %d %d %d %d\n", s, args->closed, args->status, args->sum, natsSubscription_IsValid(sub));
-    }
-
-    return result;
+    return result && !natsSubscription_IsValid(sub);
 }
 
 void test_JetStreamSubscribePullAsync(void)
