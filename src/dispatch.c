@@ -491,8 +491,8 @@ void nats_dispatchThreadDedicated(void *arg)
         {
             // Fetch heartbeat. Need to set the active bit to prevent the missed
             // heartbeat condition when the timer fires.
-            natsSub_Unlock(sub);
             jsi->active = true;
+            natsSub_Unlock(sub);
             natsMsg_Destroy(msg);
             continue;
         }
