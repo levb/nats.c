@@ -6,81 +6,81 @@ permissions:
   contents: write # so it can comment
 
 jobs:
-  Ubuntu:
-    name: "Ubuntu"
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler: [gcc, clang]
-    uses: ./.github/workflows/build-test.yml
-    with:
-      compiler: ${{ matrix.compiler }}
-      server_version: main
-      type: Debug
+  # Ubuntu:
+  #   name: "Ubuntu"
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       compiler: [gcc, clang]
+  #   uses: ./.github/workflows/build-test.yml
+  #   with:
+  #     compiler: ${{ matrix.compiler }}
+  #     server_version: main
+  #     type: Debug
 
-  coverage:
-    name: "Coverage"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      coverage: ON
-      server_version: main
-      type: Debug
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  # coverage:
+  #   name: "Coverage"
+  #   uses: ./.github/workflows/build-test.yml
+  #   with:
+  #     coverage: ON
+  #     server_version: main
+  #     type: Debug
+  #   secrets:
+  #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  coverage-pooled:
-    name: "Coverage (pooled delivery)"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      coverage: ON
-      server_version: main
-      type: Debug
-      lib_msg_delivery: ON
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  # coverage-pooled:
+  #   name: "Coverage (pooled delivery)"
+  #   uses: ./.github/workflows/build-test.yml
+  #   with:
+  #     coverage: ON
+  #     server_version: main
+  #     type: Debug
+  #     lib_msg_delivery: ON
+  #   secrets:
+  #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  dev-mode:
-    name: "DEV_MODE"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      dev_mode: ON
-      server_version: main
-      type: Debug
-      verbose_test_output: ON
-      verbose_make_output: ON
+  # dev-mode:
+  #   name: "DEV_MODE"
+  #   uses: ./.github/workflows/build-test.yml
+  #   with:
+  #     dev_mode: ON
+  #     server_version: main
+  #     type: Debug
+  #     verbose_test_output: ON
+  #     verbose_make_output: ON
 
-  sanitize:
-    name: "Sanitize"
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler: [gcc, clang]
-        sanitize: [address, thread]
-        pooled_delivery: [ON, OFF]
-    uses: ./.github/workflows/build-test.yml
-    with:
-      server_version: main
-      type: Debug
-      compiler: ${{ matrix.compiler }}
-      sanitize: ${{ matrix.sanitize }}
-      lib_msg_delivery: ${{ matrix.pooled_delivery }}
+  # sanitize:
+  #   name: "Sanitize"
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       compiler: [gcc, clang]
+  #       sanitize: [address, thread]
+  #       pooled_delivery: [ON, OFF]
+  #   uses: ./.github/workflows/build-test.yml
+  #   with:
+  #     server_version: main
+  #     type: Debug
+  #     compiler: ${{ matrix.compiler }}
+  #     sanitize: ${{ matrix.sanitize }}
+  #     lib_msg_delivery: ${{ matrix.pooled_delivery }}
 
-  san-addr-deadline:
-    name: "Sanitize address (lib_write_deadline)"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      type: Debug
-      sanitize: address
-      server_version: main
-      lib_write_deadline: ON
+  # san-addr-deadline:
+  #   name: "Sanitize address (lib_write_deadline)"
+  #   uses: ./.github/workflows/build-test.yml
+  #   with:
+  #     type: Debug
+  #     sanitize: address
+  #     server_version: main
+  #     lib_write_deadline: ON
 
-  bench:
-    name: "Benchmark"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      server_version: main
-      benchmark: ON
-      type: Release
+  # bench:
+  #   name: "Benchmark"
+  #   uses: ./.github/workflows/build-test.yml
+  #   with:
+  #     server_version: main
+  #     benchmark: ON
+  #     type: Release
 
   Windows:
     name: "Windows"

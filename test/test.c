@@ -28748,9 +28748,11 @@ void test_JetStreamSubscribePullAsync(void)
 
     testf("Arrives in under %dms: ", messageArrivesImmediatelyTimeout);
     natsMutex_Lock(args.m);
+    int64_t start = nats_Now();
     while ((s != NATS_TIMEOUT) && !args.msgReceived)
         s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
     testCond((s == NATS_OK) && args.msgReceived);
+    printf("<>/<> TEST Took %" PRId64 "ms\n", nats_Now() - start);
     args.msgReceived = false;
     natsMutex_Unlock(args.m);
 
@@ -28786,9 +28788,12 @@ void test_JetStreamSubscribePullAsync(void)
     IFOK(s, natsConnection_PublishMsg(nc, msg));
     natsMsg_Destroy(msg);
 
+    printf("<>/<> TEST: published status: %d\n", s);
+
     natsMutex_Lock(args.m);
     while ((s != NATS_TIMEOUT) && !args.msgReceived)
         s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
+    printf("<>/<> TEST: received status: %d\n", s);
     testCond(s == NATS_OK);
     args.msgReceived = false;
     natsMutex_Unlock(args.m);
