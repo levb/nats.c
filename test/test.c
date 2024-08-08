@@ -28794,6 +28794,7 @@ void test_JetStreamSubscribePullAsync(void)
     natsMsg_Destroy(msg);
 
     printf("<>/<> TEST: published status: %d\n", s);
+    nats_Sleep(100);
 
     natsMutex_Lock(args.m);
     while ((s != NATS_TIMEOUT) && !args.msgReceived)
