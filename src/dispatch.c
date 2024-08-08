@@ -468,7 +468,9 @@ void nats_dispatchThreadDedicated(void *arg)
             sub, jsi, fetch, msg,
             &userMsg, &overLimit, &lastMessageInSub, &lastMessageInFetch, &fcReply);
 
-        printf("<>/<> processing '%s':%.*s\n", msg->subject, (int)msg->dataLen, msg->data);
+        printf("<>/<> processing '%s': '%.*s' '%.*s'\n", msg->subject, 
+        (int)msg->hdrLen, msg->hdr,
+        (int)msg->dataLen, msg->data);
         printf("<>/<> fetch status: %d, userMsg: %d, overLimit: %d, lastMessageInSub: %d, lastMessageInFetch: %d\n", fetchStatus, userMsg, overLimit, lastMessageInSub, lastMessageInFetch);
 
         // Fetch control messages
