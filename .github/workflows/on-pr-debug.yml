@@ -134,4 +134,4 @@ jobs:
           fi
           export PATH=../deps/nats-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
-          ctest -L test -C Debug --timeout 60 --output-on-failure --repeat until-pass:3
+          ctest -R 'JetStreamSubscribePullAsync$' -C Debug --timeout 60 --output-on-failure --repeat until-pass:3

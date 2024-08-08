@@ -2917,7 +2917,7 @@ js_maybeFetchMore(natsSubscription *sub, jsFetch *fetch)
     // These are not changeable by the callback, only Batch and MaxBytes can be updated.
     int64_t now = nats_Now();
     req.Heartbeat = fetch->lifetime.Heartbeat;
-    req.Expires = fetch->lifetime.Expires - (now - fetch->startTimeMilli) * 10E6;
+    req.Expires = fetch->lifetime.Expires - (now - fetch->startTimeMilli) * 10*1000*1000;
     req.NoWait = fetch->lifetime.NoWait;
 
     char buffer[128];
