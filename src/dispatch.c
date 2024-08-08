@@ -86,7 +86,87 @@ natsStatus natsSub_enqueueUserMessage(natsSubscription *sub, natsMsg *msg)
     return NATS_OK;
 }
 
-void nats_deliverMsgsPoolf(void *arg)
+static inline void _removeFromDispatchQueue(natsDispatcher *d, natsMsg *msg)
+{
+    d->queue.head = msg->next;
+    if (d->queue.tail == msg)
+        d->queue.tail = NULL;
+    msg->next = NULL;
+}
+
+// Returns fetch status
+static inline natsStatus _preProcessUserMessage(
+    natsSubscription *sub, jsSub *jsi, jsFetch *fetch, natsMsg *msg,
+    bool *userMsg, bool *overLimit, bool *lastMessageInSub, bool *lastMessageInFetch, char **fcReply)
+{
+    natsStatus fetchStatus = NATS_OK;
+    *userMsg = true;
+
+    // Is this a real message? If so, account for having processed it.
+    bool isRealMessage = (msg->subject[0] != '\0');
+    if (isRealMessage)
+    {
+        sub->ownDispatcher.queue.msgs--;
+        sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
+    }
+
+    // Fetch-specific handling of synthetic and header-only messages
+    if (fetch != NULL)
+        fetchStatus = js_checkFetchedMsg(sub, msg, true, userMsg);
+
+    // Is it another kind of synthetic message?
+    *userMsg = *userMsg && (msg->subject[0] != '\0');
+
+    // Check the limits.
+    if (*userMsg)
+    {
+        if (sub->max > 0)
+        {
+            *overLimit = (sub->delivered == sub->max);
+            *lastMessageInSub = (sub->delivered == (sub->max - 1));
+        }
+
+        if (fetch)
+        {
+            bool overMaxBytes = ((fetch->lifetime.MaxBytes > 0) && ((fetch->deliveredBytes) > fetch->lifetime.MaxBytes));
+            bool overMaxFetch = ((fetch->deliveredMsgs >= fetch->lifetime.Batch) || overMaxBytes);
+
+            *lastMessageInFetch = (fetch->deliveredMsgs == (fetch->lifetime.Batch - 1) || overMaxBytes);
+
+            // See if we want to override fetch status based on our own data.
+            if (fetchStatus == NATS_OK)
+            {
+                if (*lastMessageInFetch || overMaxFetch)
+                {
+                    fetchStatus = NATS_MAX_DELIVERED_MSGS;
+                }
+                if (overMaxBytes)
+                {
+                    fetchStatus = NATS_LIMIT_REACHED;
+                }
+            }
+            *overLimit = (*overLimit || overMaxFetch || overMaxBytes);
+            *lastMessageInSub = (*lastMessageInSub || *lastMessageInFetch);
+        }
+
+        if (!*overLimit)
+        {
+            sub->delivered++;
+            if (fetch)
+            {
+                fetch->deliveredMsgs++;
+                fetch->deliveredBytes += natsMsg_dataAndHdrLen(msg);
+            }
+        }
+
+        *fcReply = (jsi == NULL ? NULL : jsSub_checkForFlowControlResponse(sub));
+    }
+
+    return fetchStatus;
+}
+
+// Thread main function for a thread pool of dispatchers.
+void nats_dispatchThreadPool(void *arg)
 {
     natsDispatcher *d = (natsDispatcher *)arg;
 
@@ -113,11 +193,7 @@ void nats_deliverMsgsPoolf(void *arg)
             break;
         }
 
-        // Remove message from list now...
-        d->queue.head = msg->next;
-        if (d->queue.tail == msg)
-            d->queue.tail = NULL;
-        msg->next = NULL;
+        _removeFromDispatchQueue(d, msg);
 
         // Get subscription reference from message and capture values we need
         // while under lock.
@@ -133,65 +209,11 @@ void nats_deliverMsgsPoolf(void *arg)
         bool closed = sub->closed;
         bool draining = sub->draining;
 
-        // Is this a fetch status-only or synthetic message?
-        if (fetch != NULL)
-            fetchStatus = js_checkFetchedMsg(sub, msg, true, &userMsg);
+        fetchStatus = _preProcessUserMessage(
+            sub, jsi, fetch, msg,
+            &userMsg, &overLimit, &lastMessageInSub, &lastMessageInFetch, &fcReply);
 
-        // Is it another kind of synthetic message?
-        userMsg = userMsg && (msg->subject[0] != '\0');
-
-        // Check the limits.
-        if (userMsg)
-        {
-            if (sub->max > 0)
-            {
-                overLimit = (sub->delivered == sub->max);
-                lastMessageInSub = (sub->delivered == (sub->max - 1));
-            }
-
-            if (fetch)
-            {
-                bool overMaxBytes = ((fetch->lifetime.MaxBytes > 0) && ((fetch->deliveredBytes) > fetch->lifetime.MaxBytes));
-                bool overMaxFetch = ((fetch->deliveredMsgs >= fetch->lifetime.Batch) || overMaxBytes);
-
-                lastMessageInFetch = (fetch->deliveredMsgs == (fetch->lifetime.Batch - 1) || overMaxBytes);
-
-                // See if we want to override fetch status based on our own data.
-                if (fetchStatus == NATS_OK)
-                {
-                    if (lastMessageInFetch || overMaxFetch)
-                    {
-                        fetchStatus = NATS_MAX_DELIVERED_MSGS;
-                    }
-                    if (overMaxBytes)
-                    {
-                        fetchStatus = NATS_LIMIT_REACHED;
-                    }
-                }
-                overLimit = (overLimit || overMaxFetch || overMaxBytes);
-                lastMessageInSub = (lastMessageInSub || lastMessageInFetch);
-            }
-
-            if (!overLimit)
-            {
-                sub->delivered++;
-                if (fetch)
-                {
-                    fetch->deliveredMsgs++;
-                    fetch->deliveredBytes += natsMsg_dataAndHdrLen(msg);
-                }
-            }
-
-            fcReply = (jsi == NULL ? NULL : jsSub_checkForFlowControlResponse(sub));
-        }
-
-        bool isRealMessage = (msg->subject[0] != '\0');
-        if (isRealMessage)
-        {
-            sub->ownDispatcher.queue.msgs--;
-            sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
-        }
-
+        // Check the timeout timer.
         timerNeedReset = false;
         if (userMsg || (msg == sub->control->sub.timeout))
         {
@@ -206,7 +228,7 @@ void nats_deliverMsgsPoolf(void *arg)
                 }
         }
 
-        // -- Handle sub timeout
+        // Process synthetic messages
         if (msg == ctrl->sub.drain)
         {
             // Subscription is draining, we are past the last message,
@@ -372,4 +394,148 @@ void nats_deliverMsgsPoolf(void *arg)
     nats_unlockDispatcher(d);
 
     natsLib_Release();
+}
+
+// Thread main function for a dedicated dispatcher.
+void nats_dispatchThreadDedicated(void *arg)
+{
+    natsSubscription *sub = (natsSubscription *)arg;
+    bool rmSub = false;
+
+    // These are set at sub creation time and never change, no need to lock.
+    natsConnection *nc = sub->conn;
+    natsMsgHandler messageCB = sub->msgCb;
+    void *messageClosure = sub->msgCbClosure;
+    natsOnCompleteCB completeCB = NULL;
+    void *completeCBClosure = NULL;
+
+    // This just serves as a barrier for the creation of this thread.
+    natsConn_Lock(nc);
+    natsConn_Unlock(nc);
+
+    while (true)
+    {
+        natsStatus s = NATS_OK;
+        natsStatus fetchStatus = NATS_OK;
+        natsMsg *msg = NULL;
+        bool userMsg = true;
+        bool overLimit = false;
+        bool lastMessageInSub = false;
+        bool lastMessageInFetch = false;
+
+        natsSub_Lock(sub);
+        int64_t timeout = sub->timeout;
+
+        while (((msg = sub->ownDispatcher.queue.head) == NULL) && !(sub->closed) && !(sub->draining) && (s != NATS_TIMEOUT))
+        {
+            if (timeout != 0)
+                s = natsCondition_TimedWait(sub->ownDispatcher.cond, sub->mu, timeout);
+            else
+                natsCondition_Wait(sub->ownDispatcher.cond, sub->mu);
+        }
+
+        bool draining = sub->draining;
+        completeCB = sub->onCompleteCB;
+        completeCBClosure = sub->onCompleteCBClosure;
+
+        if (sub->closed)
+        {
+            natsSub_Unlock(sub);
+            break;
+        }
+
+        // Will happen with timeout subscription
+        if (msg == NULL)
+        {
+            natsSub_Unlock(sub);
+            if (draining)
+            {
+                rmSub = true;
+                break;
+            }
+            // If subscription timed-out, invoke callback with NULL message.
+            if (s == NATS_TIMEOUT)
+                (*messageCB)(nc, sub, NULL, messageClosure);
+            continue;
+        }
+
+        printf("<>/<> msg->subject: %s\n", msg->subject);
+
+        _removeFromDispatchQueue(&sub->ownDispatcher, msg);
+
+        jsSub *jsi = sub->jsi;
+        jsFetch *fetch = (jsi != NULL) ? jsi->fetch : NULL;
+        char *fcReply = NULL;
+        fetchStatus = _preProcessUserMessage(
+            sub, jsi, fetch, msg,
+            &userMsg, &overLimit, &lastMessageInSub, &lastMessageInFetch, &fcReply);
+
+        // Fetch control messages
+        if ((fetchStatus != NATS_OK) && !lastMessageInFetch)
+        {
+            // We drop here only if this is not already marked as last message
+            // in fetch. The last message will be delivered first.
+            natsFetchCompleteHandler fetchCompleteCB = fetch->completeCB;
+            void *fetchCompleteCBClosure = fetch->completeCBClosure;
+
+            // FIXME: handling missed heartbeat: user option on what to do?
+            // FIXME: ignore missed heartbeat if the sub is reconnecting? Or should this be done in the readloop?
+
+            natsSub_Unlock(sub);
+            if (fetchCompleteCB != NULL)
+                (*fetchCompleteCB)(nc, sub, fetchStatus, fetchCompleteCBClosure);
+
+            natsMsg_Destroy(msg); // may be an actual headers-only message
+            rmSub = true;
+            break;
+        }
+        else if ((fetch != NULL) && (fetchStatus == NATS_OK) && !userMsg)
+        {
+            // Fetch heartbeat. Need to set the active bit to prevent the missed
+            // heartbeat condition when the timer fires.
+            jsi->active = true;
+            natsMsg_Destroy(msg);
+            continue;
+        }
+
+        natsSub_Unlock(sub);
+
+        // If we are fetching, see if we need to ask the server for more.
+        if (fetch != NULL)
+            js_maybeFetchMore(sub, fetch);
+
+        if (!overLimit)
+            (*messageCB)(nc, sub, msg, messageClosure);
+        else
+            natsMsg_Destroy(msg);
+
+        if (fcReply != NULL)
+        {
+            natsConnection_Publish(nc, fcReply, NULL, 0);
+            NATS_FREE(fcReply);
+        }
+
+        if (lastMessageInFetch)
+        {
+            if (fetch->completeCB != NULL)
+                fetch->completeCB(nc, sub, fetchStatus, fetch->completeCBClosure);
+        }
+
+        if (lastMessageInSub)
+        {
+            // If we have hit the max for delivered msgs, remove sub.
+            rmSub = true;
+            break;
+        }
+    }
+
+    natsSub_setDrainCompleteState(sub);
+
+    if (rmSub)
+        natsConn_removeSubscription(nc, sub);
+
+    if (completeCB != NULL)
+        (*completeCB)(completeCBClosure);
+
+    natsSub_release(sub);
 }

@@ -28641,13 +28641,8 @@ void test_JetStreamSubscribePullAsync(void)
     jsSubOptions so;
     struct threadArg args;
     jsConsumerConfig cc;
-    natsOptions *opts;
 
-    s = natsOptions_Create(&opts);
-    IFOK(s, natsOptions_UseGlobalMessageDelivery(opts, true));
-    IFOK(s, nats_SetMessageDeliveryPoolSize(1));
-
-    JS_SETUP_WITH_OPTS(2, 9, 2, opts);
+    JS_SETUP(2, 9, 2);
 
     s = _createDefaultThreadArgsForCbTests(&args);
     if (s != NATS_OK)
@@ -28965,7 +28960,6 @@ void test_JetStreamSubscribePullAsync(void)
     }
 
     JS_TEARDOWN;
-    natsOptions_Destroy(opts);
     _destroyDefaultThreadArgs(&args);
 }
 
@@ -28978,13 +28972,8 @@ void test_JetStreamSubscribePullAsyncMissedHB(void)
     jsOptions jsOpts;
     jsSubOptions so;
     struct threadArg args;
-    natsOptions *opts;
 
-    s = natsOptions_Create(&opts);
-    IFOK(s, natsOptions_UseGlobalMessageDelivery(opts, true));
-    IFOK(s, nats_SetMessageDeliveryPoolSize(1));
-
-    JS_SETUP_WITH_OPTS(2, 9, 2, opts);
+    JS_SETUP(2, 9, 2);
 
     s = _createDefaultThreadArgsForCbTests(&args);
     if (s != NATS_OK)
@@ -29060,7 +29049,6 @@ void test_JetStreamSubscribePullAsyncMissedHB(void)
              _testBatchCompleted(&args, sub, 500, NATS_MISSED_HEARTBEAT, 0, false));
 
     natsSubscription_Destroy(sub);
-    natsOptions_Destroy(opts);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&args);
 }

@@ -200,130 +200,6 @@ void natsSub_setDrainCompleteState(natsSubscription *sub)
     natsSub_Unlock(sub);
 }
 
-// _deliverMsgs is used to deliver messages to asynchronous subscribers.
-void natsSub_deliverMsgs(void *arg)
-{
-    natsSubscription *sub = (natsSubscription *)arg;
-    natsConnection *nc = sub->conn;
-    natsMsgHandler mcb = sub->msgCb;
-    void *mcbClosure = sub->msgCbClosure;
-    uint64_t delivered;
-    uint64_t max;
-    natsMsg *msg;
-    int64_t timeout;
-    natsStatus s = NATS_OK;
-    bool draining = false;
-    bool rmSub = false;
-    natsOnCompleteCB onCompleteCB = NULL;
-    void *onCompleteCBClosure = NULL;
-    char *fcReply = NULL;
-    jsSub *jsi = NULL;
-
-    // This just serves as a barrier for the creation of this thread.
-    natsConn_Lock(nc);
-    natsConn_Unlock(nc);
-
-    natsSub_Lock(sub);
-    timeout = sub->timeout;
-    jsi = sub->jsi;
-    natsSub_Unlock(sub);
-
-    while (true)
-    {
-        natsSub_Lock(sub);
-
-        s = NATS_OK;
-        while (((msg = sub->ownDispatcher.queue.head) == NULL) && !(sub->closed) && !(sub->draining) && (s != NATS_TIMEOUT))
-        {
-            if (timeout != 0)
-                s = natsCondition_TimedWait(sub->ownDispatcher.cond, sub->mu, timeout);
-            else
-                natsCondition_Wait(sub->ownDispatcher.cond, sub->mu);
-        }
-
-        if (sub->closed)
-        {
-            natsSub_Unlock(sub);
-            break;
-        }
-        draining = sub->draining;
-
-        // Will happen with timeout subscription
-        if (msg == NULL)
-        {
-            natsSub_Unlock(sub);
-            if (draining)
-            {
-                rmSub = true;
-                break;
-            }
-            // If subscription timed-out, invoke callback with NULL message.
-            if (s == NATS_TIMEOUT)
-                (*mcb)(nc, sub, NULL, mcbClosure);
-            continue;
-        }
-
-        delivered = ++(sub->delivered);
-
-        sub->ownDispatcher.queue.head = msg->next;
-
-        if (sub->ownDispatcher.queue.tail == msg)
-            sub->ownDispatcher.queue.tail = NULL;
-
-        sub->ownDispatcher.queue.msgs--;
-        sub->ownDispatcher.queue.bytes -= natsMsg_dataAndHdrLen(msg);
-
-        msg->next = NULL;
-
-        // Capture this under lock.
-        max = sub->max;
-
-        // Check for JS flow control
-        fcReply = (jsi == NULL ? NULL : jsSub_checkForFlowControlResponse(sub));
-
-        natsSub_Unlock(sub);
-
-        if ((max == 0) || (delivered <= max))
-        {
-            (*mcb)(nc, sub, msg, mcbClosure);
-        }
-        else
-        {
-            // We need to destroy the message since the user can't do it
-            natsMsg_Destroy(msg);
-        }
-
-        if (fcReply != NULL)
-        {
-            natsConnection_Publish(nc, fcReply, NULL, 0);
-            NATS_FREE(fcReply);
-        }
-
-        // Don't do 'else' because we need to remove when we have hit
-        // the max (after the callback returns).
-        if ((max > 0) && (delivered >= max))
-        {
-            // If we have hit the max for delivered msgs, remove sub.
-            rmSub = true;
-            break;
-        }
-    }
-
-    natsSub_Lock(sub);
-    onCompleteCB = sub->onCompleteCB;
-    onCompleteCBClosure = sub->onCompleteCBClosure;
-    _setDrainCompleteState(sub);
-    natsSub_Unlock(sub);
-
-    if (rmSub)
-        natsConn_removeSubscription(nc, sub);
-
-    if (onCompleteCB != NULL)
-        (*onCompleteCB)(onCompleteCBClosure);
-
-    natsSub_release(sub);
-}
-
 // Should be called only during the subscription creation process, no need to lock
 static inline natsStatus
 _runOwnDispatcher(natsSubscription *sub, bool forReplies)
@@ -333,7 +209,7 @@ _runOwnDispatcher(natsSubscription *sub, bool forReplies)
         return NATS_ILLEGAL_STATE; // already running
 
     sub->dispatcher = &sub->ownDispatcher;
-    s = natsThread_Create(&sub->ownDispatcher.thread, natsSub_deliverMsgs, (void *) sub);
+    s = natsThread_Create(&sub->ownDispatcher.thread, nats_dispatchThreadDedicated, (void *) sub);
     return s;
 }
 
