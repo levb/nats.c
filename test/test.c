@@ -28787,7 +28787,7 @@ void test_JetStreamSubscribePullAsync(void)
     IFOK(s, natsConnection_PublishMsg(nc, msg));
     natsMsg_Destroy(msg);
 
-    nats_Sleep(100); // <>/<>
+    // nats_Sleep(100); // <>/<>
 
     natsMutex_Lock(args.m);
     while ((s != NATS_TIMEOUT) && !args.msgReceived)
