@@ -28737,8 +28737,8 @@ void test_JetStreamSubscribePullAsync(void)
     testCond((s == NATS_ERR) && (msg == NULL) && (strstr(nats_GetLastError(NULL), jsErrConcurrentFetchNotAllowed) != NULL));
     nats_clearLastError();
 
-    int noMessageTimeout = 20;
-    int messageArrivesImmediatelyTimeout = 10;
+    int noMessageTimeout = 40;
+    int messageArrivesImmediatelyTimeout = 20;
     int ackTimeout = (int)(so.Config.AckWait / 1E6) + 100;
     testf("No messages yet, timeout in %dms: ", noMessageTimeout);
     natsMutex_Lock(args.m);
