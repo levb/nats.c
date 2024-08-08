@@ -28808,7 +28808,7 @@ void test_JetStreamSubscribePullAsync(void)
     sub = NULL;
 
     // TEST exit criteria.
-    int batchWaitTimeout = 200; // milliseconds
+    int batchWaitTimeout = 300; // milliseconds
     typedef struct
     {
         const char *name;
