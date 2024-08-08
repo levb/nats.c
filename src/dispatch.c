@@ -468,11 +468,6 @@ void nats_dispatchThreadDedicated(void *arg)
             sub, jsi, fetch, msg,
             &userMsg, &overLimit, &lastMessageInSub, &lastMessageInFetch, &fcReply);
 
-        // printf("<>/<> processing '%s': '%.*s' '%.*s'\n", msg->subject, 
-        // (int)msg->hdrLen, msg->hdr,
-        // (int)msg->dataLen, msg->data);
-        // printf("<>/<> fetch status: %d, userMsg: %d, overLimit: %d, lastMessageInSub: %d, lastMessageInFetch: %d\n", fetchStatus, userMsg, overLimit, lastMessageInSub, lastMessageInFetch);
-
         // Fetch control messages
         if ((fetchStatus != NATS_OK) && !lastMessageInFetch)
         {
@@ -509,13 +504,7 @@ void nats_dispatchThreadDedicated(void *arg)
             js_maybeFetchMore(sub, fetch);
 
         if (!overLimit)
-        {
-        //             printf("<>/<> Calling callback for '%s': '%.*s' '%.*s'\n", msg->subject, 
-        // (int)msg->hdrLen, msg->hdr,
-        // (int)msg->dataLen, msg->data);
-
             (*messageCB)(nc, sub, msg, messageClosure);
-        }
         else
             natsMsg_Destroy(msg);
 

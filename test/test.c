@@ -28570,11 +28570,6 @@ _recvPullAsync(natsConnection *nc, natsSubscription *sub, natsMsg *msg,
 {
     struct threadArg *arg = (struct threadArg *)closure;
 
-    // printf("<>/<> TEST received: '%s': '%.*s' '%.*s'\n", msg->subject, 
-    //     (int)msg->hdrLen, msg->hdr,
-    //     (int)msg->dataLen, msg->data);
-
-
     natsMutex_Lock(arg->m);
     arg->sum++;
 
@@ -28757,7 +28752,6 @@ void test_JetStreamSubscribePullAsync(void)
     while ((s != NATS_TIMEOUT) && !args.msgReceived)
         s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
     testCond((s == NATS_OK) && args.msgReceived);
-    // printf("<>/<> TEST Took %" PRId64 "ms\n", nats_Now() - start);
     args.msgReceived = false;
     natsMutex_Unlock(args.m);
 
@@ -28793,13 +28787,11 @@ void test_JetStreamSubscribePullAsync(void)
     IFOK(s, natsConnection_PublishMsg(nc, msg));
     natsMsg_Destroy(msg);
 
-    // printf("<>/<> TEST: published status: %d\n", s);
-    nats_Sleep(100);
+    nats_Sleep(100); // <>/<>
 
     natsMutex_Lock(args.m);
     while ((s != NATS_TIMEOUT) && !args.msgReceived)
         s = natsCondition_TimedWait(args.c, args.m, messageArrivesImmediatelyTimeout);
-    // printf("<>/<> TEST: received status: %d\n", s);
     testCond(s == NATS_OK);
     args.msgReceived = false;
     natsMutex_Unlock(args.m);
