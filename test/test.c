@@ -28570,6 +28570,11 @@ _recvPullAsync(natsConnection *nc, natsSubscription *sub, natsMsg *msg,
 {
     struct threadArg *arg = (struct threadArg *)closure;
 
+    printf("<>/<> TEST received: '%s': '%.*s' '%.*s'\n", msg->subject, 
+        (int)msg->hdrLen, msg->hdr,
+        (int)msg->dataLen, msg->data);
+
+
     natsMutex_Lock(arg->m);
     arg->sum++;
 

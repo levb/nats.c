@@ -509,7 +509,13 @@ void nats_dispatchThreadDedicated(void *arg)
             js_maybeFetchMore(sub, fetch);
 
         if (!overLimit)
+        {
+                    printf("<>/<> Calling callback for '%s': '%.*s' '%.*s'\n", msg->subject, 
+        (int)msg->hdrLen, msg->hdr,
+        (int)msg->dataLen, msg->data);
+
             (*messageCB)(nc, sub, msg, messageClosure);
+        }
         else
             natsMsg_Destroy(msg);
 
