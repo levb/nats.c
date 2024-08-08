@@ -2106,11 +2106,8 @@ _hbTimerFired(natsTimer *timer, void* closure)
     bool                oc   = false;
     natsStatus          s    = NATS_OK;
 
-    printf("<>/<> HB timer fired!\n");
-    natsSub_Lock(sub);
-    // nats_lockSubAndDispatcher(sub);
+    nats_lockSubAndDispatcher(sub);
     alert = !jsi->active;
-    printf("<>/<> HB timer fired, alert=%d\n", alert);
     oc = jsi->ordered;
     jsi->active = false;
     if (alert && jsi->pull)

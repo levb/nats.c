@@ -459,8 +459,6 @@ void nats_dispatchThreadDedicated(void *arg)
             continue;
         }
 
-        printf("<>/<> msg->subject: %s\n", msg->subject);
-
         _removeFromDispatchQueue(&sub->ownDispatcher, msg);
 
         jsSub *jsi = sub->jsi;
@@ -493,6 +491,7 @@ void nats_dispatchThreadDedicated(void *arg)
         {
             // Fetch heartbeat. Need to set the active bit to prevent the missed
             // heartbeat condition when the timer fires.
+            natsSub_Unlock(sub);
             jsi->active = true;
             natsMsg_Destroy(msg);
             continue;
