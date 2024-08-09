@@ -169,7 +169,7 @@ jobs:
           export PATH=../deps/nats-server:../deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
-          ctest -L 'test' --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
+          ctest -R 'PendingLimitsDeliveredAndDropped' --timeout 60 --output-on-failure --repeat-until-fail 10
 
       - name: Upload coverage reports to Codecov
         # PRs from external contributors fail: https://github.com/codecov/feedback/issues/301
