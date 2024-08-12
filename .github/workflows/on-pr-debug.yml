@@ -23,13 +23,13 @@ jobs:
   #   strategy:
   #     fail-fast: false
   #     matrix:
-  #       lib_msg_delivery: [ON, OFF]
+  #       pool_dispatch: [pool, NO-pool]
   #   uses: ./.github/workflows/build-test.yml
   #   with:
   #     coverage: ON
   #     server_version: main
   #     type: Debug
-  #     lib_msg_delivery: ON
+  #     pool_dispatch: ${{ matrix.pool_dispatch }}
   #   secrets:
   #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -50,34 +50,39 @@ jobs:
   #     matrix:
   #       compiler: [gcc, clang]
   #       sanitize: [address, thread]
-  #       pooled_delivery: [ON, OFF]
+  #       pooled_dispatch: [pool, NO-pool]
   #   uses: ./.github/workflows/build-test.yml
   #   with:
   #     server_version: main
   #     type: RelWithDebInfo
   #     compiler: ${{ matrix.compiler }}
   #     sanitize: ${{ matrix.sanitize }}
-  #     lib_msg_delivery: ${{ matrix.pooled_delivery }}
+  #     pool_dispatch: ${{ matrix.pooled_dispatch }}
 
-  with-env-flags:
+  env-flags:
     name: "ENV"
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc]
-        tls: [ON, OFF]
-        pooled_delivery: [OFF]
-        write_deadline: [OFF]
+        tls: [TLS, NO-TLS]
         include:
-          - tls: ON
-            pooled_delivery: ON
+          - tls: TLS
+            pooled_dispatch: [pool, NO-pool]
+            write_deadline: [write_deadline, NO-write_deadline]
+            verify_host: [verify_host, NO-verify_host]
+          - tls: NO-TLS
+            pooled_dispatch: [NO-pool]
+            write_deadline: [NO-write_deadline]
+            verify_host: [NO-verify_host]
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: main
-      type: Debug
-      compiler: ${{ matrix.compiler }}
-      lib_msg_delivery: ${{ matrix.pooled_delivery }}
-      lib_write_deadline: ${{ matrix.write_deadline }}
+      type: RelWithDebInfo
+      compiler: gcc
+      tls: ${{ matrix.tls }}
+      pool_dispatch: ${{ matrix.pooled_dispatch }}
+      write_deadline: ${{ matrix.write_deadline }}
+      verify_host: ${{ matrix.verify_host }}
 
   # bench:
   #   name: "Benchmark"
