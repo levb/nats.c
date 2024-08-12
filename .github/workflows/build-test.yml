@@ -95,9 +95,9 @@ jobs:
           if [[ "${{ inputs.tls }}" == "TLS" ]]; then
             flags="$flags -DNATS_BUILD_WITH_TLS=ON"
             if [[ "${{ inputs.verify_host }}" == "verify_host" ]]; then
-              flags="$flags -DNATS_BUILD_WITH_TLS_VERIFY=ON"
+              flags="$flags -DNATS_BUILD_TLS_FORCE_HOST_VERIFY=ON"
             else
-              flags="$flags -DNATS_BUILD_WITH_TLS_VERIFY=OFF"
+              flags="$flags -DNATS_BUILD_TLS_FORCE_HOST_VERIFY=OFF"
             fi
           else
             flags="$flags -DNATS_BUILD_WITH_TLS=OFF"
