@@ -94,6 +94,11 @@ jobs:
         run: |
           if [[ "${{ inputs.tls }}" == "TLS" ]]; then
             flags="$flags -DNATS_BUILD_WITH_TLS=ON"
+            if [[ "${{ inputs.verify_host }}" == "verify_host" ]]; then
+              flags="$flags -DNATS_BUILD_WITH_TLS_VERIFY=ON"
+            else
+              flags="$flags -DNATS_BUILD_WITH_TLS_VERIFY=OFF"
+            fi
           else
             flags="$flags -DNATS_BUILD_WITH_TLS=OFF"
           fi
@@ -122,9 +127,6 @@ jobs:
           fi
           if [[ "${{ inputs.write_deadline }}" == "write_deadline" ]]; then
             echo "NATS_DEFAULT_LIB_WRITE_DEADLINE=2000" >> $GITHUB_ENV
-          fi
-          if [[ "${{ inputs.verify_host }}" == "verify_host" ]]; then
-            echo "NATS_FORCE_HOST_VERIFICATION=yes" >> $GITHUB_ENV
           fi
           echo "CC=${{ inputs.compiler }}" >> $GITHUB_ENV
 
