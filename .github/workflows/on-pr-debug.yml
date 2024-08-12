@@ -45,17 +45,12 @@ jobs:
   #     pool_dispatch: ${{ matrix.pooled_dispatch }}
 
   coverage-TLS:
-    name: "Coverage TLS"
+    name: "Coverage: TLS"
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - pooled_dispatch: pool
-          - pooled_dispatch: NO-pool
-          - write_deadline: write_deadline
-          - write_deadline: NO-write_deadline
-          - verify_host: verify_host
-          - verify_host: NO-verify_host
+          pooled_dispatch: [pool, NO-pool]
+          write_deadline: [write_deadline, NO-write_deadline]
     uses: ./.github/workflows/build-test.yml
     with:
       coverage: ON
@@ -63,12 +58,25 @@ jobs:
       server_version: main
       compiler: gcc
       tls: TLS
+      verify_host: verify_host
       pool_dispatch: ${{ matrix.pooled_dispatch }}
       write_deadline: ${{ matrix.write_deadline }}
-      verify_host: ${{ matrix.verify_host }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  coverage-NO-verify_host:
+    name: "Coverage: NO-verify_host"
+    uses: ./.github/workflows/build-test.yml
+    with:
+      coverage: ON
+      type: RelWithDebInfo
+      server_version: main
+      compiler: gcc
+      tls: TLS
+      verify_host: NO-verify_host
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  
   coverage-NO-TLS:
     name: "Coverage NO-TLS"
     uses: ./.github/workflows/build-test.yml
