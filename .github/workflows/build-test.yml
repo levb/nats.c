@@ -88,7 +88,6 @@ jobs:
           flags: -DNATS_BUILD_ARCH=${{ inputs.arch }}
             -DCMAKE_BUILD_TYPE=${{ inputs.type }}
             -DNATS_BUILD_STREAMING=${{ inputs.streaming }}
-            -DNATS_BUILD_WITH_TLS=${{ inputs.tls }}
             -DNATS_PROTOBUF_DIR=${{ github.workspace}}/deps/pbuf
             -DNATS_BUILD_USE_SODIUM=ON
             -DNATS_SODIUM_DIR=${{ github.workspace}}/deps/sodium
