@@ -20,16 +20,10 @@ jobs:
 
   coverage:
     name: "Coverage"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      coverage: ON
-      server_version: main
-      type: Debug
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  coverage-pooled:
-    name: "Coverage (pooled delivery)"
+    strategy:
+      fail-fast: false
+      matrix:
+        lib_msg_delivery: [ON, OFF]
     uses: ./.github/workflows/build-test.yml
     with:
       coverage: ON
@@ -60,28 +54,28 @@ jobs:
     uses: ./.github/workflows/build-test.yml
     with:
       server_version: main
-      type: Debug
+      type: RelWithDebInfo
       compiler: ${{ matrix.compiler }}
       sanitize: ${{ matrix.sanitize }}
       lib_msg_delivery: ${{ matrix.pooled_delivery }}
 
-  sanitize-write-deadline:
-    name: "Sanitize address (write_deadline)"
+  with-env-flags:
+    name: "ENV"
+    strategy:
+      fail-fast: false
+      matrix:
+        pooled_delivery: [ON, OFF]
+        write_deadline: [ON, OFF]
+        force_host_verification: [ON, OFF]
     uses: ./.github/workflows/build-test.yml
     with:
-      type: RelWithDebInfo
-      sanitize: address
       server_version: main
-      lib_write_deadline: ON
-
-  sanitize-no-host-verify:
-    name: "Sanitize address (NO force_host_verification)"
-    uses: ./.github/workflows/build-test.yml
-    with:
-      type: RelWithDebInfo
-      sanitize: address
-      server_version: main
-      lib_force_host_verification: OFF
+      type: Debug
+      compiler: ${{ matrix.compiler }}
+      sanitize: ${{ matrix.sanitize }}
+      lib_msg_delivery: ${{ matrix.pooled_delivery }}
+      lib_write_deadline: ${{ matrix.write_deadline }}
+      lib_force_host_verification: ${{ matrix.force_host_verification }}
 
   bench:
     name: "Benchmark"
