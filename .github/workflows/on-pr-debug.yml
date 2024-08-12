@@ -18,21 +18,6 @@ jobs:
   #     server_version: main
   #     type: Debug
 
-  # coverage:
-  #   name: "Coverage"
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       pool_dispatch: [pool, NO-pool]
-  #   uses: ./.github/workflows/build-test.yml
-  #   with:
-  #     coverage: ON
-  #     server_version: main
-  #     type: Debug
-  #     pool_dispatch: ${{ matrix.pool_dispatch }}
-  #   secrets:
-  #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
   # dev-mode:
   #   name: "DEV_MODE"
   #   uses: ./.github/workflows/build-test.yml
@@ -59,31 +44,44 @@ jobs:
   #     sanitize: ${{ matrix.sanitize }}
   #     pool_dispatch: ${{ matrix.pooled_dispatch }}
 
-  env-flags:
-    name: "ENV"
+  coverage-TLS:
+    name: "Coverage TLS"
     strategy:
       fail-fast: false
       matrix:
-        tls: [TLS, NO-TLS]
         include:
-          - tls: TLS
-            pooled_dispatch: [pool, NO-pool]
-            write_deadline: [write_deadline, NO-write_deadline]
-            verify_host: [verify_host, NO-verify_host]
-          - tls: NO-TLS
-            pooled_dispatch: [NO-pool]
-            write_deadline: [NO-write_deadline]
-            verify_host: [NO-verify_host]
+          - pooled_dispatch: pool
+          - pooled_dispatch: NO-pool
+          - write_deadline: write_deadline
+          - write_deadline: NO-write_deadline
+          - verify_host: verify_host
+          - verify_host: NO-verify_host
     uses: ./.github/workflows/build-test.yml
     with:
-      server_version: main
+      coverage: ON
       type: RelWithDebInfo
+      server_version: main
       compiler: gcc
-      tls: ${{ matrix.tls }}
+      tls: TLS
       pool_dispatch: ${{ matrix.pooled_dispatch }}
       write_deadline: ${{ matrix.write_deadline }}
       verify_host: ${{ matrix.verify_host }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  coverage-NO-TLS:
+    name: "Coverage NO-TLS"
+    uses: ./.github/workflows/build-test.yml
+    with:
+      coverage: ON
+      type: RelWithDebInfo
+      server_version: main
+      compiler: gcc
+      tls: NO-TLS
+      verify_host: NO-verify_host
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  
   # bench:
   #   name: "Benchmark"
   #   uses: ./.github/workflows/build-test.yml
