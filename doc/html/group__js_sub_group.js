@@ -8,6 +8,7 @@ var group__js_sub_group =
     [ "js_PullSubscribe", "group__js_sub_group.html#gaaeaddb73857aa4eb4901eec945ed27cd", null ],
     [ "natsSubscription_Fetch", "group__js_sub_group.html#gafc5e0d2269bd23b4d5fb7f3b05278e50", null ],
     [ "jsFetchRequest_Init", "group__js_sub_group.html#ga1c3a62de8cd4855ae61ea4f67417a43b", null ],
+    [ "js_PullSubscribeAsync", "group__js_sub_group.html#ga938d410675ab09fa8c21896ab61bed0a", null ],
     [ "natsSubscription_FetchRequest", "group__js_sub_group.html#ga676292505e7fde8688cfd886b79a10ed", null ],
     [ "natsSubscription_GetConsumerInfo", "group__js_sub_group.html#gaae716a1431db065744c079b71a9f4c2e", null ],
     [ "natsSubscription_GetSequenceMismatch", "group__js_sub_group.html#ga0daed9f0d2d00cb14314ecc180a6fa84", null ]
