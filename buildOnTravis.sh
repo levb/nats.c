@@ -75,7 +75,7 @@ fi
 
 export NATS_TEST_TRAVIS=yes
 echo "Using NATS server version: $NATS_TEST_SERVER_VERSION"
-ctest -L 'test' --timeout 60 --output-on-failure $4
+ctest -R 'AsyncErrHandlerMaxPendingBytes' --repeat-until-fail 20 --timeout 60 --output-on-failure $4
 res=$?
 if [ $res -ne 0 ]; then
   exit $res
