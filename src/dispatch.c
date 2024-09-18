@@ -24,7 +24,7 @@
 
 // sub and dispatcher locks must be held.
 void
-natsSub_enqueueMessage(natsSubscription *sub, natsMsg *msg)
+natsSub_enqueueMessage(natsSubscription  *sub, natsMsg *msg)
 {
     bool                signal  = false;
     natsDispatchQueue   *q      = &sub->dispatcher->queue;
