@@ -33591,8 +33591,8 @@ _waitForMicroservicesAllDone(struct threadArg *arg)
     natsMutex_Lock(arg->m);
     while ((s != NATS_TIMEOUT) && !arg->microAllDone)
         s = natsCondition_TimedWait(arg->c, arg->m, 1000);
-    natsMutex_Unlock(arg->m);
     testCond((NATS_OK == s) && arg->microAllDone);
+    natsMutex_Unlock(arg->m);
 
     // `Done` may be immediately followed by freeing the service, so wait a bit
     // to make sure it happens before the test exits.
@@ -34544,18 +34544,12 @@ void test_MicroServiceStopsWhenServerStops(void)
     test("Stop the server: ");
     testCond((_stopServer(serverPid), true));
 
-    test("Wait for the service to stop: ");
-    natsMutex_Lock(arg.m);
-    while ((s != NATS_TIMEOUT) && !arg.microAllDone)
-        s = natsCondition_TimedWait(arg.c, arg.m, 1000);
-    testCond(arg.microAllDone);
-    natsMutex_Unlock(arg.m);
+    _waitForMicroservicesAllDone(&arg);
 
     test("Test microservice is not running: ");
     testCond(microService_IsStopped(m))
 
     microService_Destroy(m);
-    _waitForMicroservicesAllDone(&arg);
 
     test("Destroy the test connection: ");
     natsConnection_Destroy(nc);
