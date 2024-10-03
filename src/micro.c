@@ -56,7 +56,7 @@ micro_AddService(microService **new_m, natsConnection *nc, microServiceConfig *c
     // Wrap the connection callbacks before we subscribe to anything.
     MICRO_CALL(err, _wrap_connection_event_callbacks(m));
 
-    MICRO_CALL(err, micro_init_monitoring(m));
+    // MICRO_CALL(err, micro_init_monitoring(m));
     MICRO_CALL(err, microService_AddEndpoint(m, cfg->Endpoint));
 
     if (err != NULL)
@@ -253,8 +253,6 @@ void micro_release_on_endpoint_complete(void *closure)
     bool free_ep = false;
     bool finalize = false;
 
-    printf("<>/<> micro_release_on_endpoint_complete 1\n");
-
     if (ep == NULL)
         return;
 
@@ -270,9 +268,9 @@ void micro_release_on_endpoint_complete(void *closure)
     free_ep = (ep->refs == 0);
     micro_unlock_endpoint(ep);
 
+    printf("<>/<> micro_release_on_endpoint_complete 1: %s\n", sub->subject);
     // Force the subscription to be destroyed now.
     natsSubscription_Destroy(sub);
-    printf("<>/<> micro_release_on_endpoint_complete 2\n");
 
     _lock_service(m);
 
@@ -302,7 +300,7 @@ void micro_release_on_endpoint_complete(void *closure)
     }
 
     _unlock_service(m);
-    printf("<>/<> micro_release_on_endpoint_complete 3: finalize=%d, stopped=%d\n", finalize, m->stopped);
+    printf("<>/<> micro_release_on_endpoint_complete 2: finalize=%d, stopped=%d\n", finalize, m->stopped);
 
     if (free_ep)
         micro_free_endpoint(ep);

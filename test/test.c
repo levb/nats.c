@@ -5966,6 +5966,8 @@ _closedCb(natsConnection *nc, void *closure)
 {
     struct threadArg    *arg = (struct threadArg*) closure;
 
+    printf("<>/<> TEST: onClosed (connection)\n");
+
     natsMutex_Lock(arg->m);
     arg->closed = true;
     natsCondition_Broadcast(arg->c);
@@ -34513,9 +34515,15 @@ void test_MicroServiceStopsWhenServerStops(void)
     natsPid serverPid = NATS_INVALID_PID;
     struct threadArg arg;
     microService *m = NULL;
+    microEndpointConfig ep_cfg = {
+        .Name = "do",
+        .Subject = "svc.do",
+        .Handler = _microHandleRequest42,
+    };
     microServiceConfig cfg = {
         .Name = "test",
         .Version = "1.0.0",
+        .Endpoint = &ep_cfg,
     };
 
     s = _createDefaultThreadArgsForCbTests(&arg);
