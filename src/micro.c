@@ -253,6 +253,8 @@ void micro_release_on_endpoint_complete(void *closure)
     bool free_ep = false;
     bool finalize = false;
 
+    printf("<>/<> micro_release_on_endpoint_complete 1\n");
+
     if (ep == NULL)
         return;
 
@@ -270,6 +272,7 @@ void micro_release_on_endpoint_complete(void *closure)
 
     // Force the subscription to be destroyed now.
     natsSubscription_Destroy(sub);
+    printf("<>/<> micro_release_on_endpoint_complete 2\n");
 
     _lock_service(m);
 
@@ -299,6 +302,7 @@ void micro_release_on_endpoint_complete(void *closure)
     }
 
     _unlock_service(m);
+    printf("<>/<> micro_release_on_endpoint_complete 3: finalize=%d, stopped=%d\n", finalize, m->stopped);
 
     if (free_ep)
         micro_free_endpoint(ep);
