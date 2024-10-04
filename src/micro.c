@@ -78,6 +78,8 @@ micro_add_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, micro
     microEndpoint *ep = NULL;
     microEndpoint *prev_ep = NULL;
 
+    printf("<>/<> micro_add_endpoint 1: %s\n", cfg->Name);
+
     if (m == NULL)
         return micro_ErrorInvalidArg;
     if (cfg == NULL)
@@ -97,6 +99,7 @@ micro_add_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, micro
 
     if (m->first_ep != NULL)
     {
+        printf("<>/<> micro_add_endpoint 2: %s\n", ep->subject);
         if (strcmp(m->first_ep->subject, ep->subject) == 0)
         {
             ep->next = m->first_ep->next;

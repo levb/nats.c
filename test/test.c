@@ -33548,6 +33548,7 @@ _startMicroservice(microService** new_m, natsConnection *nc, microServiceConfig 
 
     for (i=0; i < num_eps; i++)
     {
+    printf("<>/<> _startMicroservice: add endpoint %s\n", eps[i]->Name);
         err = microService_AddEndpoint(*new_m, eps[i]);
         if (err != NULL)
         {
@@ -33557,6 +33558,8 @@ _startMicroservice(microService** new_m, natsConnection *nc, microServiceConfig 
         }
     }
 
+    char bb[256];
+    printf("<>/<> _startMicroservice: %s %s %d\n", cfg->Name, microError_String(err, bb, sizeof(bb)), num_eps);
     return NULL;
 }
 
@@ -34516,14 +34519,13 @@ void test_MicroServiceStopsWhenServerStops(void)
     struct threadArg arg;
     microService *m = NULL;
     microEndpointConfig ep_cfg = {
-        .Name = "do",
+        .Name = "do-123",
         .Subject = "svc.do",
         .Handler = _microHandleRequest42,
     };
     microServiceConfig cfg = {
         .Name = "test",
         .Version = "1.0.0",
-        .Endpoint = &ep_cfg,
     };
 
     s = _createDefaultThreadArgsForCbTests(&arg);
@@ -34545,6 +34547,15 @@ void test_MicroServiceStopsWhenServerStops(void)
     testCond(NATS_OK == natsConnection_Connect(&nc, opts));
 
     _startMicroservice(&m, nc, &cfg, NULL, 0, &arg);
+
+    for (int i=0; i < 10; i++)
+    {
+        char buf[32];
+        testf("Add endpoint %d: ", i);
+        sprintf(buf, "do-%d", i);
+        ep_cfg.Name = buf;
+        testCond(NULL == microService_AddEndpoint(m, &ep_cfg));
+    }
 
     test("Test microservice is running: ");
     testCond(!microService_IsStopped(m))
