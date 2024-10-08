@@ -156,8 +156,6 @@ micro_add_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, micro
     // immutable after the EP's creation so we don't need to lock it.
     for (ep = m->first_ep; (err == NULL) && (ep != NULL); ep = ep->next)
     {
-        printf("<>/<> %s %s\n", ep->subject, fullSubject);
-
         if (strcmp(ep->subject, fullSubject) == 0)
         {
             // Found an existing endpoint with the same subject. We will update
@@ -165,7 +163,7 @@ micro_add_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, micro
             // the moment means we can't change the queue group settings.
             if (cfg->NoQueueGroup != ep->config->NoQueueGroup)
                 err = micro_Errorf("can't change the queue group settings for endpoint %s", cfg->Name);
-            else if (nats_StringEquals(cfg->QueueGroup, ep->config->QueueGroup))
+            else if (!nats_StringEquals(cfg->QueueGroup, ep->config->QueueGroup))
                 err = micro_Errorf("can't change the queue group for endpoint %s", cfg->Name);
             if (err == NULL)
             {
@@ -212,7 +210,7 @@ micro_add_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, micro
 
     _unlock_service(m);
     if (err != NULL)
-        return microError_Wrapf(err, "can't add an endpoint %s to service %s: the service is stopped", cfg->Name, m->cfg->Name);
+        return microError_Wrapf(err, "can't add an endpoint %s to service %s", cfg->Name, m->cfg->Name);
 
     if (new_ep != NULL)
         *new_ep = ep;
