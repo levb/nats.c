@@ -364,8 +364,8 @@ void micro_release_on_endpoint_complete(void *closure)
         doneHandler = m->cfg->DoneHandler;
     }
 
-    _unlock_service(m);
     printf("<>/<> micro_release_on_endpoint_complete 2: finalize=%d, stopped=%d\n", finalize, m->stopped);
+    _unlock_service(m);
 
     if (free_ep)
         micro_destroy_endpoint(ep);
