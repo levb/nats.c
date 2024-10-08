@@ -209,11 +209,11 @@ micro_add_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, micro
             }
         }
     }
+
     _unlock_service(m);
+    if (err != NULL)
+        return microError_Wrapf(err, "can't add an endpoint %s to service %s: the service is stopped", cfg->Name, m->cfg->Name);
 
-
-
-        err = micro_Errorf("can't add an endpoint %s to service %s: the service is stopped", cfg->Name, m->cfg->Name);
     if (new_ep != NULL)
         *new_ep = ep;
     return NULL;
