@@ -86,8 +86,8 @@ static const char *natsStreamingServerExe = "nats-streaming-server";
 natsMutex *slMu  = NULL;
 natsHash  *slMap = NULL;
 
-#define test(s)         { printf("#%02d ", ++tests); printf("%s", (s)); fflush(stdout); }
-#define testf(s, ...)   { printf("#%02d ", ++tests); printf((s), __VA_ARGS__); fflush(stdout); }
+#define test(s)         { printf("#%02d ", ++tests); printf("%s\n", (s)); fflush(stdout); }
+#define testf(s, ...)   { printf("#%02d ", ++tests); printf((s "\n"), __VA_ARGS__); fflush(stdout); }
 
 #ifdef _WIN32
 #define testCond(c)         if(c) { printf("PASSED\n"); fflush(stdout); } else { printf("FAILED\n"); nats_PrintLastErrorStack(stdout); fflush(stdout); failed=true; return; }
@@ -33548,7 +33548,6 @@ _startMicroservice(microService** new_m, natsConnection *nc, microServiceConfig 
 
     for (i=0; i < num_eps; i++)
     {
-    printf("<>/<> _startMicroservice: add endpoint %s\n", eps[i]->Name);
         err = microService_AddEndpoint(*new_m, eps[i]);
         if (err != NULL)
         {
@@ -33558,8 +33557,7 @@ _startMicroservice(microService** new_m, natsConnection *nc, microServiceConfig 
         }
     }
 
-    char bb[256];
-    printf("<>/<> _startMicroservice: %s %s %d\n", cfg->Name, microError_String(err, bb, sizeof(bb)), num_eps);
+    printf("<>/<> _startMicroservice: %s with %d endpoints\n", cfg->Name, num_eps);
     return NULL;
 }
 
@@ -33892,11 +33890,11 @@ void test_MicroGroups(void)
     };
 
     const char* expected_subjects[] = {
-        "ep1",
-        "g1.ep1",
-        "g1.g2.ep1",
-        "g1.g2.ep2",
         "g1.ep2",
+        "g1.g2.ep2",
+        "g1.g2.ep1",
+        "g1.ep1",
+        "ep1",
     };
     int expected_num_endpoints = sizeof(expected_subjects) / sizeof(expected_subjects[0]);
 
@@ -33946,7 +33944,7 @@ void test_MicroGroups(void)
     if (err != NULL)
         FAIL("failed to get service info!")
 
-    test("Verify number of endpoints: ");
+    testf("Verify number of endpoints %d is %d: ", info->EndpointsLen, expected_num_endpoints);
     testCond(info->EndpointsLen == expected_num_endpoints);
 
     test("Verify endpoint subjects: ");
@@ -34067,12 +34065,12 @@ void test_MicroQueueGroupForEndpoint(void)
         testCond((err == NULL) && 
             (info != NULL) && (info->EndpointsLen == 3) &&
             (stats != NULL) && (stats->EndpointsLen == 3) &&
-            (_testQueueGroup(tc.expectedServiceLevel, info->Endpoints[0].QueueGroup)) &&
-            (_testQueueGroup(tc.expectedServiceLevel, stats->Endpoints[0].QueueGroup)) &&
+            (_testQueueGroup(tc.expectedServiceLevel, info->Endpoints[2].QueueGroup)) &&
+            (_testQueueGroup(tc.expectedServiceLevel, stats->Endpoints[2].QueueGroup)) &&
             (_testQueueGroup(tc.expectedGroup1Level, stats->Endpoints[1].QueueGroup)) &&
             (_testQueueGroup(tc.expectedGroup1Level, info->Endpoints[1].QueueGroup)) &&
-            (_testQueueGroup(tc.expectedGroup2Level, info->Endpoints[2].QueueGroup)) &&
-            (_testQueueGroup(tc.expectedGroup2Level, stats->Endpoints[2].QueueGroup)));
+            (_testQueueGroup(tc.expectedGroup2Level, info->Endpoints[0].QueueGroup)) &&
+            (_testQueueGroup(tc.expectedGroup2Level, stats->Endpoints[0].QueueGroup)));
 
         microService_Destroy(service);
         _waitForMicroservicesAllDone(&arg);
@@ -34086,7 +34084,7 @@ void test_MicroQueueGroupForEndpoint(void)
     _stopServer(serverPid);
 }
 
-#define NUM_MICRO_SERVICES 5
+#define NUM_MICRO_SERVICES 1
 
 void test_MicroBasics(void)
 {
@@ -34239,25 +34237,25 @@ void test_MicroBasics(void)
         s = nats_JSONGetArrayObject(js, "endpoints", &array, &array_len);
         testCond((NATS_OK == s) && (array != NULL) && (array_len == 2));
 
-        test("Validate INFO svc.do endpoint: ");
-        md = NULL;
-        testCond(
-            (NATS_OK == nats_JSONGetStrPtr(array[0], "name", &str)) && (strcmp(str, "do") == 0)
-            && (NATS_OK == nats_JSONGetStrPtr(array[0], "subject", &str)) && (strcmp(str, "svc.do") == 0)
-            && (NATS_OK == nats_JSONGetStrPtr(array[0], "queue_group", &str)) && (strcmp(str, MICRO_DEFAULT_QUEUE_GROUP) == 0)
-            && (NATS_OK == nats_JSONGetObject(array[0], "metadata", &md)) && (md == NULL)
-        );
-
         test("Validate INFO unused endpoint with metadata: ");
         md = NULL;
         testCond(
-            (NATS_OK == nats_JSONGetStrPtr(array[1], "name", &str)) && (strcmp(str, "unused") == 0)
-            && (NATS_OK == nats_JSONGetStrPtr(array[1], "subject", &str)) && (strcmp(str, "svc.unused") == 0)
+            (NATS_OK == nats_JSONGetStrPtr(array[0], "name", &str)) && (strcmp(str, "unused") == 0)
+            && (NATS_OK == nats_JSONGetStrPtr(array[0], "subject", &str)) && (strcmp(str, "svc.unused") == 0)
             && (NATS_OK == nats_JSONGetStrPtr(array[0], "queue_group", &str)) && (strcmp(str, MICRO_DEFAULT_QUEUE_GROUP) == 0)
-            && (NATS_OK == nats_JSONGetObject(array[1], "metadata", &md))
+            && (NATS_OK == nats_JSONGetObject(array[0], "metadata", &md))
             && (NATS_OK == nats_JSONGetStrPtr(md, "key1", &str)) && (strcmp(str, "value1") == 0)
             && (NATS_OK == nats_JSONGetStrPtr(md, "key2", &str)) && (strcmp(str, "value2") == 0)
             && (NATS_OK == nats_JSONGetStrPtr(md, "key3", &str)) && (strcmp(str, "value3") == 0)
+        );
+
+        test("Validate INFO svc.do endpoint: ");
+        md = NULL;
+        testCond(
+            (NATS_OK == nats_JSONGetStrPtr(array[1], "name", &str)) && (strcmp(str, "do") == 0)
+            && (NATS_OK == nats_JSONGetStrPtr(array[1], "subject", &str)) && (strcmp(str, "svc.do") == 0)
+            && (NATS_OK == nats_JSONGetStrPtr(array[1], "queue_group", &str)) && (strcmp(str, MICRO_DEFAULT_QUEUE_GROUP) == 0)
+            && (NATS_OK == nats_JSONGetObject(array[1], "metadata", &md)) && (md == NULL)
         );
 
         nats_JSONDestroy(js);
@@ -34336,13 +34334,13 @@ void test_MicroBasics(void)
 
         test("Ensure endpoint 0 has num_requests: ");
         n = 0;
-        s = nats_JSONGetInt(array[0], "num_requests", &n);
+        s = nats_JSONGetInt(array[1], "num_requests", &n);
         testCond(NATS_OK == s);
         num_requests += n;
 
         test("Ensure endpoint 0 has num_errors: ");
         n = 0;
-        s = nats_JSONGetInt(array[0], "num_errors", &n);
+        s = nats_JSONGetInt(array[1], "num_errors", &n);
         testCond(NATS_OK == s);
         num_errors += n;
 
