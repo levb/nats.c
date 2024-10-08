@@ -323,9 +323,9 @@ void micro_release_on_endpoint_complete(void *closure)
     if ((m == NULL) || (m->service_mu == NULL))
         return;
 
-    printf("<>/<> micro_release_on_endpoint_complete 0: %s\n", ep->config->Name);
 
     micro_lock_endpoint(ep);
+    printf("<>/<> micro_release_on_endpoint_complete 0: %s\n", ep->config->Name);
     ep->is_draining = false;
     sub = ep->sub;
     ep->sub = NULL;
