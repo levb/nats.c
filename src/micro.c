@@ -258,8 +258,9 @@ microService_Stop(microService *m)
     {
         if (err = micro_drain_endpoint(ep), err != NULL)
         {
+            err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
             _unlock_service(m);
-            return microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
+            return err;
         }
     }
 
