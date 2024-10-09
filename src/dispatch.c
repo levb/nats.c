@@ -588,6 +588,5 @@ nats_dispatchThreadOwn(void *arg)
     if (completeCB != NULL)
         (*completeCB)(completeCBClosure);
 
-    printf("<>/<> THREAD final release for %s\n", sub->subject);
     natsSub_release(sub);
 }

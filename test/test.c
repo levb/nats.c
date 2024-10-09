@@ -5966,8 +5966,6 @@ _closedCb(natsConnection *nc, void *closure)
 {
     struct threadArg    *arg = (struct threadArg*) closure;
 
-    printf("<>/<> TEST: onClosed (connection)\n");
-
     natsMutex_Lock(arg->m);
     arg->closed = true;
     natsCondition_Broadcast(arg->c);
@@ -34552,7 +34550,7 @@ void test_MicroServiceStopsWhenServerStops(void)
     {
         char buf[32];
         testf("Add endpoint %d: ", i);
-        sprintf(buf, "do-%d", i);
+        snprintf(buf, sizeof(buf), "do-%d", i);
         ep_cfg.Subject = buf;
         ep_cfg.Name = buf;
         testCond(NULL == microService_AddEndpoint(m, &ep_cfg));

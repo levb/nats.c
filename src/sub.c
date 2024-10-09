@@ -122,7 +122,6 @@ _freeSub(natsSubscription *sub)
 
     natsConn_release(sub->conn);
 
-    printf("<>/<> Freeing subscription %s\n", sub->subject);
     NATS_FREE(sub->subject);
     NATS_FREE(sub);
 }
@@ -285,7 +284,6 @@ void natsSub_close(natsSubscription *sub, bool connectionClosed)
     }
 
     nats_unlockSubAndDispatcher(sub);
-    printf("<>/<> CLOSED Subscription %s closed\n", sub->subject);
 }
 
 static void

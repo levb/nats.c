@@ -56,7 +56,7 @@ micro_AddService(microService **new_m, natsConnection *nc, microServiceConfig *c
     // Wrap the connection callbacks before we subscribe to anything.
     MICRO_CALL(err, _wrap_connection_event_callbacks(m));
 
-    // MICRO_CALL(err, micro_init_monitoring(m));
+    MICRO_CALL(err, micro_init_monitoring(m));
     MICRO_CALL(err, microService_AddEndpoint(m, cfg->Endpoint));
 
     if (err != NULL)
@@ -361,7 +361,6 @@ void micro_release_on_endpoint_complete(void *closure)
         doneHandler = m->cfg->DoneHandler;
     }
 
-    // printf("<>/<> micro_release_on_endpoint_complete 2: finalize=%d, stopped=%d, refs=%d\n", finalize, m->stopped, m->refs);
     _unlock_service(m);
 
     if (destroyEndpoint)
@@ -369,7 +368,6 @@ void micro_release_on_endpoint_complete(void *closure)
 
     if (finalize)
     {
-        printf("<>/<> micro_release_on_endpoint_complete 3: DONE\n");
         if (doneHandler != NULL)
             doneHandler(m);
 
@@ -451,7 +449,6 @@ _retain_service(microService *m)
     _lock_service(m);
 
     ++(m->refs);
-    printf("<>/<> micro_retain_service: %d\n", m->refs);
 
     _unlock_service(m);
 }
