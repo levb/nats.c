@@ -56,7 +56,7 @@ micro_AddService(microService **new_m, natsConnection *nc, microServiceConfig *c
     // Wrap the connection callbacks before we subscribe to anything.
     MICRO_CALL(err, _wrap_connection_event_callbacks(m));
 
-    MICRO_CALL(err, micro_init_monitoring(m));
+    // MICRO_CALL(err, micro_init_monitoring(m));
     MICRO_CALL(err, microService_AddEndpoint(m, cfg->Endpoint));
 
     if (err != NULL)
@@ -313,7 +313,7 @@ void micro_release_on_endpoint_complete(void *closure)
     microService *m = NULL;
     natsSubscription *sub = NULL;
     microDoneHandler doneHandler = NULL;
-    bool free_ep = false;
+    bool destroyEndpoint = false;
     bool finalize = false;
 
     if (ep == NULL)
@@ -325,22 +325,22 @@ void micro_release_on_endpoint_complete(void *closure)
 
 
     micro_lock_endpoint(ep);
-    printf("<>/<> micro_release_on_endpoint_complete 0: %s\n", ep->config->Name);
+    printf("<>/<> micro_release_on_endpoint_complete 0: %s\n", ep->subject);
     ep->is_draining = false;
     sub = ep->sub;
     ep->sub = NULL;
     ep->refs--;
-    free_ep = (ep->refs == 0);
+    destroyEndpoint = (ep->refs == 0);
     micro_unlock_endpoint(ep);
 
     printf("<>/<> micro_release_on_endpoint_complete 1: %s\n", sub->subject);
     // Force the subscription to be destroyed now.
-    natsSubscription_Destroy(sub);
+    // natsSubscription_Destroy(sub);
 
     _lock_service(m);
 
     // Release the service reference for the completed endpoint. It can not be
-    // the last reference, so no need to free m.
+    // the last reference, so no need to check for 0.
     m->refs--;
 
     // Unlink the endpoint from the service.
@@ -364,14 +364,15 @@ void micro_release_on_endpoint_complete(void *closure)
         doneHandler = m->cfg->DoneHandler;
     }
 
-    printf("<>/<> micro_release_on_endpoint_complete 2: finalize=%d, stopped=%d\n", finalize, m->stopped);
+    printf("<>/<> micro_release_on_endpoint_complete 2: finalize=%d, stopped=%d, refs=%d\n", finalize, m->stopped, m->refs);
     _unlock_service(m);
 
-    if (free_ep)
+    if (destroyEndpoint)
         micro_destroy_endpoint(ep);
 
     if (finalize)
     {
+        printf("<>/<> micro_release_on_endpoint_complete 3: DONE\n");
         if (doneHandler != NULL)
             doneHandler(m);
 
@@ -453,6 +454,7 @@ _retain_service(microService *m)
     _lock_service(m);
 
     ++(m->refs);
+    printf("<>/<> micro_retain_service: %d\n", m->refs);
 
     _unlock_service(m);
 }

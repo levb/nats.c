@@ -34517,8 +34517,6 @@ void test_MicroServiceStopsWhenServerStops(void)
     struct threadArg arg;
     microService *m = NULL;
     microEndpointConfig ep_cfg = {
-        .Name = "do-123",
-        .Subject = "svc.do",
         .Handler = _microHandleRequest42,
     };
     microServiceConfig cfg = {
@@ -34546,17 +34544,25 @@ void test_MicroServiceStopsWhenServerStops(void)
 
     _startMicroservice(&m, nc, &cfg, NULL, 0, &arg);
 
-    for (int i=0; i < 10; i++)
+    const int numEndpoints = 50;
+    for (int i=0; i < numEndpoints; i++)
     {
         char buf[32];
         testf("Add endpoint %d: ", i);
         sprintf(buf, "do-%d", i);
+        ep_cfg.Subject = buf;
         ep_cfg.Name = buf;
         testCond(NULL == microService_AddEndpoint(m, &ep_cfg));
     }
 
     test("Test microservice is running: ");
     testCond(!microService_IsStopped(m))
+
+    testf("Check that the service has %d endpoints: ", numEndpoints);
+    microServiceInfo *info = NULL;
+    microError *err = microService_GetInfo(&info, m);
+    testCond((err == NULL) && (info->EndpointsLen == numEndpoints));
+    microServiceInfo_Destroy(info);
 
     test("Stop the server: ");
     testCond((_stopServer(serverPid), true));
