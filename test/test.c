@@ -33596,10 +33596,10 @@ _waitForMicroservicesAllDone(struct threadArg *arg)
     testCond((NATS_OK == s) && arg->microAllDone);
     natsMutex_Unlock(arg->m);
 
-    // // microAllDone is set in the dispatcher thread, and it may not have freed
-    // // the subscription yet. With multiple endpoint subscriptions, it may take a
-    // // bit of time.
-    // nats_Sleep(200);
+    // microAllDone is set in the dispatcher thread, and it may not have freed
+    // the subscription yet. With multiple endpoint subscriptions, it may take a
+    // bit of time.
+    nats_Sleep(100);
 }
 
 static void
