@@ -113,6 +113,7 @@ _freeSub(natsSubscription *sub)
     _freeControlMessages(sub);
     _cleanupOwnDispatcher(sub);
 
+    NATS_FREE(sub->subject);
     NATS_FREE(sub->queue);
 
     natsCondition_Destroy(sub->drainCond);
@@ -122,7 +123,6 @@ _freeSub(natsSubscription *sub)
 
     natsConn_release(sub->conn);
 
-    NATS_FREE(sub->subject);
     NATS_FREE(sub);
 }
 
