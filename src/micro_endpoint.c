@@ -71,7 +71,6 @@ micro_subscribe_endpoint(microEndpoint *ep)
         micro_lock_endpoint(ep);
         ep->refs++;
         ep->sub = sub;
-        ep->is_draining = false;
         micro_unlock_endpoint(ep);
 
         natsSubscription_SetOnCompleteCB(sub, micro_release_on_endpoint_complete, ep);

@@ -74,7 +74,6 @@ struct micro_endpoint_s
     // Mutex for starting/stopping the endpoint, and for updating the stats.
     natsMutex *endpoint_mu;
     int refs;
-    bool is_draining;
 
     // The subscription for the endpoint. If NULL, the endpoint is stopped.
     natsSubscription *sub;
