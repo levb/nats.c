@@ -96,14 +96,14 @@ micro_drain_endpoint(microEndpoint *ep)
     micro_lock_endpoint(ep);
     sub = ep->sub;
     micro_unlock_endpoint(ep);
+    if (sub == NULL)
+        return NULL;
 
-    // When the drain is complete, the callback will free ep.
+    // When the drain is complete, the callback will free ep. We may get an
+    // NATS_INVALID_SUBSCRIPTION if the subscription is already closed.
     s = natsSubscription_Drain(sub);
-    if (s != NATS_OK)
-    {
-        return microError_Wrapf(micro_ErrorFromStatus(s),
-                                "failed to stop endpoint %s: failed to drain subscription", ep->config->Name);
-    }
+    if ((s != NATS_OK) && (s != NATS_INVALID_SUBSCRIPTION))
+        return microError_Wrapf(micro_ErrorFromStatus(s), "failed to drain subscription");
 
     return NULL;
 }
