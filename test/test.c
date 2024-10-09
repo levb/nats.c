@@ -86,8 +86,8 @@ static const char *natsStreamingServerExe = "nats-streaming-server";
 natsMutex *slMu  = NULL;
 natsHash  *slMap = NULL;
 
-#define test(s)         { printf("#%02d ", ++tests); printf("%s\n", (s)); fflush(stdout); }
-#define testf(s, ...)   { printf("#%02d ", ++tests); printf((s "\n"), __VA_ARGS__); fflush(stdout); }
+#define test(s)         { printf("#%02d ", ++tests); printf("%s", (s)); fflush(stdout); }
+#define testf(s, ...)   { printf("#%02d ", ++tests); printf((s), __VA_ARGS__); fflush(stdout); }
 
 #ifdef _WIN32
 #define testCond(c)         if(c) { printf("PASSED\n"); fflush(stdout); } else { printf("FAILED\n"); nats_PrintLastErrorStack(stdout); fflush(stdout); failed=true; return; }
@@ -33557,7 +33557,6 @@ _startMicroservice(microService** new_m, natsConnection *nc, microServiceConfig 
         }
     }
 
-    printf("<>/<> _startMicroservice: %s with %d endpoints\n", cfg->Name, num_eps);
     return NULL;
 }
 
