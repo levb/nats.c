@@ -325,7 +325,6 @@ void micro_release_on_endpoint_complete(void *closure)
 
 
     micro_lock_endpoint(ep);
-    printf("<>/<> micro_release_on_endpoint_complete 0: %s\n", ep->subject);
     ep->is_draining = false;
     sub = ep->sub;
     ep->sub = NULL;
@@ -333,7 +332,6 @@ void micro_release_on_endpoint_complete(void *closure)
     destroyEndpoint = (ep->refs == 0);
     micro_unlock_endpoint(ep);
 
-    printf("<>/<> micro_release_on_endpoint_complete 1: %s\n", sub->subject);
     // Force the subscription to be destroyed now.
     // natsSubscription_Destroy(sub);
 

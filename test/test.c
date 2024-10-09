@@ -5972,6 +5972,8 @@ _closedCb(natsConnection *nc, void *closure)
     arg->closed = true;
     natsCondition_Broadcast(arg->c);
     natsMutex_Unlock(arg->m);
+
+    nats_Sleep(100);
 }
 
 static natsStatus
