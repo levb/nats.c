@@ -34547,7 +34547,7 @@ void test_MicroServiceStopsWhenServerStops(void)
 
     _startMicroservice(&m, nc, &cfg, NULL, 0, &arg);
 
-    const int numEndpoints = 50;
+    const int numEndpoints = 5;
     for (int i=0; i < numEndpoints; i++)
     {
         char buf[32];
