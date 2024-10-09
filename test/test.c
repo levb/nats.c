@@ -33599,7 +33599,7 @@ _waitForMicroservicesAllDone(struct threadArg *arg)
     // microAllDone is set in the dispatcher thread, and it may not have freed
     // the subscription yet. With multiple endpoint subscriptions, it may take a
     // bit of time.
-    nats_Sleep(100);
+    nats_Sleep(20);
 }
 
 #define _destroyMicroservice(_s)                                                                  \
