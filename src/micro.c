@@ -327,13 +327,12 @@ void micro_release_on_endpoint_complete(void *closure)
     micro_lock_endpoint(ep);
     ep->is_draining = false;
     sub = ep->sub;
-    // ep->sub = NULL;
+    ep->sub = NULL; // Force the subscription to be destroyed now, so NULL out the pointer to avoid a double free.
     ep->refs--;
     destroyEndpoint = (ep->refs == 0);
     micro_unlock_endpoint(ep);
-
-    // Force the subscription to be destroyed now.
-    // natsSubscription_Destroy(sub);
+    
+    natsSubscription_Destroy(sub);
 
     _lock_service(m);
 
