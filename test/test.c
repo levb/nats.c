@@ -33597,9 +33597,10 @@ _waitForMicroservicesAllDone(struct threadArg *arg)
     testCond((NATS_OK == s) && arg->microAllDone);
     natsMutex_Unlock(arg->m);
 
-    // `Done` may be immediately followed by freeing the service, so wait a bit
-    // to make sure it happens before the test exits.
-    nats_Sleep(20);
+    // microAllDone is set in the dispatcher thread, and it may not have freed
+    // the subscription yet. With multiple endpoint subscriptions, it may take a
+    // bit of time.
+    nats_Sleep(200);
 }
 
 static void

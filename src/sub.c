@@ -123,6 +123,7 @@ _freeSub(natsSubscription *sub)
 
     natsConn_release(sub->conn);
 
+    printf("<>/<> Freeing subscription %s\n", sub->subject);
     NATS_FREE(sub);
 }
 
