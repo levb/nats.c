@@ -34567,6 +34567,9 @@ void test_MicroServiceStopsWhenServerStops(void)
     test("Test microservice is not running: ");
     testCond(microService_IsStopped(m))
 
+    nats_Sleep(10000);
+    printf("\n\n-----------------------\n\n");
+
     _destroyMicroservice(m);
 
     test("Destroy the test connection: ");

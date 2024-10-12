@@ -2506,6 +2506,8 @@ _removeAllSubscriptions(natsConnection *nc)
     }
     natsHashIter_Done(&iter);
     natsMutex_Unlock(nc->subsMu);
+
+    printf("<>/<> removeAllSubscriptions\n");
 }
 
 // Low level close call that will do correct cleanup and set
@@ -2568,7 +2570,6 @@ _close(natsConnection *nc, natsConnStatus status, bool fromPublicClose, bool doC
     // Remove all subscriptions. This will kick out the delivery threads,
     // and unblock NextMsg() calls.
     _removeAllSubscriptions(nc);
-    nats_Sleep(1000); // <>/<>
 
     // Go ahead and make sure we have flushed the outbound buffer.
     if (nc->sockCtx.fdActive)
@@ -2987,6 +2988,7 @@ natsConn_removeSubscription(natsConnection *nc, natsSubscription *removedSub)
         natsSub_close(sub, false);
 
     natsMutex_Unlock(nc->subsMu);
+    nats_Sleep(100); // <>/<>
 
     // If we really removed the subscription, then release it.
     if (sub != NULL)

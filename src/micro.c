@@ -355,6 +355,8 @@ void micro_release_on_endpoint_complete(void *closure)
         doneHandler = m->cfg->DoneHandler;
     }
 
+    printf("<>/<> micro: release completed endpoint %s\n", sub->subject);
+
     _unlock_service(m);
 
     micro_release_endpoint(ep);
@@ -644,6 +646,8 @@ _on_connection_closed(natsConnection *nc, void *ignored)
     int n = 0;
     int i;
 
+    printf("<>/<> micro: connection closed\n");
+
     err = _services_for_connection(&to_call, &n, nc);
     if (err != NULL)
     {
@@ -667,6 +671,8 @@ _on_service_error(microService *m, const char *subject, natsStatus s)
 {
     microEndpoint *ep = NULL;
     microError *err = NULL;
+
+    printf("<>/<> micro: service error\n");
 
     if (m == NULL)
         return;
@@ -703,6 +709,8 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
     const char *subject = NULL;
     int n = 0;
     int i;
+
+    printf("<>/<> micro: on error\n");
 
     if (sub == NULL)
     {
