@@ -2568,7 +2568,7 @@ _close(natsConnection *nc, natsConnStatus status, bool fromPublicClose, bool doC
     // Remove all subscriptions. This will kick out the delivery threads,
     // and unblock NextMsg() calls.
     _removeAllSubscriptions(nc);
-    nats_Sleep(100); // <>/<>
+    nats_Sleep(1000); // <>/<>
 
     // Go ahead and make sure we have flushed the outbound buffer.
     if (nc->sockCtx.fdActive)
