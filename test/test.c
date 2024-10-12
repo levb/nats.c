@@ -34484,8 +34484,6 @@ void test_MicroServiceStopsOnClosedConn(void)
     test("Ensure the connection has closed: ");
     testCond(natsConnection_IsClosed(nc));
 
-    nats_Sleep(1000); // <>/<>
-
     test("Wait for the service to stop: ");
     natsMutex_Lock(arg.m);
     while ((s != NATS_TIMEOUT) && !arg.microAllDone)
@@ -34563,8 +34561,6 @@ void test_MicroServiceStopsWhenServerStops(void)
 
     test("Stop the server: ");
     testCond((_stopServer(serverPid), true));
-
-    nats_Sleep(1000); // <>/<>
 
     _waitForMicroservicesAllDone(&arg);
 
@@ -34679,8 +34675,6 @@ void test_MicroAsyncErrorHandlerMaxPendingMsgs(void)
     testCond((s == NATS_OK) && arg.closed && (arg.status == NATS_SLOW_CONSUMER));
     natsMutex_Unlock(arg.m);
 
-    nats_Sleep(1000); // <>/<>
-
     _destroyMicroservice(m);
     _waitForMicroservicesAllDone(&arg);
 
@@ -34762,8 +34756,6 @@ void test_MicroAsyncErrorHandlerMaxPendingBytes(void)
         s = natsCondition_TimedWait(arg.c, arg.m, 1000);
     natsMutex_Unlock(arg.m);
     testCond((s == NATS_OK) && arg.closed && (arg.status == NATS_SLOW_CONSUMER));
-
-    nats_Sleep(1000); // <>/<>
 
     _destroyMicroservice(m);
     _waitForMicroservicesAllDone(&arg);
