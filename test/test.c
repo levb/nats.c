@@ -33591,7 +33591,7 @@ _startManyMicroservices(microService** svcs, int n, natsConnection *nc, microSer
         bool allDone = false;                                                           \
         natsMutex_Lock((_arg)->m);                                                      \
         while ((waitStatus != NATS_TIMEOUT) && !(_arg)->microAllDone)                   \
-            waitStatus = natsCondition_TimedWait((_arg)->c, (_arg)->m, 1000);           \
+            waitStatus = natsCondition_TimedWait((_arg)->c, (_arg)->m, 10000);           \
         allDone = (_arg)->microAllDone;                                                 \
         natsMutex_Unlock((_arg)->m);                                                    \
         testCond((NATS_OK == waitStatus) && allDone);                                   \
