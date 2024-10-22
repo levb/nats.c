@@ -280,7 +280,7 @@ nats_dispatchThreadPool(void *arg)
 
             if (completeCB != NULL)
             {
-                nats_Sleep(100);
+                // nats_Sleep(100);
                 printf("<>/<> completeCB (pool) on %s\n", sub->subject); fflush(stdout);
                 (*completeCB)(completeCBClosure);
             }
@@ -591,7 +591,7 @@ nats_dispatchThreadOwn(void *arg)
 
     if (completeCB != NULL)
     {
-        nats_Sleep(100);
+        // nats_Sleep(100);
         printf("<>/<> completeCB on %s\n", sub->subject); fflush(stdout);
         (*completeCB)(completeCBClosure);
     }
