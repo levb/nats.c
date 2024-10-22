@@ -33586,10 +33586,10 @@ _startManyMicroservices(microService** svcs, int n, natsConnection *nc, microSer
 
 #define _waitForMicroservicesAllDone(_arg)                                              \
     {                                                                                   \
+        natsMutex_Lock((_arg)->m);                                                      \
         testf("Wait for %d microservices to stop: ", (_arg)->microRunningServiceCount); \
         natsStatus waitStatus = NATS_OK;                                                \
         bool allDone = false;                                                           \
-        natsMutex_Lock((_arg)->m);                                                      \
         while ((waitStatus != NATS_TIMEOUT) && !(_arg)->microAllDone)                   \
             waitStatus = natsCondition_TimedWait((_arg)->c, (_arg)->m, 100);  /*<>/<>*/ \
         allDone = (_arg)->microAllDone;                                                 \
