@@ -49,7 +49,6 @@ struct micro_endpoint_s
 {
     // The name and subject that the endpoint is listening on (may be different
     // from one specified in config).
-    char *name;
     char *subject;
 
     // A copy of the config provided to add_endpoint.
@@ -75,7 +74,6 @@ struct micro_endpoint_s
     // Mutex for starting/stopping the endpoint, and for updating the stats.
     natsMutex *endpoint_mu;
     int refs;
-    bool is_draining;
 
     // The subscription for the endpoint. If NULL, the endpoint is stopped.
     natsSubscription *sub;
@@ -146,11 +144,11 @@ microError *micro_is_error_message(natsStatus s, natsMsg *msg);
 microError *micro_new_control_subject(char **newSubject, const char *verb, const char *name, const char *id);
 microError *micro_new_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, microEndpointConfig *cfg, bool is_internal);
 microError *micro_new_request(microRequest **new_request, microService *m, microEndpoint *ep, natsMsg *msg);
-microError *micro_start_endpoint(microEndpoint *ep);
-microError *micro_stop_endpoint(microEndpoint *ep);
+microError *micro_subscribe_endpoint(microEndpoint *ep);
+microError *micro_drain_endpoint(microEndpoint *ep);
 
 void micro_free_cloned_endpoint_config(microEndpointConfig *cfg);
-void micro_free_endpoint(microEndpoint *ep);
+void micro_destroy_endpoint(microEndpoint *ep);
 void micro_free_request(microRequest *req);
 void micro_release_endpoint(microEndpoint *ep);
 void micro_release_on_endpoint_complete(void *closure);

@@ -69,86 +69,148 @@ micro_AddService(microService **new_m, natsConnection *nc, microServiceConfig *c
     return NULL;
 }
 
+static microError *_subjectWithGroupPrefix(char **dst, microGroup *g, const char *src)
+{
+    size_t len = strlen(src) + 1;
+    char *p;
+
+    if (g != NULL)
+        len += strlen(g->config->Prefix) + 1;
+
+    *dst = NATS_CALLOC(1, len);
+    if (*dst == NULL)
+        return micro_ErrorOutOfMemory;
+
+    p = *dst;
+    if (g != NULL)
+    {
+        len = strlen(g->config->Prefix);
+        memcpy(p, g->config->Prefix, len);
+        p[len] = '.';
+        p += len + 1;
+    }
+    memcpy(p, src, strlen(src) + 1);
+    return NULL;
+}
+
+microError *
+_new_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, microEndpointConfig *cfg, bool is_internal, char *fullSubject)
+{
+    microError *err = NULL;
+    microEndpoint *ep = NULL;
+
+    if (cfg == NULL)
+        return microError_Wrapf(micro_ErrorInvalidArg, "NULL endpoint config");
+    if (!micro_is_valid_name(cfg->Name))
+        return microError_Wrapf(micro_ErrorInvalidArg, "invalid endpoint name %s", cfg->Name);
+    if (cfg->Handler == NULL)
+        return microError_Wrapf(micro_ErrorInvalidArg, "NULL endpoint request handler for %s", cfg->Name);
+
+    ep = NATS_CALLOC(1, sizeof(microEndpoint));
+    if (ep == NULL)
+        return micro_ErrorOutOfMemory;
+    ep->is_monitoring_endpoint = is_internal;
+    ep->m = m;
+
+    MICRO_CALL(err, micro_ErrorFromStatus(natsMutex_Create(&ep->endpoint_mu)));
+    MICRO_CALL(err, micro_clone_endpoint_config(&ep->config, cfg));
+    if (err != NULL)
+    {
+        micro_destroy_endpoint(ep);
+        return err;
+    }
+
+    ep->subject = fullSubject; // already malloced, will be freed in micro_destroy_endpoint
+    ep->group = g;
+    *new_ep = ep;
+    return NULL;
+}
+
+
 microError *
 micro_add_endpoint(microEndpoint **new_ep, microService *m, microGroup *g, microEndpointConfig *cfg, bool is_internal)
 {
     microError *err = NULL;
-    microEndpoint *ptr = NULL;
-    microEndpoint *prev_ptr = NULL;
     microEndpoint *ep = NULL;
-    microEndpoint *prev_ep = NULL;
+    bool update = false;
 
     if (m == NULL)
         return micro_ErrorInvalidArg;
     if (cfg == NULL)
         return NULL;
 
-    err = micro_new_endpoint(&ep, m, g, cfg, is_internal);
-    if (err != NULL)
-        return microError_Wrapf(err, "failed to create endpoint %s", cfg->Name);
-
-    _lock_service(m);
-
-    if (m->stopped)
+    char *fullSubject = NULL;
+    if (err = _subjectWithGroupPrefix(&fullSubject, g, nats_IsStringEmpty(cfg->Subject) ? cfg->Name : cfg->Subject), err != NULL)
+        return microError_Wrapf(err, "failed to create full subject for endpoint %s", cfg->Name);
+    if (!micro_is_valid_subject(fullSubject))
     {
-        _unlock_service(m);
-        return micro_Errorf("can't add an endpoint %s to service %s: the service is stopped", cfg->Name, m->cfg->Name);
+        NATS_FREE(fullSubject);
+        return microError_Wrapf(micro_ErrorInvalidArg, "invalid subject %s for endpoint %s", fullSubject, cfg->Name);
     }
 
-    if (m->first_ep != NULL)
+    _lock_service(m);
+    if (m->stopped)
+        err = micro_Errorf("can't add an endpoint %s to service %s: the service is stopped", cfg->Name, m->cfg->Name);
+
+    // See if there is already an endpoint with the same subject. ep->subject is
+    // immutable after the EP's creation so we don't need to lock it.
+    for (ep = m->first_ep; (err == NULL) && (ep != NULL); ep = ep->next)
     {
-        if (strcmp(m->first_ep->subject, ep->subject) == 0)
+        if (strcmp(ep->subject, fullSubject) == 0)
         {
-            ep->next = m->first_ep->next;
-            prev_ep = m->first_ep;
-            m->first_ep = ep;
+            // Found an existing endpoint with the same subject. We will update
+            // it as long as we can re-use the existing subscription, which at
+            // the moment means we can't change the queue group settings.
+            if (cfg->NoQueueGroup != ep->config->NoQueueGroup)
+                err = micro_Errorf("can't change the queue group settings for endpoint %s", cfg->Name);
+            else if (!nats_StringEquals(cfg->QueueGroup, ep->config->QueueGroup))
+                err = micro_Errorf("can't change the queue group for endpoint %s", cfg->Name);
+            if (err == NULL)
+            {
+                NATS_FREE(fullSubject);
+                update = true;
+                fullSubject = NULL;
+                break;
+            }
+        }
+    }
+
+    if (err == NULL)
+    {
+        if (update)
+        {
+                // If the endpoint already exists, update its config and stats.
+                // This will make it use the new handler for subsequent
+                // requests.
+                micro_lock_endpoint(ep);
+                micro_free_cloned_endpoint_config(ep->config);
+                err = micro_clone_endpoint_config(&ep->config, cfg);
+                if (err == NULL)
+                    memset(&ep->stats, 0, sizeof(ep->stats));
+                micro_unlock_endpoint(ep);
         }
         else
         {
-            prev_ptr = m->first_ep;
-            for (ptr = m->first_ep->next; ptr != NULL; prev_ptr = ptr, ptr = ptr->next)
+            err = _new_endpoint(&ep, m, g, cfg, is_internal, fullSubject);
+            ep->next = m->first_ep;
+            m->first_ep = ep;
+
+            // retain `m` before the endpoint uses it for its on_complete callback.
+            _retain_service(m);
+
+            if (err = micro_subscribe_endpoint(ep), err != NULL)
             {
-                if (strcmp(ptr->subject, ep->subject) == 0)
-                {
-                    ep->next = ptr->next;
-                    prev_ptr->next = ep;
-                    prev_ep = ptr;
-                    break;
-                }
-            }
-            if (prev_ep == NULL)
-            {
-                prev_ptr->next = ep;
+                // Best effort, leave the new endpoint in the list, as is. A retry with
+                // the same name will clean it up.
+                _release_service(m);
+                return microError_Wrapf(err, "failed to start endpoint %s", ep->config->Name);
             }
         }
     }
-    else
-    {
-        m->first_ep = ep;
-    }
 
     _unlock_service(m);
-
-    if (prev_ep != NULL)
-    {
-        // Rid of the previous endpoint with the same subject, if any. If this
-        // fails we can return the error, leave the newly added endpoint in the
-        // list, not started. A retry with the same subject will clean it up.
-        if (err = micro_stop_endpoint(prev_ep), err != NULL)
-            return err;
-        micro_release_endpoint(prev_ep);
-    }
-
-    // retain `m` before the endpoint uses it for its on_complete callback.
-    _retain_service(m);
-
-    if (err = micro_start_endpoint(ep), err != NULL)
-    {
-        // Best effort, leave the new endpoint in the list, as is. A retry with
-        // the same name will clean it up.
-        _release_service(m);
-        return microError_Wrapf(err, "failed to start endpoint %s", ep->name);
-    }
+    if (err != NULL)
+        return microError_Wrapf(err, "can't add an endpoint %s to service %s", cfg->Name, m->cfg->Name);
 
     if (new_ep != NULL)
         *new_ep = ep;
@@ -192,10 +254,11 @@ microService_Stop(microService *m)
 
     for (; ep != NULL; ep = ep->next)
     {
-        if (err = micro_stop_endpoint(ep), err != NULL)
+        if (err = micro_drain_endpoint(ep), err != NULL)
         {
+            err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
             _unlock_service(m);
-            return microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->name);
+            return err;
         }
     }
 
@@ -250,7 +313,6 @@ void micro_release_on_endpoint_complete(void *closure)
     microService *m = NULL;
     natsSubscription *sub = NULL;
     microDoneHandler doneHandler = NULL;
-    bool free_ep = false;
     bool finalize = false;
 
     if (ep == NULL)
@@ -261,20 +323,15 @@ void micro_release_on_endpoint_complete(void *closure)
         return;
 
     micro_lock_endpoint(ep);
-    ep->is_draining = false;
     sub = ep->sub;
-    ep->sub = NULL;
-    ep->refs--;
-    free_ep = (ep->refs == 0);
+    ep->sub = NULL; // Force the subscription to be destroyed now, so NULL out the pointer to avoid a double free.
     micro_unlock_endpoint(ep);
-
-    // Force the subscription to be destroyed now.
     natsSubscription_Destroy(sub);
 
     _lock_service(m);
 
     // Release the service reference for the completed endpoint. It can not be
-    // the last reference, so no need to free m.
+    // the last reference, so no need to check for 0.
     m->refs--;
 
     // Unlink the endpoint from the service.
@@ -298,10 +355,11 @@ void micro_release_on_endpoint_complete(void *closure)
         doneHandler = m->cfg->DoneHandler;
     }
 
+    printf("<>/<> micro: release completed endpoint %s\n", sub->subject);
+
     _unlock_service(m);
 
-    if (free_ep)
-        micro_free_endpoint(ep);
+    micro_release_endpoint(ep);
 
     if (finalize)
     {
@@ -588,6 +646,8 @@ _on_connection_closed(natsConnection *nc, void *ignored)
     int n = 0;
     int i;
 
+    printf("<>/<> micro: connection closed\n");
+
     err = _services_for_connection(&to_call, &n, nc);
     if (err != NULL)
     {
@@ -611,6 +671,8 @@ _on_service_error(microService *m, const char *subject, natsStatus s)
 {
     microEndpoint *ep = NULL;
     microError *err = NULL;
+
+    printf("<>/<> micro: service error\n");
 
     if (m == NULL)
         return;
@@ -647,6 +709,8 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
     const char *subject = NULL;
     int n = 0;
     int i;
+
+    printf("<>/<> micro: on error\n");
 
     if (sub == NULL)
     {
@@ -848,7 +912,7 @@ microService_GetInfo(microServiceInfo **new_info, microService *m)
         {
             if ((!ep->is_monitoring_endpoint) && (ep->subject != NULL))
             {
-                MICRO_CALL(err, micro_strdup((char **)&info->Endpoints[len].Name, ep->name));
+                MICRO_CALL(err, micro_strdup((char **)&info->Endpoints[len].Name, ep->config->Name));
                 MICRO_CALL(err, micro_strdup((char **)&info->Endpoints[len].Subject, ep->subject));
                 MICRO_CALL(err, micro_strdup((char **)&info->Endpoints[len].QueueGroup, micro_queue_group_for_endpoint(ep)));
                 MICRO_CALL(err, micro_ErrorFromStatus(
@@ -947,7 +1011,7 @@ microService_GetStats(microServiceStats **new_stats, microService *m)
                 // copy the entire struct, including the last error buffer.
                 stats->Endpoints[len] = ep->stats;
 
-                MICRO_CALL(err, micro_strdup((char **)&stats->Endpoints[len].Name, ep->name));
+                MICRO_CALL(err, micro_strdup((char **)&stats->Endpoints[len].Name, ep->config->Name));
                 MICRO_CALL(err, micro_strdup((char **)&stats->Endpoints[len].Subject, ep->subject));
                 MICRO_CALL(err, micro_strdup((char **)&stats->Endpoints[len].QueueGroup, micro_queue_group_for_endpoint(ep)));
                 if (err == NULL)
