@@ -2507,7 +2507,7 @@ _removeAllSubscriptions(natsConnection *nc)
     natsHashIter_Done(&iter);
     natsMutex_Unlock(nc->subsMu);
 
-    printf("<>/<> removeAllSubscriptions\n");
+    // printf("<>/<> removeAllSubscriptions\n");
 }
 
 // Low level close call that will do correct cleanup and set
@@ -2988,7 +2988,7 @@ natsConn_removeSubscription(natsConnection *nc, natsSubscription *removedSub)
         natsSub_close(sub, false);
 
     natsMutex_Unlock(nc->subsMu);
-    nats_Sleep(1); // <>/<>
+    // nats_Sleep(1); // <>/<>
 
     // If we really removed the subscription, then release it.
     if (sub != NULL)

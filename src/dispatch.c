@@ -591,7 +591,7 @@ nats_dispatchThreadOwn(void *arg)
 
     if (completeCB != NULL)
     {
-        // nats_Sleep(100);
+        // nats_Sleep(20); // <>/<>
         printf("<>/<> completeCB on %s\n", sub->subject); fflush(stdout);
         (*completeCB)(completeCBClosure);
     }

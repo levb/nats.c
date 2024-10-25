@@ -96,8 +96,9 @@ _cleanupOwnDispatcher(natsSubscription *sub)
 
     if (sub->ownDispatcher.thread != NULL)
     {
-        natsThread_Detach(sub->ownDispatcher.thread);
-        natsThread_Destroy(sub->ownDispatcher.thread);
+        // natsThread_Detach(sub->ownDispatcher.thread);
+        // printf("<>/<> DETACHED nats_dispatchThreadOwn: %s\n", sub->subject); fflush(stdout);
+        // natsThread_Destroy(sub->ownDispatcher.thread);
         sub->ownDispatcher.thread = NULL;
     }
 
@@ -136,11 +137,17 @@ void natsSub_release(natsSubscription *sub)
     natsSub_Lock(sub);
 
     refs = _release(sub);
+    if (refs == 0)
+    {
+        printf("<>/<> DESTROY natsSubscription: %s\n", sub->subject); fflush(stdout);
+    }
 
     natsSub_Unlock(sub);
 
     if (refs == 0)
+    {        
         _freeSub(sub);
+    }
 }
 
 void natsSub_unlockRelease(natsSubscription *sub)

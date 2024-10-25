@@ -56,7 +56,7 @@ micro_AddService(microService **new_m, natsConnection *nc, microServiceConfig *c
     // Wrap the connection callbacks before we subscribe to anything.
     MICRO_CALL(err, _wrap_connection_event_callbacks(m));
 
-    MICRO_CALL(err, micro_init_monitoring(m));
+    // MICRO_CALL(err, micro_init_monitoring(m));
     MICRO_CALL(err, microService_AddEndpoint(m, cfg->Endpoint));
 
     if (err != NULL)
@@ -355,7 +355,7 @@ void micro_release_on_endpoint_complete(void *closure)
         doneHandler = m->cfg->DoneHandler;
     }
 
-    printf("<>/<> micro: release completed endpoint %s\n", sub->subject);
+    // printf("<>/<> micro: release completed endpoint %s\n", sub->subject);
 
     _unlock_service(m);
 
@@ -646,7 +646,7 @@ _on_connection_closed(natsConnection *nc, void *ignored)
     int n = 0;
     int i;
 
-    printf("<>/<> micro: connection closed\n");
+    // printf("<>/<> micro: connection closed\n");
 
     err = _services_for_connection(&to_call, &n, nc);
     if (err != NULL)
@@ -672,7 +672,7 @@ _on_service_error(microService *m, const char *subject, natsStatus s)
     microEndpoint *ep = NULL;
     microError *err = NULL;
 
-    printf("<>/<> micro: service error\n");
+    // printf("<>/<> micro: service error\n");
 
     if (m == NULL)
         return;
@@ -710,7 +710,7 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
     int n = 0;
     int i;
 
-    printf("<>/<> micro: on error\n");
+    // printf("<>/<> micro: on error\n");
 
     if (sub == NULL)
     {
