@@ -73,7 +73,7 @@ micro_subscribe_endpoint(microEndpoint *ep)
         ep->sub = sub;
         micro_unlock_endpoint(ep);
 
-        natsSubscription_SetOnCompleteCB(sub, micro_release_on_endpoint_complete, ep);
+        natsSubscription_SetOnCompleteCB(sub, micro_release_endpoint_when_unsubscribed, ep);
     }
     else
     {
@@ -133,10 +133,10 @@ void micro_release_endpoint(microEndpoint *ep)
     micro_unlock_endpoint(ep);
 
     if (refs == 0)
-        micro_destroy_endpoint(ep);
+        micro_free_endpoint(ep);
 }
 
-void micro_destroy_endpoint(microEndpoint *ep)
+void micro_free_endpoint(microEndpoint *ep)
 {
     if (ep == NULL)
         return;

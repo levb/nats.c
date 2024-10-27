@@ -96,9 +96,8 @@ _cleanupOwnDispatcher(natsSubscription *sub)
 
     if (sub->ownDispatcher.thread != NULL)
     {
-        // natsThread_Detach(sub->ownDispatcher.thread);
-        // printf("<>/<> DETACHED nats_dispatchThreadOwn: %s\n", sub->subject); fflush(stdout);
-        // natsThread_Destroy(sub->ownDispatcher.thread);
+        natsThread_Detach(sub->ownDispatcher.thread);
+        natsThread_Destroy(sub->ownDispatcher.thread);
         sub->ownDispatcher.thread = NULL;
     }
 

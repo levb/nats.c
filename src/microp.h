@@ -108,7 +108,9 @@ struct micro_service_s
     natsMutex *service_mu;
     int refs;
 
-    struct micro_endpoint_s *first_ep;
+    // a linked list of endpoints.
+    struct micro_endpoint_s *endpoints;
+    int numEndpoints;
 
     int64_t started; // UTC time expressed as number of nanoseconds since epoch.
     bool stopped;
@@ -148,10 +150,10 @@ microError *micro_subscribe_endpoint(microEndpoint *ep);
 microError *micro_drain_endpoint(microEndpoint *ep);
 
 void micro_free_cloned_endpoint_config(microEndpointConfig *cfg);
-void micro_destroy_endpoint(microEndpoint *ep);
+void micro_free_endpoint(microEndpoint *ep);
 void micro_free_request(microRequest *req);
 void micro_release_endpoint(microEndpoint *ep);
-void micro_release_on_endpoint_complete(void *closure);
+void micro_release_endpoint_when_unsubscribed(void *closure);
 void micro_retain_endpoint(microEndpoint *ep);
 void micro_update_last_error(microEndpoint *ep, microError *err);
 const char *micro_queue_group_for_endpoint(microEndpoint *ep);
