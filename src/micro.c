@@ -326,9 +326,16 @@ void micro_release_on_endpoint_complete(void *closure)
     sub = ep->sub;
     ep->sub = NULL; // Force the subscription to be destroyed now, so NULL out the pointer to avoid a double free.
     micro_unlock_endpoint(ep);
+
+    printf("<>/<> micro_release_on_endpoint_complete: %s: 1:\n", sub->subject);
     natsSubscription_Destroy(sub);
 
     _lock_service(m);
+
+    int n = 0;
+    for (microEndpoint *ep = m->first_ep; ep != NULL; ep = ep->next)
+        n++;
+    printf("<>/<> micro_release_on_endpoint_complete: %s: 2: %d\n", sub->subject, n); 
 
     // Release the service reference for the completed endpoint. It can not be
     // the last reference, so no need to check for 0.
@@ -339,27 +346,32 @@ void micro_release_on_endpoint_complete(void *closure)
     {
         if (prev_ep != NULL)
         {
+            printf("<>/<> micro_release_on_endpoint_complete: %s: 3: removed from prev\n", sub->subject);
+            micro_lock_endpoint(prev_ep);
             prev_ep->next = ep->next;
+            micro_unlock_endpoint(prev_ep);
         }
         else
         {
+            printf("<>/<> micro_release_on_endpoint_complete: %s: 4: removed from head\n", sub->subject);
             m->first_ep = ep->next;
         }
     }
 
     finalize = (!m->stopped) && (m->first_ep == NULL);
+    printf("<>/<> micro_release_on_endpoint_complete: %s: 5: finalize: %d\n", sub->subject, finalize);
     if (finalize)
     {
         natsLib_stopServiceCallbacks(m);
         m->stopped = true;
         doneHandler = m->cfg->DoneHandler;
+        printf("<>/<> micro_release_on_endpoint_complete: %s: 6: stopped\n", sub->subject);
     }
-
-    // printf("<>/<> micro: release completed endpoint %s\n", sub->subject);
 
     _unlock_service(m);
 
     micro_release_endpoint(ep);
+    printf("<>/<> micro_release_on_endpoint_complete: %s: 7: released EP\n", sub->subject);
 
     if (finalize)
     {
@@ -646,7 +658,7 @@ _on_connection_closed(natsConnection *nc, void *ignored)
     int n = 0;
     int i;
 
-    // printf("<>/<> micro: connection closed\n");
+    printf("<>/<> micro: connection closed\n");
 
     err = _services_for_connection(&to_call, &n, nc);
     if (err != NULL)

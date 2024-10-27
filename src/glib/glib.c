@@ -15,6 +15,7 @@
 
 #include "../util.h"
 #include "../crypto.h"
+#include "../microp.h"
 
 int64_t gLockSpinCount = 2000;
 
@@ -460,7 +461,9 @@ void natsLib_stopServiceCallbacks(microService *m)
     if (m == NULL)
         return;
 
+    printf("<>/<> lock...             ");
     natsMutex_Lock(gLib.service_callback_mu);
+    printf("acquired\n");
     natsHash_Remove(gLib.all_services_to_callback, (int64_t)m);
     natsMutex_Unlock(gLib.service_callback_mu);
 }
