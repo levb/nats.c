@@ -296,6 +296,7 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
 
     micro_lock_endpoint(ep);
     sub = ep->sub;
+    printf("<>/<> micro_release_endpoint_when_unsubscribed %s\n", sub->subject);
     ep->sub = NULL; // Force the subscription to be destroyed now, so NULL out the pointer to avoid a double free.
     refs = --(ep->refs);
     micro_unlock_endpoint(ep);
@@ -315,7 +316,10 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     _unlock_service(m);
 
     if (doneHandler != NULL)
+    {
+        printf("<>/<> micro_release_endpoint_when_unsubscribed %s last in service, DONE\n", sub->subject);
         doneHandler(m);
+    }
 
     if ((refs == 0) && (doneHandler != NULL))
         _free_service(m);
