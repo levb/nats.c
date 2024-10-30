@@ -246,6 +246,7 @@ _stop_service(microService *m, bool unsubscribe)
     if (m == NULL)
         return micro_ErrorInvalidArg;
 
+    printf("<>/<> microService_Stop %s\n", m->cfg->Name);
     _lock_service(m);
     alreadyStopped = m->stopped;
     m->stopped = true;
@@ -315,7 +316,7 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
         m->stopped = true;
         doneHandler = m->cfg->DoneHandler;
     }
-    refs = --(m->refs);
+    refs = m->refs;
     _unlock_service(m);
 
     if (doneHandler != NULL)
@@ -422,6 +423,7 @@ _release_service(microService *m)
 
     _unlock_service(m);
 
+    printf("<>/<> micro: release service %s refs=%d numEndpoints=%d\n", m->cfg->Name, refs, numEndpoints);
     if ((refs == 0) && (numEndpoints == 0))
         _free_service(m);
 }
