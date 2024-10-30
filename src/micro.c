@@ -285,6 +285,7 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     microEndpoint       *ep         = (microEndpoint *)closure;
     microService        *m          = NULL;
     natsSubscription    *sub        = NULL;
+    natsConnection      *nc         = NULL;
     microDoneHandler    doneHandler = NULL;
     int                 refs        = 0;
 
@@ -307,23 +308,27 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     // If this is the last endpoint, we need to notify the service's done
     // callback.
     _lock_service(m);
+
+    m->numEndpoints--;
+    // <>/<> TODO Remove ep from m's list
+
     if (refs == 0)
         micro_free_endpoint(ep);
 
-    m->numEndpoints--;
     if (m->numEndpoints == 0)
     {
         m->stopped = true;
         doneHandler = m->cfg->DoneHandler;
     }
     refs = m->refs;
+    nc = m->nc;
     _unlock_service(m);
 
     if (doneHandler != NULL)
     {
         printf("<>/<> micro_release_endpoint_when_unsubscribed %s last in service, DONE\n", sub->subject);
         doneHandler(m);
-        natsConn_removeService(m->nc, m);
+        natsConn_removeService(nc, m);
 
         if (refs == 0) 
             _free_service(m);
