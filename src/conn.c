@@ -205,6 +205,7 @@ _freeConn(natsConnection *nc)
     natsCondition_Destroy(nc->reconnectCond);
     natsMutex_Destroy(nc->subsMu);
     natsMutex_Destroy(nc->mu);
+    NATS_FREE(nc->services);
 
     NATS_FREE(nc);
 
