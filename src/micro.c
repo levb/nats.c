@@ -311,7 +311,10 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
 
     m->numEndpoints--;
     if (m->numEndpoints == 0)
+    {
+        m->stopped = true;
         doneHandler = m->cfg->DoneHandler;
+    }
     refs = --(m->refs);
     _unlock_service(m);
 
@@ -319,10 +322,11 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     {
         printf("<>/<> micro_release_endpoint_when_unsubscribed %s last in service, DONE\n", sub->subject);
         doneHandler(m);
-    }
+        natsConn_removeService(m->nc, m);
 
-    if ((refs == 0) && (doneHandler != NULL))
-        _free_service(m);
+        if (refs == 0) 
+            _free_service(m);
+    }
 }
 
 bool microService_IsStopped(microService *m)

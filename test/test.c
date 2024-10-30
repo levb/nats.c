@@ -34555,9 +34555,6 @@ void test_MicroServiceStopsWhenServerStops(void)
     testCond((err == NULL) && (info->EndpointsLen == numEndpoints));
     microServiceInfo_Destroy(info);
 
-    printf("\n\n-----------------------\n\n");
-
-
     test("Stop the server: ");
     testCond((_stopServer(serverPid), true));
 
@@ -34565,9 +34562,6 @@ void test_MicroServiceStopsWhenServerStops(void)
 
     test("Test microservice is not running: ");
     testCond(microService_IsStopped(m))
-
-    // nats_Sleep(10000);
-    // printf("\n\n-----------------------\n\n");
 
     _destroyMicroservice(m);
 
