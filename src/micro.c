@@ -301,12 +301,13 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     micro_unlock_endpoint(ep);
 
     natsSubscription_Destroy(sub);
-    if (refs == 0)
-        micro_free_endpoint(ep);
 
     // If this is the last endpoint, we need to notify the service's done
     // callback.
     _lock_service(m);
+    if (refs == 0)
+        micro_free_endpoint(ep);
+
     m->numEndpoints--;
     if (m->numEndpoints == 0)
         doneHandler = m->cfg->DoneHandler;

@@ -4477,6 +4477,7 @@ int natsConn_getServices(microService ***services, natsConnection *nc)
     *services = nc->services;
     numServices = nc->numServices;
     natsConn_Unlock(nc);
+    printf("<>/<> natsConn_getServices: %d\n", numServices);
     return numServices;
 }
 
