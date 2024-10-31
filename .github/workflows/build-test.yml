@@ -27,7 +27,7 @@ on:
         default: "verify_host"
       repeat:
         type: string
-        default: "1"
+        default: "10"
       sanitize:
         type: string
         description: "sanitize option to use, 'address' or 'thread'"
@@ -181,8 +181,7 @@ jobs:
           export PATH=../deps/nats-server:../deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
-          ctest -VV -R '^Micro' --timeout 60 --output-on-failure --repeat-until-fail 20 # ${{ inputs.repeat }}
-          # ctest -L 'test' --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
+          ctest -L 'test' --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
 
       - name: Upload coverage reports to Codecov
         # PRs from external contributors fail: https://github.com/codecov/feedback/issues/301
