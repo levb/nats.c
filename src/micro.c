@@ -246,7 +246,7 @@ _stop_service(microService *m, bool unsubscribe)
     if (m == NULL)
         return micro_ErrorInvalidArg;
 
-    printf("<>/<> microService_Stop %s\n", m->cfg->Name);
+    printf("<>/<> microService_Stop %s, unsub %d\n", m->cfg->Name, unsubscribe);
     _lock_service(m);
     alreadyStopped = m->stopped;
     m->stopped = true;
@@ -599,7 +599,7 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
     {
         m = all[i];
         _on_service_error(m, subject, s);
-        _stop_service(m, false); // subs will be terminated by the error.
+        _stop_service(m, true);
     }
 }
 
