@@ -136,10 +136,6 @@ void natsSub_release(natsSubscription *sub)
     natsSub_Lock(sub);
 
     refs = _release(sub);
-    if (refs == 0)
-    {
-        printf("<>/<> DESTROY natsSubscription: %s\n", sub->subject); fflush(stdout);
-    }
 
     natsSub_Unlock(sub);
 
