@@ -241,18 +241,19 @@ _stop_service(microService *m, bool unsubscribe)
 {
     microError      *err            = NULL;
     microEndpoint   *ep             = NULL;
-    bool            alreadyStopped  = false;
 
     if (m == NULL)
         return micro_ErrorInvalidArg;
 
     printf("<>/<> microService_Stop %s, unsub %d\n", m->cfg->Name, unsubscribe);
     _lock_service(m);
-    alreadyStopped = m->stopped;
-    m->stopped = true;
-    _unlock_service(m);
-    if (alreadyStopped)
+    if (m->stopped)
+    {
+        _unlock_service(m);
         return NULL;
+    }
+
+    m->stopped = true;
     
     if (unsubscribe)
     {
@@ -266,6 +267,7 @@ _stop_service(microService *m, bool unsubscribe)
             }
         }
     }
+    _unlock_service(m);
 
     natsConn_removeService(m->nc, m);
     return NULL;
