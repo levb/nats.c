@@ -164,9 +164,9 @@ int
 natsConn_getServices(microService ***services, natsConnection *nc);
 
 bool
-natsConn_removeService(natsConnection *nc, microService *service);
+natsConn_detachService(natsConnection *nc, microService *service);
 
 natsStatus
-natsConn_addService(natsConnection *nc, microService *service);
+natsConn_attachService(natsConnection *nc, microService *service);
 
 #endif /* CONN_H_ */
