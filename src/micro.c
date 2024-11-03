@@ -628,8 +628,9 @@ _on_connection_closed(natsConnection *nc, void *ignored)
 static bool
 _on_service_error(microService *m, const char *subject, natsStatus s)
 {
-    microEndpoint *found = NULL;
-    microError *err = NULL;
+    microEndpoint   *found      = NULL;
+    const char      *subject    = NULL;
+    microError      *err        = NULL;
 
     if (m == NULL)
         return false;
@@ -645,14 +646,17 @@ _on_service_error(microService *m, const char *subject, natsStatus s)
     }
 
     if (found != NULL)
+    {
         micro_retain_endpoint(found);
+        subject = found->subject;
+    }
 
     _unlock_service(m);
 
     if (found == NULL)
         return false;
     
-    err = microError_Wrapf(micro_ErrorFromStatus(s), "NATS error on endpoint %s", found->subject);
+    err = microError_Wrapf(micro_ErrorFromStatus(s), "NATS error on endpoint %s", subject);
     micro_update_last_error(found, err);
     microError_Destroy(err);
 
