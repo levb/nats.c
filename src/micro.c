@@ -288,7 +288,7 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
     if (nc == NULL || m == NULL)
         return false;
 
-    printf("<>/<> _detachING_service_from_connection %s: remaining: %d, removed: %d\n", m->cfg->Name, remaining, removed);    
+    printf("<>/<> _detachING_service_from_connection %s\n", m->cfg->Name);    
     natsConn_Lock(nc);
     for (int i = 0; i < nc->numServices; i++)
     {
@@ -408,7 +408,6 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     if ((m == NULL) || (m->service_mu == NULL))
         return;
 
-    printf("<>/<> SUB complete: service %s, endpoint %s\n", m->cfg->Name, ep->subject);
     micro_lock_endpoint(ep);
     sub = ep->sub;
     ep->sub = NULL; // Force the subscription to be destroyed now, so NULL out the pointer to avoid a double free.

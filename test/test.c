@@ -33561,7 +33561,7 @@ _startMicroservice(microService** new_m, natsConnection *nc, microServiceConfig 
 static void
 _startMicroserviceOK(microService** new_m, natsConnection *nc, microServiceConfig *cfg, microEndpointConfig **eps, int num_eps, struct threadArg *arg)
 {
-    char buf[64];
+    char buf[256];
 
     snprintf(buf, sizeof(buf), "Start microservice %s: ", cfg->Name);
     test(buf);
@@ -34414,6 +34414,7 @@ void test_MicroStartStop(void)
     for (i = 0; i < NUM_MICRO_SERVICES; i++)
     {
         _destroyMicroservice(svcs[i]);
+        nats_Sleep(100); // <>/<>
     }
     _waitForMicroservicesAllDone(&arg);
 
