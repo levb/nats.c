@@ -283,7 +283,7 @@ static bool
 _detach_service_from_connection(natsConnection *nc, microService *m)
 {
     bool removed = false;
-    int remaining = 0;
+    // int remaining = 0;
 
     if (nc == NULL || m == NULL)
         return false;
@@ -301,7 +301,7 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
         removed = true;
         break;
     }
-    remaining = nc->numServices;
+    // remaining = nc->numServices;
     natsConn_Unlock(nc);
     // printf("<>/<> _detachED_service_from_connection %s: remaining: %d, removed: %d\n", m->cfg->Name, remaining, removed);     fflush(stdout);
     return removed;
@@ -440,12 +440,12 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     // Special processing for the last endpoint.
     if (doneHandler != NULL)
     {
-        doneHandler(m);
-
         // Stop the service now in case it hasn't already and detach from the
         // connection, no need to unsubscribe.
         // printf("<>/<> Stopping service %s from micro_release_endpoint_when_unsubscribed\n", m->cfg->Name);  fflush(stdout);
         _stop_service(m, true, false, false);
+
+        doneHandler(m);
     }
 }
 
