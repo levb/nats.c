@@ -33593,7 +33593,7 @@ _startManyMicroservices(microService** svcs, int n, natsConnection *nc, microSer
 
 #define _waitForMicroservicesAllDone(_arg)                                              \
     {                                                                                   \
-        nats_Sleep(valgrind ? 500 : 20);                                                \
+        nats_Sleep(valgrind ? 20 : 10);                                                 \
         natsMutex_Lock((_arg)->m);                                                      \
         testf("Wait for %d microservices to stop: ", (_arg)->microRunningServiceCount); \
         natsStatus waitStatus = NATS_OK;                                                \
@@ -33844,8 +33844,13 @@ void test_MicroAddService(void)
         }
 
         microServiceInfo_Destroy(info);
+
+        int64_t start = nats_Now();
+        int64_t nn;
         _destroyMicroservice(m);
+        printf("<>/<> destroy time: %lld\n", (nn = nats_Now()) - start);
         _waitForMicroservicesAllDone(&arg);
+        printf("<>/<> waited for: %lld\n", nats_Now() - nn);
     }
 
     test("Destroy the test connection: ");

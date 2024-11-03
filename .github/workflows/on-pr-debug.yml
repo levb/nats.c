@@ -6,27 +6,27 @@ permissions:
   contents: write # so it can comment
 
 jobs:
-  # Ubuntu:
-  #   name: "Ubuntu"
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       compiler: [gcc, clang]
-  #   uses: ./.github/workflows/build-test.yml
-  #   with:
-  #     compiler: ${{ matrix.compiler }}
-  #     server_version: main
-  #     type: Debug
+  Ubuntu:
+    name: "Ubuntu"
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    uses: ./.github/workflows/build-test.yml
+    with:
+      compiler: ${{ matrix.compiler }}
+      server_version: main
+      type: Debug
 
-  # dev-mode:
-  #   name: "DEV_MODE"
-  #   uses: ./.github/workflows/build-test.yml
-  #   with:
-  #     dev_mode: ON
-  #     server_version: main
-  #     type: Debug
-  #     verbose_test_output: ON
-  #     verbose_make_output: ON
+  dev-mode:
+    name: "DEV_MODE"
+    uses: ./.github/workflows/build-test.yml
+    with:
+      dev_mode: ON
+      server_version: main
+      type: Debug
+      verbose_test_output: ON
+      verbose_make_output: ON
 
   sanitize:
     name: "Sanitize"
@@ -44,25 +44,25 @@ jobs:
       sanitize: ${{ matrix.sanitize }}
       pool_dispatch: ${{ matrix.pooled_dispatch }}
 
-  # coverage-TLS:
-  #   name: "Coverage: TLS"
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #         pooled_dispatch: [pool, NO-pool]
-  #         write_deadline: [write_deadline, NO-write_deadline]
-  #   uses: ./.github/workflows/build-test.yml
-  #   with:
-  #     coverage: ON
-  #     type: RelWithDebInfo
-  #     server_version: main
-  #     compiler: gcc
-  #     tls: TLS
-  #     verify_host: verify_host
-  #     pool_dispatch: ${{ matrix.pooled_dispatch }}
-  #     write_deadline: ${{ matrix.write_deadline }}
-  #   secrets:
-  #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  coverage-TLS:
+    name: "Coverage: TLS"
+    strategy:
+      fail-fast: false
+      matrix:
+          pooled_dispatch: [pool, NO-pool]
+          write_deadline: [write_deadline, NO-write_deadline]
+    uses: ./.github/workflows/build-test.yml
+    with:
+      coverage: ON
+      type: RelWithDebInfo
+      server_version: main
+      compiler: gcc
+      tls: TLS
+      verify_host: verify_host
+      pool_dispatch: ${{ matrix.pooled_dispatch }}
+      write_deadline: ${{ matrix.write_deadline }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # coverage-NO-verify_host:
   #   name: "Coverage: NO-verify_host"
