@@ -394,19 +394,17 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     if ((m == NULL) || (m->service_mu == NULL))
         return;
 
+    _lock_service(m);
     micro_lock_endpoint(ep);
+
+    _detach_endpoint_from_service(m, ep);
     sub = ep->sub;
     ep->sub = NULL; // Force the subscription to be destroyed now, so NULL out the pointer to avoid a double free.
     refs = --(ep->refs);
     micro_unlock_endpoint(ep);
 
-    natsSubscription_Destroy(sub);
+    natsSubscription_Destroy(sub); // <>/<> do I need this hack?
 
-    // If this is the last endpoint, we need to notify the service's done
-    // callback.
-    _lock_service(m);
-
-    _detach_endpoint_from_service(m, ep);
     if (refs == 0)
         micro_free_endpoint(ep);
     if (m->numEndpoints == 0)
