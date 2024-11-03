@@ -279,13 +279,11 @@ _attach_service_to_connection(natsConnection *nc, microService *service)
     return micro_ErrorFromStatus(s);
 }
 
-static bool
+static void
 _detach_service_from_connection(natsConnection *nc, microService *m)
 {
-    bool removed = false;
-
     if (nc == NULL || m == NULL)
-        return false;
+        return;
 
     natsMutex_Lock(nc->servicesMu);
     for (int i = 0; i < nc->numServices; i++)
@@ -296,30 +294,25 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
         for (int j = i; j < nc->numServices - 1; j++)
             nc->services[j] = nc->services[j + 1];
         nc->numServices--;
-        removed = true;
         break;
     }
     natsMutex_Unlock(nc->servicesMu);
 
-    return removed;
+    return;
 }
 
 static microError *
-_stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool release)
+_stop_service(microService *m, bool unsubscribe, bool release)
 {
     microError      *err            = NULL;
     microEndpoint   *ep             = NULL;
     int             refs            = 0;
     int             numEndpoints    = 0;
     bool            alreadyStopped  = false;
-    bool            detached        = false;
 
     if (m == NULL)
         return micro_ErrorInvalidArg;
 
-    if (detachFromConnection)
-        detached = _detach_service_from_connection(m->nc, m);
-    
     _lock_service(m);
     if (!m->stopped)
         m->stopped = true;
@@ -338,10 +331,9 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         }
     }
 
-    if (detached)
+    if (release)
         m->refs--;
-    if ((m->refs > 0) && release)
-        m->refs--;
+
     refs = m->refs;
     numEndpoints = m->numEndpoints;
     _unlock_service(m);
@@ -355,7 +347,7 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
 microError *
 microService_Stop(microService *m)
 {
-    return _stop_service(m, false, true, false);
+    return _stop_service(m, true, false);
 }
 
 static void
@@ -425,9 +417,8 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     {
         doneHandler(m);
 
-        // Stop the service now in case it hasn't already and detach from the
-        // connection, no need to unsubscribe.
-        _stop_service(m, true, false, false);
+        _detach_service_from_connection(m->nc, m);
+        _stop_service(m, false, true);
     }
 }
 
@@ -448,7 +439,7 @@ bool microService_IsStopped(microService *m)
 microError *
 microService_Destroy(microService *m)
 {
-    return _stop_service(m, false, true, true);
+    return _stop_service(m, true, true);
 }
 
 microError *
@@ -598,7 +589,7 @@ _on_connection_closed(natsConnection *nc, void *ignored)
     // Stop all services. They will get detached from the connection when their
     // subs are complete.
     for (int i = 0; i < nc->numServices; i++)
-        _stop_service(nc->services[i], false, false, false);
+        _stop_service(nc->services[i], false, false);
 
     natsMutex_Unlock(nc->servicesMu);
 }
@@ -664,7 +655,7 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
 
         // Stop the service in error. It will get detached from the connection
         // and released when all of its subs are complete.
-        _stop_service(m, false, true, false);
+        _stop_service(m, true, false);
     }
     natsMutex_Unlock(nc->servicesMu);
 }
