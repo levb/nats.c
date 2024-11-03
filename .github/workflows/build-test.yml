@@ -181,6 +181,11 @@ jobs:
           export PATH=../deps/nats-server:../deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
+          echo "------------------------------------------------------------"
+          addr2line -e ./bin/testsuite -f -p 0x562bd0d021c2
+          echo "------------------------------------------------------------"
+          nm -l ./bin/testsuite | sort
+          echo "------------------------------------------------------------"
           ctest -R 'MicroStartStop' --timeout 60 --output-on-failure --repeat-until-fail 30
           # ctest -L 'test' --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
 

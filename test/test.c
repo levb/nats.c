@@ -34414,7 +34414,6 @@ void test_MicroStartStop(void)
     for (i = 0; i < NUM_MICRO_SERVICES; i++)
     {
         _destroyMicroservice(svcs[i]);
-        nats_Sleep(100); // <>/<>
     }
     _waitForMicroservicesAllDone(&arg);
 
