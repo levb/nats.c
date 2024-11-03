@@ -283,12 +283,10 @@ static bool
 _detach_service_from_connection(natsConnection *nc, microService *m)
 {
     bool removed = false;
-    // int remaining = 0;
 
     if (nc == NULL || m == NULL)
         return false;
 
-    // printf("<>/<> _detachING_service_from_connection %s\n", m->cfg->Name);     fflush(stdout);
     natsConn_Lock(nc);
     for (int i = 0; i < nc->numServices; i++)
     {
@@ -301,9 +299,8 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
         removed = true;
         break;
     }
-    // remaining = nc->numServices;
     natsConn_Unlock(nc);
-    // printf("<>/<> _detachED_service_from_connection %s: remaining: %d, removed: %d\n", m->cfg->Name, remaining, removed);     fflush(stdout);
+
     return removed;
 }
 
@@ -324,8 +321,6 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
     if (detachFromConnection)
         detached = _detach_service_from_connection(m->nc, m);
     
-    // printf("<>/<> _stop_service: %s, detached: %d\n", m->cfg->Name, detached); fflush(stdout);
-
     _lock_service(m);
     if (!m->stopped)
         m->stopped = true;
@@ -444,7 +439,6 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
 
         // Stop the service now in case it hasn't already and detach from the
         // connection, no need to unsubscribe.
-        // printf("<>/<> Stopping service %s from micro_release_endpoint_when_unsubscribed\n", m->cfg->Name);  fflush(stdout);
         _stop_service(m, true, false, false);
     }
 }
@@ -466,7 +460,6 @@ bool microService_IsStopped(microService *m)
 microError *
 microService_Destroy(microService *m)
 {
-    // printf("<>/<> Stopping service %s from microService_Destroy\n", m->cfg->Name); fflush(stdout);
     return _stop_service(m, false, true, true);
 }
 
@@ -534,8 +527,6 @@ _free_service(microService *m)
 {
     if (m == NULL)
         return;
-
-    printf("<>/<> Freeing service %s\n", m->cfg->Name); fflush(stdout);
 
     // destroy all groups.
     if (m->groups != NULL)
@@ -614,14 +605,13 @@ _free_cloned_service_config(microServiceConfig *cfg)
 static void
 _on_connection_closed(natsConnection *nc, void *ignored)
 {
+    natsConn_Lock(nc);
+
     // Stop all services. They will get detached from the connection when their
     // subs are complete.
-    natsConn_Lock(nc);
     for (int i = 0; i < nc->numServices; i++)
-    {
-        // printf("<>/<> Stopping service %s from on_connection_closed\n", nc->services[i]->cfg->Name); fflush(stdout);
         _stop_service(nc->services[i], false, false, false);
-    }
+
     natsConn_Unlock(nc);
 }
 
@@ -673,7 +663,7 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
 
     subject = natsSubscription_GetSubject(sub);
 
-    // <>/<> TODO: this would be a lot easier if sub had a ref to ep.
+    // TODO: this would be a lot easier if sub had a ref to ep.
     natsConn_Lock(nc);
     for (int i = 0; i < nc->numServices; i++)
     {
@@ -686,7 +676,6 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
 
         // Stop the service in error. It will get detached from the connection
         // and released when all of its subs are complete.
-        // printf("<>/<> Stopping service %s from on_error\n", m->cfg->Name); fflush(stdout);
         _stop_service(m, false, true, false);
     }
     natsConn_Unlock(nc);

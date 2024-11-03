@@ -160,13 +160,4 @@ natsConn_close(natsConnection *nc);
 void
 natsConn_destroy(natsConnection *nc, bool fromPublicDestroy);
 
-int
-natsConn_getServices(microService ***services, natsConnection *nc);
-
-bool
-natsConn_detachService(natsConnection *nc, microService *service);
-
-natsStatus
-natsConn_attachService(natsConnection *nc, microService *service);
-
 #endif /* CONN_H_ */
