@@ -253,7 +253,7 @@ _attach_service_to_connection(natsConnection *nc, microService *service)
     if (nc == NULL || service == NULL)
         return micro_ErrorInvalidArg;
 
-    natsConn_Lock(nc);
+    natsMutex_Lock(nc->servicesMu);
     if (nc->services == NULL)
     {
         nc->services = NATS_CALLOC(1, sizeof(microService *));
@@ -274,7 +274,7 @@ _attach_service_to_connection(natsConnection *nc, microService *service)
         nc->services[nc->numServices] = service;
         nc->numServices++;
     }
-    natsConn_Unlock(nc);
+    natsMutex_Unlock(nc->servicesMu);
 
     return micro_ErrorFromStatus(s);
 }
@@ -287,7 +287,7 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
     if (nc == NULL || m == NULL)
         return false;
 
-    natsConn_Lock(nc);
+    natsMutex_Lock(nc->servicesMu);
     for (int i = 0; i < nc->numServices; i++)
     {
         if (nc->services[i] != m)
@@ -299,7 +299,7 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
         removed = true;
         break;
     }
-    natsConn_Unlock(nc);
+    natsMutex_Unlock(nc->servicesMu);
 
     return removed;
 }
@@ -313,7 +313,6 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
     int             numEndpoints    = 0;
     bool            alreadyStopped  = false;
     bool            detached        = false;
-    microEndpoint *EEEE[256];
 
     if (m == NULL)
         return micro_ErrorInvalidArg;
@@ -329,10 +328,13 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
 
     if (!alreadyStopped && unsubscribe)
     {
-        int i = 0;
         for (ep = m->first_ep; ep != NULL; ep = ep->next)
         {
-            EEEE[i++] = ep;
+            if (err = micro_stop_endpoint(ep), err != NULL)
+            {
+                err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
+                return err;
+            }
         }
     }
 
@@ -343,20 +345,6 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
     refs = m->refs;
     numEndpoints = m->numEndpoints;
     _unlock_service(m);
-
-    if (!alreadyStopped && unsubscribe)
-    {
-        int i = 0;
-        for (i = 0; i < numEndpoints; i++)
-        {
-            ep = EEEE[i];
-            if (err = micro_stop_endpoint(ep), err != NULL)
-            {
-                err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
-                return err;
-            }
-        }
-    }
 
     if ((refs == 0) && (numEndpoints == 0))
         _free_service(m);
@@ -605,14 +593,14 @@ _free_cloned_service_config(microServiceConfig *cfg)
 static void
 _on_connection_closed(natsConnection *nc, void *ignored)
 {
-    natsConn_Lock(nc);
+    natsMutex_Lock(nc->servicesMu);
 
     // Stop all services. They will get detached from the connection when their
     // subs are complete.
     for (int i = 0; i < nc->numServices; i++)
         _stop_service(nc->services[i], false, false, false);
 
-    natsConn_Unlock(nc);
+    natsMutex_Unlock(nc->servicesMu);
 }
 
 static bool
@@ -664,7 +652,7 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
     subject = natsSubscription_GetSubject(sub);
 
     // TODO: this would be a lot easier if sub had a ref to ep.
-    natsConn_Lock(nc);
+    natsMutex_Lock(nc->servicesMu);
     for (int i = 0; i < nc->numServices; i++)
     {
         microService *m = nc->services[i];
@@ -678,7 +666,7 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
         // and released when all of its subs are complete.
         _stop_service(m, false, true, false);
     }
-    natsConn_Unlock(nc);
+    natsMutex_Unlock(nc->servicesMu);
 }
 
 static inline microError *
