@@ -92,28 +92,18 @@ micro_stop_endpoint(microEndpoint *ep)
     if (ep == NULL)
         return NULL;
 
-    printf("<>/<> Stopping endpoint %p\n", ep); fflush(stdout);
-
     micro_lock_endpoint(ep);
-    printf("<>/<> Stopping endpoint %p, %s %s\n", ep, ep->m->cfg->Name, ep->subject); fflush(stdout);
     sub = ep->sub;
     micro_unlock_endpoint(ep);
     if (sub == NULL)
-    {
-        printf("<>/<> Stopping endpoint %p %s %s: sub is NULL\n", ep, ep->m->cfg->Name, ep->subject); fflush(stdout);
         return NULL;
-    }
 
     // When the drain is complete, the callback will free ep. We may get an
     // NATS_INVALID_SUBSCRIPTION if the subscription is already closed.
     s = natsSubscription_Drain(sub);
     if ((s != NATS_OK) && (s != NATS_INVALID_SUBSCRIPTION))
-    {
-        printf("<>/<> Stopping endpoint %p %s %s: drain failed\n", ep, ep->m->cfg->Name, ep->subject); fflush(stdout);
         return microError_Wrapf(micro_ErrorFromStatus(s), "failed to drain subscription");
-    }
 
-    printf("<>/<> Stopped endpoint %p, %s %s!!!!\n", ep, ep->m->cfg->Name, ep->subject); fflush(stdout);
     return NULL;
 }
 

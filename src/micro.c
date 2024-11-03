@@ -316,6 +316,7 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
     int             numEndpoints    = 0;
     bool            alreadyStopped  = false;
     bool            detached        = false;
+    microEndpoint *EEEE[256];
 
     if (m == NULL)
         return micro_ErrorInvalidArg;
@@ -323,8 +324,9 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
     if (detachFromConnection)
         detached = _detach_service_from_connection(m->nc, m);
     
-    _lock_service(m);
     printf("<>/<> _stop_service: %s, detached: %d\n", m->cfg->Name, detached); fflush(stdout);
+
+    _lock_service(m);
     if (!m->stopped)
         m->stopped = true;
     else
@@ -332,13 +334,10 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
 
     if (!alreadyStopped && unsubscribe)
     {
+        int i = 0;
         for (ep = m->first_ep; ep != NULL; ep = ep->next)
         {
-            if (err = micro_stop_endpoint(ep), err != NULL)
-            {
-                err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
-                return err;
-            }
+            EEEE[i++] = ep;
         }
     }
 
@@ -348,9 +347,21 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         m->refs--;
     refs = m->refs;
     numEndpoints = m->numEndpoints;
-    printf("<>/<> _stoppED_service: %s: refs: %d, numEndpoints: %d\n", m->cfg->Name, refs, numEndpoints); fflush(stdout);
     _unlock_service(m);
 
+    if (!alreadyStopped && unsubscribe)
+    {
+        int i = 0;
+        for (i = 0; i < numEndpoints; i++)
+        {
+            ep = EEEE[i];
+            if (err = micro_stop_endpoint(ep), err != NULL)
+            {
+                err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
+                return err;
+            }
+        }
+    }
 
     if ((refs == 0) && (numEndpoints == 0))
         _free_service(m);
