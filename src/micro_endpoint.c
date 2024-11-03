@@ -93,7 +93,7 @@ micro_stop_endpoint(microEndpoint *ep)
         return NULL;
 
     micro_lock_endpoint(ep);
-    printf("<>/<> Stopping endpoint %s %s\n", ep->m->cfg->Name, ep->subject);
+    printf("<>/<> Stopping endpoint %s %s\n", ep->m->cfg->Name, ep->subject); fflush(stdout);
     sub = ep->sub;
     micro_unlock_endpoint(ep);
     if (sub == NULL)

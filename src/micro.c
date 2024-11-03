@@ -288,7 +288,7 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
     if (nc == NULL || m == NULL)
         return false;
 
-    printf("<>/<> _detachING_service_from_connection %s\n", m->cfg->Name);    
+    printf("<>/<> _detachING_service_from_connection %s\n", m->cfg->Name);     fflush(stdout);
     natsConn_Lock(nc);
     for (int i = 0; i < nc->numServices; i++)
     {
@@ -303,7 +303,7 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
     }
     remaining = nc->numServices;
     natsConn_Unlock(nc);
-    printf("<>/<> _detachED_service_from_connection %s: remaining: %d, removed: %d\n", m->cfg->Name, remaining, removed);    
+    printf("<>/<> _detachED_service_from_connection %s: remaining: %d, removed: %d\n", m->cfg->Name, remaining, removed);     fflush(stdout);
     return removed;
 }
 
@@ -324,7 +324,7 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         detached = _detach_service_from_connection(m->nc, m);
     
     _lock_service(m);
-    printf("<>/<> _stop_service: %s: 1\n", m->cfg->Name);
+    printf("<>/<> _stop_service: %s, detached: %d\n", m->cfg->Name, detached); fflush(stdout);
     if (!m->stopped)
         m->stopped = true;
     else
@@ -350,8 +350,9 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         m->refs--;
     refs = m->refs;
     numEndpoints = m->numEndpoints;
-    printf("<>/<> _stop_service: %s: 2: refs: %d, numEndpoints: %d\n", m->cfg->Name, refs, numEndpoints);
     _unlock_service(m);
+
+    printf("<>/<> _stoppED_service: %s: refs: %d, numEndpoints: %d\n", m->cfg->Name, refs, numEndpoints); fflush(stdout);
 
     if ((refs == 0) && (numEndpoints == 0))
         _free_service(m);
@@ -362,7 +363,6 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
 microError *
 microService_Stop(microService *m)
 {
-    printf("<>/<> Stopping service %s from microService_Stop\n", m->cfg->Name);
     return _stop_service(m, false, true, false);
 }
 
@@ -435,7 +435,7 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
 
         // Stop the service now in case it hasn't already and detach from the
         // connection, no need to unsubscribe.
-        printf("<>/<> Stopping service %s from micro_release_endpoint_when_unsubscribed\n", m->cfg->Name);
+        printf("<>/<> Stopping service %s from micro_release_endpoint_when_unsubscribed\n", m->cfg->Name);  fflush(stdout);
         _stop_service(m, true, false, false);
     }
 }
@@ -457,7 +457,7 @@ bool microService_IsStopped(microService *m)
 microError *
 microService_Destroy(microService *m)
 {
-    printf("<>/<> Stopping service %s from microService_Destroy\n", m->cfg->Name);
+    printf("<>/<> Stopping service %s from microService_Destroy\n", m->cfg->Name); fflush(stdout);
     return _stop_service(m, false, true, true);
 }
 
@@ -526,7 +526,7 @@ _free_service(microService *m)
     if (m == NULL)
         return;
 
-    printf("<>/<> Freeing service %s\n", m->cfg->Name);
+    printf("<>/<> Freeing service %s\n", m->cfg->Name); fflush(stdout);
 
     // destroy all groups.
     if (m->groups != NULL)
@@ -610,7 +610,7 @@ _on_connection_closed(natsConnection *nc, void *ignored)
     natsConn_Lock(nc);
     for (int i = 0; i < nc->numServices; i++)
     {
-        printf("<>/<> Stopping service %s from on_connection_closed\n", nc->services[i]->cfg->Name);
+        printf("<>/<> Stopping service %s from on_connection_closed\n", nc->services[i]->cfg->Name); fflush(stdout);
         _stop_service(nc->services[i], false, false, false);
     }
     natsConn_Unlock(nc);
@@ -677,7 +677,7 @@ _on_error(natsConnection *nc, natsSubscription *sub, natsStatus s, void *not_use
 
         // Stop the service in error. It will get detached from the connection
         // and released when all of its subs are complete.
-        printf("<>/<> Stopping service %s from on_error\n", m->cfg->Name);
+        printf("<>/<> Stopping service %s from on_error\n", m->cfg->Name); fflush(stdout);
         _stop_service(m, false, true, false);
     }
     natsConn_Unlock(nc);
