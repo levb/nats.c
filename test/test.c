@@ -33576,6 +33576,12 @@ _startManyMicroservices(microService** svcs, int n, natsConnection *nc, microSer
 
     for (i = 0; i < n; i++)
     {
+        char buf[64];
+        cfg->Version = "1.0.0";
+        cfg->Description = "returns 42",
+
+        snprintf(buf, sizeof(buf), "CoolService-%d", i);
+        cfg->Name = buf;
         _startMicroserviceOK(&(svcs[i]), nc, cfg, eps, num_eps, arg);
     }
 
@@ -34098,9 +34104,6 @@ void test_MicroBasics(void)
         &ep2_cfg,
     };
     microServiceConfig cfg = {
-        .Version = "1.0.0",
-        .Name = "CoolService",
-        .Description = "returns 42",
         .Metadata = (natsMetadata){
             .List = (const char *[]){"skey1", "svalue1", "skey2", "svalue2"},
             .Count = 2,
@@ -34368,9 +34371,6 @@ void test_MicroStartStop(void)
         .Handler = _microHandleRequest42,
     };
     microServiceConfig cfg = {
-        .Version = "1.0.0",
-        .Name = "CoolService",
-        .Description = "returns 42",
         .Endpoint = &ep_cfg,
     };
     natsMsg *reply = NULL;
