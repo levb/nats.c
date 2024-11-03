@@ -113,7 +113,7 @@ micro_stop_endpoint(microEndpoint *ep)
         return microError_Wrapf(micro_ErrorFromStatus(s), "failed to drain subscription");
     }
 
-    printf("<>/<> Stoped endpoint %p, %s %s!!!!\n", ep, ep->m->cfg->Name, ep->subject); fflush(stdout);
+    printf("<>/<> Stopped endpoint %p, %s %s!!!!\n", ep, ep->m->cfg->Name, ep->subject); fflush(stdout);
     return NULL;
 }
 

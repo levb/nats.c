@@ -329,7 +329,6 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         m->stopped = true;
     else
         alreadyStopped = true;
-    _unlock_service(m);
 
     if (!alreadyStopped && unsubscribe)
     {
@@ -343,7 +342,6 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         }
     }
 
-    _lock_service(m);
     if (detached)
         m->refs--;
     if ((m->refs > 0) && release)
