@@ -350,6 +350,7 @@ microService_Stop(microService *m)
     return _stop_service(m, true, false);
 }
 
+// service lock must be held by the caller.
 static void
 _detach_endpoint_from_service(microService *m, microEndpoint *toRemove)
 {
@@ -359,18 +360,19 @@ _detach_endpoint_from_service(microService *m, microEndpoint *toRemove)
     if ((m == NULL) || (toRemove == NULL))
         return;
 
-    for (ep = m->first_ep; ep != NULL; ep = ep->next)
+    for (ep = m->first_ep; (ep != NULL) && (ep != toRemove); prev_ep = ep, ep = ep->next)
+       ;
+    if (ep == NULL)
+        return;
+    
+    m->numEndpoints--;
+    if (prev_ep == NULL)
+        m->first_ep = ep->next;
+    else
     {
-        if (ep == toRemove)
-        {
-            m->numEndpoints--;
-            if (prev_ep == NULL)
-                m->first_ep = ep->next;
-            else
-                prev_ep->next = ep->next;
-            return;
-        }
-        prev_ep = ep;
+        micro_lock_endpoint(prev_ep);
+        prev_ep->next = ep->next;
+        micro_unlock_endpoint(prev_ep);
     }
 }
 
