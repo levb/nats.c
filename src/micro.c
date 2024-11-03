@@ -286,6 +286,7 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
     if (nc == NULL || m == NULL)
         return false;
 
+    printf("<>/<> _detach_service_from_connection\n");
     natsConn_Lock(nc);
     for (int i = 0; i < nc->numServices; i++)
     {
@@ -299,7 +300,6 @@ _detach_service_from_connection(natsConnection *nc, microService *m)
         break;
     }
     natsConn_Unlock(nc);
-
     
     return removed;
 }
@@ -312,45 +312,41 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
     int             refs            = 0;
     int             numEndpoints    = 0;
     bool            alreadyStopped  = false;
+    bool            detached        = false;
 
     if (m == NULL)
         return micro_ErrorInvalidArg;
 
+    if (detachFromConnection)
+        detached = _detach_service_from_connection(m->nc, m);
+    
     _lock_service(m);
+    printf("<>/<> _stop_service: 1\n");
     if (!m->stopped)
         m->stopped = true;
     else
         alreadyStopped = true;
+    _unlock_service(m);
 
-    if (!alreadyStopped)
+    if (!alreadyStopped && unsubscribe)
     {
-        if (unsubscribe)
+        for (ep = m->first_ep; ep != NULL; ep = ep->next)
         {
-            for (ep = m->first_ep; ep != NULL; ep = ep->next)
+            if (err = micro_stop_endpoint(ep), err != NULL)
             {
-                if (err = micro_stop_endpoint(ep), err != NULL)
-                {
-                    err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
-                    _unlock_service(m);
-                    return err;
-                }
+                err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
+                return err;
             }
         }
     }
 
-    if (detachFromConnection)
-    {
-        // This is called only from micro_release_endpoint_when_unsubscribed,
-        // which does not hold the connection lock.
-        if (_detach_service_from_connection(m->nc, m))
-            m->refs--;
-    }
-
+    _lock_service(m);
+    if (detached)
+        m->refs--;
     if ((m->refs > 0) && release)
         m->refs--;
-
     refs = m->refs;
-    numEndpoints = m->numEndpoints;
+    printf("<>/<> _stop_service: 2: refs: %d, numEndpoints: %d\n", refs, numEndpoints);
     _unlock_service(m);
 
     if ((refs == 0) && (numEndpoints == 0))
