@@ -440,12 +440,12 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     // Special processing for the last endpoint.
     if (doneHandler != NULL)
     {
+        doneHandler(m);
+
         // Stop the service now in case it hasn't already and detach from the
         // connection, no need to unsubscribe.
         // printf("<>/<> Stopping service %s from micro_release_endpoint_when_unsubscribed\n", m->cfg->Name);  fflush(stdout);
         _stop_service(m, true, false, false);
-
-        doneHandler(m);
     }
 }
 

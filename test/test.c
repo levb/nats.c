@@ -33602,6 +33602,7 @@ _startManyMicroservices(microService** svcs, int n, natsConnection *nc, microSer
         allDone = (_arg)->microAllDone;                                                 \
         natsMutex_Unlock((_arg)->m);                                                    \
         testCond((NATS_OK == waitStatus) && allDone);                                   \
+        nats_Sleep(1);                                                                  \
     }
 
 #define _destroyMicroservice(_s)                                                                  \
@@ -34561,7 +34562,6 @@ void test_MicroServiceStopsWhenServerStops(void)
 
     _waitForMicroservicesAllDone(&arg);
 
-    // nats_Sleep(10); // <>/<>
     test("Test microservice is not running: ");
     testCond(microService_IsStopped(m))
 
