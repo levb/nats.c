@@ -410,7 +410,11 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
     if (refs == 0)
         micro_free_endpoint(ep);
     if (m->numEndpoints == 0)
+    {
+        // Mark the service as stopped before calling the done handler.
+        m->stopped = true;
         doneHandler = m->cfg->DoneHandler;
+    }
 
     _unlock_service(m);
 
@@ -420,7 +424,7 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
         doneHandler(m);
 
         _detach_service_from_connection(m->nc, m);
-        _stop_service(m, false, true);
+        _stop_service(m, false, true); // just release
     }
 }
 
