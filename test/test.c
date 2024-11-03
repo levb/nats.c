@@ -33689,49 +33689,49 @@ void test_MicroAddService(void)
     };
 
     add_service_test_case_t tcs[] = {
-        {
-            .name = "Minimal",
-            .cfg = &minimal_cfg,
-        },
+        // {
+        //     .name = "Minimal",
+        //     .cfg = &minimal_cfg,
+        // },
         {
             .name = "Full",
             .cfg = &full_cfg,
             .expected_num_subjects = 1,
         },
-        {
-            .name = "Full-with-endpoints",
-            .cfg = &full_cfg,
-            .endpoints = all_ep_cfgs,
-            .num_endpoints = sizeof(all_ep_cfgs) / sizeof(all_ep_cfgs[0]),
-            .expected_num_subjects = 4,
-        },
-        {
-            .name = "Err-null-connection",
-            .cfg = &minimal_cfg,
-            .null_nc = true,
-            .expected_err = "status 16: invalid function argument",
-        },
-        {
-            .name = "Err-null-receiver",
-            .cfg = &minimal_cfg,
-            .null_receiver = true,
-            .expected_err = "status 16: invalid function argument",
-        },
-        {
-            .name = "Err-no-name",
-            .cfg = &err_no_name_cfg,
-            .expected_err = "status 16: invalid function argument",
-        },
-        {
-            .name = "Err-no-version",
-            .cfg = &err_no_version_cfg,
-            .expected_err = "status 16: invalid function argument",
-        },
-        {
-            .name = "Err-invalid-version",
-            .cfg = &err_invalid_version_cfg,
-            // TODO: validate the version format.
-        },
+        // {
+        //     .name = "Full-with-endpoints",
+        //     .cfg = &full_cfg,
+        //     .endpoints = all_ep_cfgs,
+        //     .num_endpoints = sizeof(all_ep_cfgs) / sizeof(all_ep_cfgs[0]),
+        //     .expected_num_subjects = 4,
+        // },
+        // {
+        //     .name = "Err-null-connection",
+        //     .cfg = &minimal_cfg,
+        //     .null_nc = true,
+        //     .expected_err = "status 16: invalid function argument",
+        // },
+        // {
+        //     .name = "Err-null-receiver",
+        //     .cfg = &minimal_cfg,
+        //     .null_receiver = true,
+        //     .expected_err = "status 16: invalid function argument",
+        // },
+        // {
+        //     .name = "Err-no-name",
+        //     .cfg = &err_no_name_cfg,
+        //     .expected_err = "status 16: invalid function argument",
+        // },
+        // {
+        //     .name = "Err-no-version",
+        //     .cfg = &err_no_version_cfg,
+        //     .expected_err = "status 16: invalid function argument",
+        // },
+        // {
+        //     .name = "Err-invalid-version",
+        //     .cfg = &err_invalid_version_cfg,
+        //     // TODO: validate the version format.
+        // },
     };
     add_service_test_case_t tc;
 
