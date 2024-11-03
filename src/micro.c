@@ -324,7 +324,7 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         detached = _detach_service_from_connection(m->nc, m);
     
     _lock_service(m);
-    printf("<>/<> _stop_service: 1\n");
+    printf("<>/<> _stop_service: %s: 1\n", m->cfg->Name);
     if (!m->stopped)
         m->stopped = true;
     else
@@ -349,7 +349,7 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
     if ((m->refs > 0) && release)
         m->refs--;
     refs = m->refs;
-    printf("<>/<> _stop_service: 2: refs: %d, numEndpoints: %d\n", refs, numEndpoints);
+    printf("<>/<> _stop_service: %s: 2: refs: %d, numEndpoints: %d\n", m->cfg->Name, refs, numEndpoints);
     _unlock_service(m);
 
     if ((refs == 0) && (numEndpoints == 0))
