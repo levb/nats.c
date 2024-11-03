@@ -348,9 +348,9 @@ _stop_service(microService *m, bool detachFromConnection, bool unsubscribe, bool
         m->refs--;
     refs = m->refs;
     numEndpoints = m->numEndpoints;
+    printf("<>/<> _stoppED_service: %s: refs: %d, numEndpoints: %d\n", m->cfg->Name, refs, numEndpoints); fflush(stdout);
     _unlock_service(m);
 
-    printf("<>/<> _stoppED_service: %s: refs: %d, numEndpoints: %d\n", m->cfg->Name, refs, numEndpoints); fflush(stdout);
 
     if ((refs == 0) && (numEndpoints == 0))
         _free_service(m);
