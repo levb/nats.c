@@ -629,7 +629,6 @@ static bool
 _on_service_error(microService *m, const char *subject, natsStatus s)
 {
     microEndpoint   *found      = NULL;
-    const char      *subject    = NULL;
     microError      *err        = NULL;
 
     if (m == NULL)
@@ -646,10 +645,7 @@ _on_service_error(microService *m, const char *subject, natsStatus s)
     }
 
     if (found != NULL)
-    {
         micro_retain_endpoint(found);
-        subject = found->subject;
-    }
 
     _unlock_service(m);
 
