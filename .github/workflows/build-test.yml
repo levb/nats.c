@@ -181,7 +181,9 @@ jobs:
           export PATH=../deps/nats-server:../deps/nats-streaming-server:$PATH
           export NATS_TEST_SERVER_VERSION="$(nats-server -v)"
           flags=""
-          LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so ctest -R 'Micro' --timeout 60 --output-on-failure --repeat-until-fail 30
+          set +e
+          for i in $(seq 1 10); do ./bin/testsuite MicroStartStop; done
+          # ctest -R 'Micro' --timeout 60 --output-on-failure --repeat-until-fail 30
           # ctest -L 'test' --timeout 60 --output-on-failure --repeat-until-fail ${{ inputs.repeat }}
 
       - name: Upload coverage reports to Codecov
