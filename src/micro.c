@@ -383,7 +383,6 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
 {
     microEndpoint       *ep         = (microEndpoint *)closure;
     microService        *m          = NULL;
-    natsSubscription    *sub        = NULL;
     microDoneHandler    doneHandler = NULL;
     int                 refs        = 0;
 
@@ -395,15 +394,11 @@ void micro_release_endpoint_when_unsubscribed(void *closure)
         return;
 
     _lock_service(m);
-    micro_lock_endpoint(ep);
 
+    micro_lock_endpoint(ep);
     _detach_endpoint_from_service(m, ep);
-    sub = ep->sub;
-    ep->sub = NULL; // Force the subscription to be destroyed now, so NULL out the pointer to avoid a double free.
     refs = --(ep->refs);
     micro_unlock_endpoint(ep);
-
-    natsSubscription_Destroy(sub); // <>/<> do I need this hack?
 
     if (refs == 0)
         micro_free_endpoint(ep);
