@@ -308,25 +308,25 @@ _stop_service(microService *m, bool unsubscribe, bool release)
     microEndpoint   *ep             = NULL;
     int             refs            = 0;
     int             numEndpoints    = 0;
-    bool            alreadyStopped  = false;
 
     if (m == NULL)
         return micro_ErrorInvalidArg;
 
     _lock_service(m);
     if (!m->stopped)
-        m->stopped = true;
-    else
-        alreadyStopped = true;
-
-    if (!alreadyStopped && unsubscribe)
     {
-        for (ep = m->first_ep; ep != NULL; ep = ep->next)
+        m->stopped = true;
+
+        if (unsubscribe)
         {
-            if (err = micro_stop_endpoint(ep), err != NULL)
+            for (ep = m->first_ep; ep != NULL; ep = ep->next)
             {
-                err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
-                return err;
+                if (err = micro_stop_endpoint(ep), err != NULL)
+                {
+                    err = microError_Wrapf(err, "failed to stop service '%s', stopping endpoint '%s'", m->cfg->Name, ep->config->Name);
+                    _unlock_service(m);
+                    return err;
+                }
             }
         }
     }
