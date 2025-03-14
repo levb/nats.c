@@ -46,6 +46,7 @@ option(NATS_BUILD_NO_PREFIX_CONNSTS "No prefix for connection status enum" OFF)
 option(NATS_BUILD_LIB_STATIC "Build static library" ON)
 option(NATS_BUILD_LIB_SHARED "Build shared library" ON)
 option(NATS_COMPILER_HARDENING "Compiler hardening flags" OFF)
+option(NATS_WITH_EXPERIMENTAL "Build with EXPERIMENTAL API support" OFF)
 if(UNIX AND APPLE)
   option(CMAKE_MACOSX_RPATH "Build with macOS RPath" ON)
 endif()
@@ -148,6 +149,10 @@ endif(NATS_BUILD_USE_SODIUM)
 if(NATS_BUILD_NO_PREFIX_CONNSTS)
   add_definitions(-DNATS_CONN_STATUS_NO_PREFIX)
 endif(NATS_BUILD_NO_PREFIX_CONNSTS)
+
+if(NATS_WITH_EXPERIMENTAL)
+  add_definitions(-DNATS_WITH_EXPERIMENTAL)
+endif(NATS_WITH_EXPERIMENTAL)
 
 # Platform specific settings
 if(UNIX)
@@ -260,7 +265,7 @@ endif(NATS_BUILD_WITH_TLS)
 
 set(NATS_VERSION_MAJOR  3)
 set(NATS_VERSION_MINOR  10)
-set(NATS_VERSION_PATCH  0)
+set(NATS_VERSION_PATCH  1)
 set(NATS_VERSION_SUFFIX "")
 
 set(NATS_VERSION_REQUIRED_NUMBER 0x030A00)
