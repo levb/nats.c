@@ -1816,6 +1816,10 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, uint64_t fetchID, bool c
     if (strncmp(val, HDR_STATUS_NO_RESP_503, HDR_STATUS_LEN) == 0)
         return NATS_NO_RESPONDERS;
 
+    // Pull consumer pin ID mismatch
+    if (strncmp(val, HDR_STATUS_PIN_ID_MISMATCH, HDR_STATUS_LEN) == 0)
+        return NATS_PIN_ID_MISMATCH;
+
     natsMsgHeader_Get(msg, DESCRIPTION_HDR, &desc);
     return nats_setError(NATS_ERR, "%s", (desc == NULL ? "error checking pull subscribe message" : desc));
 }

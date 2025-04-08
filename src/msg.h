@@ -27,6 +27,7 @@
 #define HDR_STATUS_NOT_FOUND_404    "404"
 #define HDR_STATUS_TIMEOUT_408      "408"
 #define HDR_STATUS_MAX_BYTES_409    "409"
+#define HDR_STATUS_PIN_ID_MISMATCH  "423"
 #define HDR_STATUS_CTRL_100         "100"
 #define HDR_STATUS_LEN              (3)
 
