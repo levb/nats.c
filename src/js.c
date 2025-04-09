@@ -1235,6 +1235,7 @@ _destroyFetch(jsFetch *fetch)
     if (fetch->expiresTimer != NULL)
         natsTimer_Destroy(fetch->expiresTimer);
 
+    NATS_FREE(fetch->pinID);
     NATS_FREE(fetch);
 }
 
@@ -2933,6 +2934,9 @@ js_maybeFetchMore(natsSubscription *sub, jsFetch *fetch)
         req.Expires = (fetch->opts.Timeout - (now - fetch->startTimeMillis)) * 1000 * 1000; // ns, go time.Duration
     req.NoWait = fetch->opts.NoWait;
     req.Heartbeat = fetch->opts.Heartbeat * 1000 * 1000; // ns, go time.Duration
+    req.Group = fetch->opts.Group;
+    req.MinPending = fetch->opts.MinPending;
+    req.MinAckPending = fetch->opts.MinAckPending;
 
     size_t replySubjectSize = 1 + strlen(sub->subject) + 20;
     char *replySubject = NATS_MALLOC(replySubjectSize);
@@ -3036,6 +3040,28 @@ js_PullSubscribeAsync(natsSubscription **newsub, jsCtx *js, const char *subject,
             return nats_setError(NATS_INVALID_ARG, "%s", "Can not use MaxBytes and KeepAhead together");
         if (jsOpts->PullSubscribeAsync.NoWait)
             return nats_setError(NATS_INVALID_ARG, "%s", "Can not use NoWait with KeepAhead together");
+
+        if ((opts != NULL) && (opts->Config.PriorityGroupsLen != 0))
+        {
+            if (nats_IsStringEmpty(jsOpts->PullSubscribeAsync.Group))
+                return nats_setError(NATS_INVALID_ARG, "%s", "Group is required for a priority group consumer");
+
+            bool valid = false;
+            for (int i = 0; i < opts->Config.PriorityGroupsLen; i++)
+            {
+                if (strcmp(opts->Config.PriorityGroups[i], jsOpts->PullSubscribeAsync.Group) != 0)
+                    continue;
+                valid = true;
+                break;
+            }
+            if (!valid)
+                return nats_setError(NATS_INVALID_ARG, "%s", "Group is not part of the priority group consumer");
+        }
+        else
+        {
+            if (!nats_IsStringEmpty(jsOpts->PullSubscribeAsync.Group))
+                return nats_setError(NATS_INVALID_ARG, "%s", "Group is not supported for a non-priority group consumer");
+        }
     }
 
     if (errCode != NULL)

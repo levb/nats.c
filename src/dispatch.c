@@ -110,6 +110,33 @@ _removeHeadMsg(natsDispatcher *d, natsMsg *msg)
     msg->next = NULL;
 }
 
+// See https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-42.md#pinning
+static inline natsStatus
+_updateFetchPinID(jsFetch *fetch, natsStatus fetchStatus, natsMsg *msg)
+{
+    const char  *val    = NULL;
+
+    // Clear the pinning ID if it mismatched, and continue fetching without it.
+    if (fetchStatus == NATS_PIN_ID_MISMATCH)
+    {
+        NATS_FREE(fetch->pinID);
+        fetch->pinID = NULL;
+        return NATS_OK;
+    }
+
+    // If the message contains a "Nats-Pin-Id" header, use its value as the new pinID.
+    natsMsgHeader_Get(msg, STATUS_HDR, &val);
+    if (!nats_IsStringEmpty(val) && strcmp(val, jsConsumerPinIDHdr) == 0)
+    {
+        NATS_FREE(fetch->pinID);
+        fetch->pinID = NATS_STRDUP(val);
+        if (fetch->pinID == NULL)
+            return nats_setDefaultError(NATS_NO_MEMORY);
+    }
+
+    return NATS_OK;
+}
+
 // Returns fetch status, sub/dispatch locks must be held.
 static inline natsStatus
 _preProcessUserMessage(
@@ -129,7 +156,13 @@ _preProcessUserMessage(
 
     // Fetch-specific handling of synthetic and header-only messages
     if ((jsi != NULL) && (fetch != NULL))
+    {
         fetchStatus = js_checkFetchedMsg(sub, msg, jsi->fetchID, true, userMsg);
+
+        natsStatus s = _updateFetchPinID(fetch, fetchStatus, msg);
+        if (s != NATS_OK)
+            return s;
+    }
 
     // Is it another kind of synthetic message?
     *userMsg = *userMsg && (msg->subject[0] != '\0');

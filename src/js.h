@@ -40,6 +40,7 @@ extern const int64_t    jsDefaultRequestWait;
 #define jsExpectedLastSubjSeqHdr    "Nats-Expected-Last-Subject-Sequence"
 #define jsExpectedLastMsgIdHdr      "Nats-Expected-Last-Msg-Id"
 #define jsConsumerStalledHdr        "Nats-Consumer-Stalled"
+#define jsConsumerPinIDHdr          "Nats-Pin-Id"
 
 #define jsErrStreamNameRequired             "stream name is required"
 #define jsErrConsumerNameRequired           "consumer name is required"

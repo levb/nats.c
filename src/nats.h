@@ -1327,6 +1327,26 @@ typedef struct jsOptionsPullSubscribeAsync
         /// milliseconds) to help detect communication failures.
         int64_t                 Heartbeat;
 
+        /// @brief The name of consumer priority group.
+        ///
+        /// @note The use of this option require nats-server v2.11.0 or later,
+        /// and a consumer with priority groups enabled and configured.
+        const char              *Group;
+
+        /// @brief When specified, this subscription will only receive messages
+        /// when the consumer has at least this many pending messages.
+        ///
+        /// @note The use of this option require nats-server v2.11.0 or later,
+        /// and a consumer with priority groups enabled and configured.
+        int64_t                 MinPending;
+
+        /// @brief When specified, this Pull request will only receive messages
+        /// when the consumer has at least this many ack pending messages.
+        ///
+        /// @note The use of this option require nats-server v2.11.0 or later,
+        /// and a consumer with priority groups enabled and configured.
+        int64_t                 MinAckPending;
+
         /// @brief When using the automatic Fetch flow control (default
         /// NextHandler), this is the number of messages to ask for in a
         /// single request.
