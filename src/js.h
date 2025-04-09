@@ -40,6 +40,7 @@ extern const int64_t    jsDefaultRequestWait;
 #define jsExpectedLastSubjSeqHdr    "Nats-Expected-Last-Subject-Sequence"
 #define jsExpectedLastMsgIdHdr      "Nats-Expected-Last-Msg-Id"
 #define jsConsumerStalledHdr        "Nats-Consumer-Stalled"
+#define jsConsumerPinIDHdr          "Nats-Pin-Id"
 
 #define jsErrStreamNameRequired             "stream name is required"
 #define jsErrConsumerNameRequired           "consumer name is required"
@@ -146,6 +147,9 @@ extern const int64_t    jsDefaultRequestWait;
 
 // jsApiDeleteConsumerT is used to delete consumers.
 #define jsApiConsumerDeleteT "%.*s.CONSUMER.DELETE.%s.%s"
+
+// jsApiConsumerUnpinT is used to unpin a consumer.
+#define jsApiConsumerUnpinT "%.*s.CONSUMER.UNPIN.%s.%s"
 
 // jsApiStreams can lookup a stream by subject.
 #define jsApiStreams "%.*s.STREAM.NAMES"

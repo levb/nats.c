@@ -899,7 +899,25 @@ typedef struct jsConsumerConfig
 
         // Configuration options introduced in 2.11
 
-        int64_t                 PauseUntil;             ///< Suspends the consumer until this deadline, represented as number of nanoseconds since epoch.
+        /// \brief Suspends the consumer until this deadline, represented as
+        /// number of nanoseconds since epoch. Requires nats-server v2.11.0 or
+        /// later.
+        int64_t                 PauseUntil;
+
+        /// \brief Represents he priority policy the consumer is set to. Must be
+        /// "pinned_client" or "overflow". Requires nats-server v2.11.0 or
+        /// later.
+        const char              *PriorityPolicy;
+
+        /// \brief PinnedTTL represents the time after which the client will be
+        /// unpinned if no new pull requests are sent. Used with
+        /// PriorityPolicyPinned. Expressed in nanoseconds. Requires nats-server
+        /// v2.11.0 or later.
+        int64_t                 PinnedTTL;
+
+        /// \brief The list of priority groups this consumer supports.
+        const char              **PriorityGroups;
+        int                     PriorityGroupsLen;
 } jsConsumerConfig;
 
 /**
@@ -1026,6 +1044,17 @@ typedef struct jsSequenceInfo
 } jsSequenceInfo;
 
 /**
+ * Describes the configuration of priority groups in a pull consumer.
+ */
+
+ typedef struct jsPriorityGroupState
+ {
+        char *Group;
+        char *PinnedClientID;
+        int64_t PinnedTS; /// milliseconds since the epoch
+ } jsPriorityGroupState;
+
+/**
  * Configuration and current state for this consumer.
  *
  * \note `Created` is the timestamp when the consumer was created, expressed as the number
@@ -1047,6 +1076,8 @@ typedef struct jsConsumerInfo
         bool                    PushBound;
         bool                    Paused;
         int64_t                 PauseRemaining;        ///< Remaining time in nanoseconds.
+        jsPriorityGroupState    *PriorityGroups;        ///< Priority groups for the (pull) consumer.
+        int                     PriorityGroupsLen;      ///< Number of priority groups.
 } jsConsumerInfo;
 
 /**
@@ -1223,6 +1254,12 @@ typedef struct jsFetchRequest
         bool            NoWait;         ///< Will not wait if the request cannot be completed
         int64_t         Heartbeat;      ///< Have server sends heartbeats to help detect communication failures
 
+        // The use of these  fields require nats-server v2.11.0 or later
+        int64_t         MinPending;
+        int64_t         MinAckPending;
+        const char      *PinID;
+        const char      *Group;
+
 } jsFetchRequest;
 
 /** \brief Callback used to indicate that the work of js_PullSubscribeAsync is
@@ -1289,6 +1326,26 @@ typedef struct jsOptionsPullSubscribeAsync
         /// \brief Have server sends heartbeats at this interval (in
         /// milliseconds) to help detect communication failures.
         int64_t                 Heartbeat;
+
+        /// @brief The name of consumer priority group.
+        ///
+        /// @note The use of this option require nats-server v2.11.0 or later,
+        /// and a consumer with priority groups enabled and configured.
+        const char              *Group;
+
+        /// @brief When specified, this subscription will only receive messages
+        /// when the consumer has at least this many pending messages.
+        ///
+        /// @note The use of this option require nats-server v2.11.0 or later,
+        /// and a consumer with priority groups enabled and configured.
+        int64_t                 MinPending;
+
+        /// @brief When specified, this Pull request will only receive messages
+        /// when the consumer has at least this many ack pending messages.
+        ///
+        /// @note The use of this option require nats-server v2.11.0 or later,
+        /// and a consumer with priority groups enabled and configured.
+        int64_t                 MinAckPending;
 
         /// @brief When using the automatic Fetch flow control (default
         /// NextHandler), this is the number of messages to ask for in a

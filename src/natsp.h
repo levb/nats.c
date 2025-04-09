@@ -393,6 +393,9 @@ typedef struct __jsFetch
     // Timer for the fetch expiration. We leverage the existing jsi->hbTimer for
     // checking missed heartbeats.
     natsTimer   *expiresTimer;
+
+    // Pin ID if pinned by the server
+    char        *pinID;
 } jsFetch;
 
 typedef struct __jsSub
