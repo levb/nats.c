@@ -30009,13 +30009,13 @@ void test_JetStreamSubscribePullAsync_Disconnect(void)
 void test_JetStreamSubscribePullAsync_Pinned(void)
 {
     natsStatus s;
-    natsSubscription *pinned = NULL, *unpinned = NULL;
+    natsSubscription *pinned = NULL, *unpinned = NULL, *subInError = NULL;
     jsErrCode jerr = 0;
     jsStreamConfig sc;
     jsConsumerConfig cc;
-    jsOptions oPinned, oUnpinned;
+    jsOptions oPinned, oUnpinned, oError;
     jsSubOptions so;
-    struct threadArg argsPinned, argsUnpinned;
+    struct threadArg argsPinned, argsUnpinned, argsError;
     const char *groups[] = {"A"};
 
     const int firstBatch = 1000;
@@ -30025,6 +30025,7 @@ void test_JetStreamSubscribePullAsync_Pinned(void)
 
     s = _createDefaultThreadArgsForCbTests(&argsPinned);
     IFOK(s, _createDefaultThreadArgsForCbTests(&argsUnpinned));
+    IFOK(s, _createDefaultThreadArgsForCbTests(&argsError));
     if (s != NATS_OK)
         FAIL("Unable to setup test");
 
@@ -30065,13 +30066,15 @@ void test_JetStreamSubscribePullAsync_Pinned(void)
     so.Consumer = "pinned";
     testCond(true);
 
-    // TODO: test("Make sure a sub without group set errors: "); See the
-    // validation comment in js_PullSubscribeAsync - we only validate now when
-    // cfreating the consumer as oart of the call. 1/5 write a special
-    // (sub-)test for this.
-    // jsOptions_Init(&oPinned);
-    // s = js_PullSubscribeAsync(&pinned, js, "foo", "pinned", _recvPullAsync, &argsPinned, &oPinned, &so, &jerr);
-    // testCond((s != NATS_OK) && strstr(nats_GetLastError(NULL), "group") != NULL);
+    // See the relevant comment in js_PullSubscribeAsync - we do not currently
+    // validate upfront, so the error comes as a callback/fetch status.
+    test("A sub without group returns an error: ");
+    jsOptions_Init(&oError);
+    oError.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    oError.PullSubscribeAsync.CompleteHandlerClosure = &argsError;
+    oError.PullSubscribeAsync.Group = NULL;
+    s = js_PullSubscribeAsync(&subInError, js, "foo", "pinned", _recvPullAsync, &argsError, &oError, &so, &jerr);
+    testCond((s == NATS_OK) && _testBatchCompleted(&argsError, subInError, NATS_INVALID_ARG, 0, false));
 
     test("Create pull subscription that will get pinned: ");
     jsOptions_Init(&oPinned);
@@ -30110,6 +30113,7 @@ void test_JetStreamSubscribePullAsync_Pinned(void)
 
     natsSubscription_Destroy(pinned);
     natsSubscription_Destroy(unpinned);
+    natsSubscription_Destroy(subInError);
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&argsPinned);
     _destroyDefaultThreadArgs(&argsUnpinned);

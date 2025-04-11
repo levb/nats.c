@@ -1783,7 +1783,7 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, uint64_t fetchID, bool c
     if (!checkSts)
         return NATS_OK;
 
-        // 100 Idle hearbeat, return OK
+    // 100 Idle hearbeat, return OK
     if (strncmp(val, HDR_STATUS_CTRL_100, HDR_STATUS_LEN) == 0)
         return NATS_OK;
 
