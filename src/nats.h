@@ -1257,7 +1257,8 @@ typedef struct jsFetchRequest
         // The use of these  fields require nats-server v2.11.0 or later
         int64_t         MinPending;
         int64_t         MinAckPending;
-        const char      *PinID;
+        const char      *ID;            ///< the "pinned" ID of this subscription, if any; to use with the
+                                        /// "pinned_client" priority policy
         const char      *Group;
 
 } jsFetchRequest;

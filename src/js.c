@@ -1783,7 +1783,7 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, uint64_t fetchID, bool c
     if (!checkSts)
         return NATS_OK;
 
-    // 100 Idle hearbeat, return OK
+        // 100 Idle hearbeat, return OK
     if (strncmp(val, HDR_STATUS_CTRL_100, HDR_STATUS_LEN) == 0)
         return NATS_OK;
 
@@ -1821,6 +1821,13 @@ js_checkFetchedMsg(natsSubscription *sub, natsMsg *msg, uint64_t fetchID, bool c
     if (strncmp(val, HDR_STATUS_PIN_ID_MISMATCH, HDR_STATUS_LEN) == 0)
         return NATS_PIN_ID_MISMATCH;
 
+    if (strncmp(val, HDR_STATUS_BAD_REQUEST, HDR_STATUS_LEN) == 0)
+    {
+        // This is a bad request, so we return the error.
+        natsMsgHeader_Get(msg, DESCRIPTION_HDR, &desc);
+        return nats_setError(NATS_INVALID_ARG, "%s", (desc == NULL ? "error checking pull subscribe message" : desc));
+    }
+
     natsMsgHeader_Get(msg, DESCRIPTION_HDR, &desc);
     return nats_setError(NATS_ERR, "%s", (desc == NULL ? "error checking pull subscribe message" : desc));
 }
@@ -1847,6 +1854,22 @@ _publishPullRequest(natsConnection *nc, const char *subj, const char *rply,
         s = nats_marshalLong(buf, true, "idle_heartbeat", req->Heartbeat);
     if ((s == NATS_OK) && req->NoWait)
         s = natsBuf_Append(buf, ",\"no_wait\":true", -1);
+    if ((s == NATS_OK) && !nats_IsStringEmpty(req->Group))
+    {
+        s = natsBuf_Append(buf, ",\"group\":\"", -1);
+        IFOK(s, natsBuf_Append(buf, req->Group, -1));
+        IFOK(s, natsBuf_AppendByte(buf, '"'));
+    }
+    if ((s == NATS_OK) && (req->MinPending > 0))
+        s = nats_marshalLong(buf, true, "min_pending", req->MinPending);
+    if ((s == NATS_OK) && (req->MinAckPending > 0))
+        s = nats_marshalLong(buf, true, "min_ack_pending", req->MinAckPending);
+    if ((s == NATS_OK) && !nats_IsStringEmpty(req->ID))
+    {
+        s = natsBuf_Append(buf, ",\"id\":\"", -1);
+        IFOK(s, natsBuf_Append(buf, req->ID, -1));
+        IFOK(s, natsBuf_AppendByte(buf, '"'));
+    }
     IFOK(s, natsBuf_AppendByte(buf, '}'));
 
     // Sent the request to get more messages.
@@ -2937,6 +2960,7 @@ js_maybeFetchMore(natsSubscription *sub, jsFetch *fetch)
     req.Group = fetch->opts.Group;
     req.MinPending = fetch->opts.MinPending;
     req.MinAckPending = fetch->opts.MinAckPending;
+    req.ID = fetch->pinID;
 
     size_t replySubjectSize = 1 + strlen(sub->subject) + 20;
     char *replySubject = NATS_MALLOC(replySubjectSize);
@@ -3041,6 +3065,10 @@ js_PullSubscribeAsync(natsSubscription **newsub, jsCtx *js, const char *subject,
         if (jsOpts->PullSubscribeAsync.NoWait)
             return nats_setError(NATS_INVALID_ARG, "%s", "Can not use NoWait with KeepAhead together");
 
+        // TODO: this validation should really be done against the consumerinfo
+        // once it's obtained, but it's hidden deep in _subscribe. This would
+        // only execute if the user's intent is to create a new consumer as part
+        // of the call.
         if ((opts != NULL) && (opts->Config.PriorityGroupsLen != 0))
         {
             if (nats_IsStringEmpty(jsOpts->PullSubscribeAsync.Group))

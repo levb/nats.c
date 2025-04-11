@@ -2951,7 +2951,7 @@ _marshalConsumerCreateReq(natsBuffer **new_buf, const char *stream, jsConsumerCo
         IFOK(s, natsBuf_AppendByte(buf, '"'));
     }
     if ((s == NATS_OK) && (cfg->PinnedTTL > 0))
-        s = nats_marshalLong(buf, true, "pinned_ttl", cfg->PinnedTTL);
+        s = nats_marshalLong(buf, true, "priority_timeout", cfg->PinnedTTL);
     if ((s == NATS_OK) && (cfg->PriorityGroups != NULL) && (cfg->PriorityGroupsLen > 0))
         nats_marshalStringArray(buf, true, "priority_groups", cfg->PriorityGroups, cfg->PriorityGroupsLen);
     IFOK(s, _marshalReplayPolicy(buf, cfg->ReplayPolicy))
@@ -3158,7 +3158,7 @@ _unmarshalConsumerConfig(nats_JSON *json, const char *fieldName, jsConsumerConfi
         IFOK(s, nats_unmarshalMetadata(cjson, "metadata", &(cc->Metadata)));
         IFOK(s, nats_JSONGetTime(cjson, "pause_until", &(cc->PauseUntil)));
         IFOK(s, nats_JSONGetStr(cjson, "priority_policy", (char**) &(cc->PriorityPolicy)));
-        IFOK(s, nats_JSONGetLong(cjson, "pinned_ttl", &(cc->PinnedTTL)));
+        IFOK(s, nats_JSONGetLong(cjson, "priority_timeout", &(cc->PinnedTTL)));
         IFOK(s, nats_JSONGetArrayStr(cjson, "priority_groups", (char ***)&(cc->PriorityGroups), &(cc->PriorityGroupsLen)));
     }
 
@@ -3226,7 +3226,7 @@ js_unmarshalConsumerInfo(nats_JSON *json, jsConsumerInfo **new_ci)
         {
             s = nats_JSONGetStr(priorityGroups[i], "group", (char**) &(ci->PriorityGroups[i].Group));
             IFOK(s, nats_JSONGetStr(priorityGroups[i], "pinned_client_id", (char**) &(ci->PriorityGroups[i].PinnedClientID)));
-            IFOK(s, nats_JSONGetLong(priorityGroups[i], "pinned_ts", &(ci->PriorityGroups[i].PinnedTS)));
+            IFOK(s, nats_JSONGetTime(priorityGroups[i], "pinned_ts", &(ci->PriorityGroups[i].PinnedTS)));
         }
         // Free the array of JSON objects that was allocated by nats_JSONGetArrayObject.
         NATS_FREE(priorityGroups);

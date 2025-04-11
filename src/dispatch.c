@@ -125,8 +125,8 @@ _updateFetchPinID(jsFetch *fetch, natsStatus fetchStatus, natsMsg *msg)
     }
 
     // If the message contains a "Nats-Pin-Id" header, use its value as the new pinID.
-    natsMsgHeader_Get(msg, STATUS_HDR, &val);
-    if (!nats_IsStringEmpty(val) && strcmp(val, jsConsumerPinIDHdr) == 0)
+    natsMsgHeader_Get(msg, jsConsumerPinIDHdr, &val);
+    if (!nats_IsStringEmpty(val))
     {
         NATS_FREE(fetch->pinID);
         fetch->pinID = NATS_STRDUP(val);

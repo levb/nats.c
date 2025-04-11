@@ -24,6 +24,7 @@
 #define STATUS_HDR                  "Status"
 #define DESCRIPTION_HDR             "Description"
 #define HDR_STATUS_NO_RESP_503      "503"
+#define HDR_STATUS_BAD_REQUEST      "400"
 #define HDR_STATUS_NOT_FOUND_404    "404"
 #define HDR_STATUS_TIMEOUT_408      "408"
 #define HDR_STATUS_MAX_BYTES_409    "409"

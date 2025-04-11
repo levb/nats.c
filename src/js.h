@@ -100,6 +100,9 @@ extern const int64_t    jsDefaultRequestWait;
 #define jsReplayOriginalStr "original"
 #define jsReplayInstantStr  "instant"
 
+#define jsPriorityPolicyPinnedClientStr "pinned_client"
+#define jsPriorityPolicyOverflowStr     "overflow"
+
 #define jsAckPrefix         "$JS.ACK."
 #define jsAckPrefixLen      (8)
 
