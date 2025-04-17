@@ -30213,19 +30213,17 @@ void test_JetStreamSubscribePullAsync_Unpin(void)
         s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
     testCond((s == NATS_OK) && (jerr == 0));
 
-    test("Ensure that both subs are receiving some messages: ");
-    nats_Sleep(500); // let the pinned sub get a few messages
+    test("Ensure that pinning changed, and all messages are delivered: ");
+    nats_Sleep(500); // should be enough even on windows!!!
     natsMutex_Lock(argsPinned.m);
     int previouslyPinnedSum = argsPinned.sum;
     natsMutex_Unlock(argsPinned.m);
     natsMutex_Lock(argsUnpinned.m);
     int newPinnedSum = argsUnpinned.sum;
     natsMutex_Unlock(argsUnpinned.m);
-
-    printf("<>/<> pinnedSum=%d, unpinnedSum=%d\n", pinnedSum, unpinnedSum);
-    printf("<>/<> previouslyPinnedSum=%d, newPinnedSum=%d\n", previouslyPinnedSum, newPinnedSum);
-
-    testCond((previouslyPinnedSum == pinnedSum) && (newPinnedSum > unpinnedSum));
+    testCond((previouslyPinnedSum >= pinnedSum) // the previously pinned may still receive a few messages that are queued for processing
+        && (newPinnedSum > 0) // "new" messages should go to the other sub
+        && ((previouslyPinnedSum + newPinnedSum) == 200)); // between the 2, they get all messages
 
     natsSubscription_Destroy(pinned);
     natsSubscription_Destroy(unpinned);
