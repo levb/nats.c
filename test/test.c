@@ -30214,13 +30214,17 @@ void test_JetStreamSubscribePullAsync_Unpin(void)
     testCond((s == NATS_OK) && (jerr == 0));
 
     test("Ensure that both subs are receiving some messages: ");
-    nats_Sleep(200); // let the pinned sub get a few messages
+    nats_Sleep(500); // let the pinned sub get a few messages
     natsMutex_Lock(argsPinned.m);
     int previouslyPinnedSum = argsPinned.sum;
     natsMutex_Unlock(argsPinned.m);
     natsMutex_Lock(argsUnpinned.m);
     int newPinnedSum = argsUnpinned.sum;
     natsMutex_Unlock(argsUnpinned.m);
+
+    printf("<>/<> pinnedSum=%d, unpinnedSum=%d\n", pinnedSum, unpinnedSum);
+    printf("<>/<> previouslyPinnedSum=%d, newPinnedSum=%d\n", previouslyPinnedSum, newPinnedSum);
+
     testCond((previouslyPinnedSum == pinnedSum) && (newPinnedSum > unpinnedSum));
 
     natsSubscription_Destroy(pinned);
