@@ -29113,7 +29113,7 @@ void test_JetStreamSubscribePull(void)
     fr.Expires = NATS_SECONDS_TO_NANOS(1);
     fr.Heartbeat = NATS_SECONDS_TO_NANOS(10);
     s = natsSubscription_FetchRequest(&list, sub, &fr);
-    testCond((s == NATS_ERR) && (strstr(nats_GetLastError(NULL), "too large") != NULL));
+    testCond((s == NATS_INVALID_ARG) && (strstr(nats_GetLastError(NULL), "too large") != NULL));
     nats_clearLastError();
 
     test("Check idle hearbeat: ");
@@ -29745,7 +29745,7 @@ void test_JetStreamSubscribePullAsync_MissedHB(void)
     jsOpts.PullSubscribeAsync.Heartbeat = 200;
 
     s = js_PullSubscribeAsync(&sub, js, "foo", "dur", _recvPullAsync, &args, &jsOpts, NULL, &jerr);
-    testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, NATS_ERR, 0, false));
+    testCond((s == NATS_OK) && _testBatchCompleted(&args, sub, NATS_INVALID_ARG, 0, false));
 
     test("Check the error to be 'heartbeat value too large': ");
     natsMutex_Lock(args.m);
