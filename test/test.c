@@ -30117,6 +30117,7 @@ void test_JetStreamSubscribePullAsync_Pinned(void)
     JS_TEARDOWN;
     _destroyDefaultThreadArgs(&argsPinned);
     _destroyDefaultThreadArgs(&argsUnpinned);
+    _destroyDefaultThreadArgs(&argsError);
 }
 
 void test_JetStreamSubscribePullAsync_Unpin(void)
