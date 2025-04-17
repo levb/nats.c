@@ -6835,6 +6835,28 @@ js_PullSubscribeAsync(natsSubscription **newsub, jsCtx *js, const char *subject,
 NATS_EXTERN natsStatus
 natsSubscription_FetchRequest(natsMsgList *list, natsSubscription *sub, jsFetchRequest *request);
 
+/** \brief Un-pins a consumer priority group from a specific subscription.
+ *
+ * Un-pins a consumer priority group from a specific subscription. This applies
+ * exclusively to js_PullSubscribeAsync subscriptions, and causes the consumer
+ * (on the server) to un-pin the currently pinned subscription in the priority
+ * group, and choose a new one. See
+ * https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-42.md#pinning
+ * for more details.
+ *
+ * @param js the pointer to the #jsCtx context.
+ * @param stream the name of the stream.
+ * @param consumer the name of the consumer.
+ * @param group the name of the group.
+ * @param opts the pointer to the #jsOptions object, possibly `NULL`.
+ * @param errCode the location where to store the JetStream specific error code,
+ * or `NULL` if not needed.
+ */
+
+NATS_EXTERN natsStatus
+js_UnpinConsumer(jsCtx *js, const char *stream, const char *consumer, const char *group,
+                  jsOptions *opts, jsErrCode *errCode);
+
 /** \brief Returns the jsConsumerInfo associated with this subscription.
  *
  * Returns the #jsConsumerInfo associated with this subscription.

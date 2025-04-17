@@ -30119,6 +30119,117 @@ void test_JetStreamSubscribePullAsync_Pinned(void)
     _destroyDefaultThreadArgs(&argsUnpinned);
 }
 
+void test_JetStreamSubscribePullAsync_Unpin(void)
+{
+    natsStatus s;
+    natsSubscription *pinned = NULL, *unpinned = NULL;
+    jsErrCode jerr = 0;
+    jsStreamConfig sc;
+    jsConsumerConfig cc;
+    jsOptions oPinned, oUnpinned;
+    jsSubOptions so;
+    struct threadArg argsPinned, argsUnpinned;
+    const char *groups[] = {"A"};
+
+    JS_SETUP(2, 11, 0);
+
+    s = _createDefaultThreadArgsForCbTests(&argsPinned);
+    IFOK(s, _createDefaultThreadArgsForCbTests(&argsUnpinned));
+    if (s != NATS_OK)
+        FAIL("Unable to setup test");
+
+    // The default state of both args is OK.
+    //
+    // .control = 0;      // don't ack, will be auto-ack
+    // .status = NATS_OK; // batch exit status will be here
+    // .msgReceived = false;
+    // .closed = false;
+    // .sum = 0;
+
+    test("Create the test stream: ");
+    jsStreamConfig_Init(&sc);
+    sc.Name = "TEST";
+    sc.Subjects = (const char *[1]){"foo"};
+    sc.SubjectsLen = 1;
+    s = js_AddStream(NULL, js, &sc, NULL, &jerr);
+    testCond((s == NATS_OK) && (jerr == 0));
+
+    test("Create the test consumer configured with 'pinned_client': ");
+    jsConsumerConfig_Init(&cc);
+    cc.Durable = "pinned";
+    cc.PriorityPolicy = jsPriorityPolicyPinnedClientStr;
+    cc.PinnedTTL = NATS_SECONDS_TO_NANOS(1);
+    cc.PriorityGroups = groups;
+    cc.PriorityGroupsLen = 1;
+    s = js_AddConsumer(NULL, js, "TEST", &cc, NULL, &jerr);
+    testCond((s == NATS_OK) && (jerr == 0));
+
+    test("Publish 100 messages: ");
+    for (int i = 0; (s == NATS_OK) && (i < 100); i++)
+        s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+    testCond((s == NATS_OK) && (jerr == 0));
+
+    test("Initialize shared options: ");
+    jsSubOptions_Init(&so);
+    so.Stream = "TEST";
+    so.Consumer = "pinned";
+    testCond(true);
+
+    test("Create pull subscription that will get pinned: ");
+    jsOptions_Init(&oPinned);
+    oPinned.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    oPinned.PullSubscribeAsync.CompleteHandlerClosure = &argsPinned;
+    oPinned.PullSubscribeAsync.Group = "A";
+    oPinned.PullSubscribeAsync.FetchSize = 5; // will slow it down, so we can easily unpin while still fetching
+    s = js_PullSubscribeAsync(&pinned, js, "foo", "pinned", _recvPullAsync, &argsPinned, &oPinned, &so, &jerr);
+    testCond((s == NATS_OK) && (pinned != NULL) && (jerr == 0));
+
+    test("Create a second pull subscription that will not get pinned: ");
+    jsOptions_Init(&oUnpinned);
+    oUnpinned.PullSubscribeAsync.CompleteHandler = _completePullAsync;
+    oUnpinned.PullSubscribeAsync.CompleteHandlerClosure = &argsUnpinned;
+    oUnpinned.PullSubscribeAsync.Group = "A";
+    s = js_PullSubscribeAsync(&unpinned, js, "foo", "pinned", _recvPullAsync, &argsUnpinned, &oUnpinned, &so, &jerr);
+    testCond((s == NATS_OK) && (unpinned != NULL) && (jerr == 0));
+
+    nats_Sleep(100); // let the pinned sub get a few messages
+
+    test("Ensure that the pinned sub received some, and the unpinned none: ");
+    natsMutex_Lock(argsPinned.m);
+    int pinnedSum = argsPinned.sum;
+    natsMutex_Unlock(argsPinned.m);
+    natsMutex_Lock(argsUnpinned.m);
+    int unpinnedSum = argsUnpinned.sum;
+    natsMutex_Unlock(argsUnpinned.m);
+    testCond((pinnedSum > 0) && (unpinnedSum == 0));
+
+    test("Unpin the pinned sub: ");
+    s = js_UnpinConsumer(js, "TEST", "pinned", "A", NULL, &jerr);
+    testCond((s == NATS_OK) && (jerr == 0));
+
+    test("Publish more messages in case we already drained everything: ");
+    for (int i = 0; (s == NATS_OK) && (i < 100); i++)
+        s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
+    testCond((s == NATS_OK) && (jerr == 0));
+
+    nats_Sleep(100); // let the pinned sub get a few messages
+
+    test("Ensure that both subs are receiving some messages: ");
+    natsMutex_Lock(argsPinned.m);
+    int previouslyPinnedSum = argsPinned.sum;
+    natsMutex_Unlock(argsPinned.m);
+    natsMutex_Lock(argsUnpinned.m);
+    int newPinnedSum = argsUnpinned.sum;
+    natsMutex_Unlock(argsUnpinned.m);
+    testCond((previouslyPinnedSum == pinnedSum) && (newPinnedSum > unpinnedSum));
+
+    natsSubscription_Destroy(pinned);
+    natsSubscription_Destroy(unpinned);
+    JS_TEARDOWN;
+    _destroyDefaultThreadArgs(&argsPinned);
+    _destroyDefaultThreadArgs(&argsUnpinned);
+}
+
 void test_JetStreamSubscribeHeadersOnly(void)
 {
     natsStatus          s;
