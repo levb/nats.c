@@ -30213,9 +30213,8 @@ void test_JetStreamSubscribePullAsync_Unpin(void)
         s = js_Publish(NULL, js, "foo", "hello", 5, NULL, &jerr);
     testCond((s == NATS_OK) && (jerr == 0));
 
-    nats_Sleep(100); // let the pinned sub get a few messages
-
     test("Ensure that both subs are receiving some messages: ");
+    nats_Sleep(200); // let the pinned sub get a few messages
     natsMutex_Lock(argsPinned.m);
     int previouslyPinnedSum = argsPinned.sum;
     natsMutex_Unlock(argsPinned.m);
